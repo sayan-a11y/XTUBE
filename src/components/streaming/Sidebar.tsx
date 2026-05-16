@@ -58,6 +58,7 @@ export function Sidebar() {
         <XtubeLogo
           size="md"
           showText={!sidebarCollapsed}
+          showLive={!sidebarCollapsed}
           onClick={handleLogoClick}
         />
       </div>

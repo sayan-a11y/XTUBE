@@ -191,12 +191,9 @@ export function AdminLoginScreen() {
             className="mb-8 flex flex-col items-center gap-4"
           >
             {/* Xtube Logo */}
-            <XtubeLogo size="xl" showText={false} />
+            <XtubeLogo size="xl" showText={true} showLive={true} />
 
             <div className="text-center">
-              <h1 className="text-2xl font-extrabold">
-                <span className="text-white">X</span><span className="text-[#FF0000]">tube</span>
-              </h1>
               <motion.p
                 animate={{
                   textShadow: [

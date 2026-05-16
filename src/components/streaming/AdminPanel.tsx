@@ -214,11 +214,8 @@ function MobileBlockScreen({ onReturn }: { onReturn: () => void }) {
       <div className="relative z-10 flex flex-col items-center gap-6 px-8 text-center">
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <XtubeLogo size="lg" showText={false} />
-          <span className="text-2xl font-extrabold">
-            <span className="text-white">X</span><span className="text-[#FF0000]">tube</span>
-            <span className="text-xtube-text-secondary">.Admin</span>
-          </span>
+          <XtubeLogo size="lg" showText={true} showLive={true} />
+          <span className="text-lg font-medium text-xtube-text-secondary">.Admin</span>
         </div>
 
         {/* Lock Icon */}
@@ -806,7 +803,8 @@ export function AdminPanel() {
                 transition={{ delay: 0.4, duration: 0.3 }}
                 className="text-lg font-extrabold text-white"
               >
-                <span className="text-white">X</span><span className="text-[#FF0000]">tube</span>{' '}
+                <span className="text-white">Xtube</span>{' '}
+                <span className="text-[#FF0000]">Live</span>{' '}
                 <span className="text-xtube-text-secondary font-medium">Admin Access</span>
               </motion.span>
             </motion.div>
@@ -871,11 +869,8 @@ export function AdminPanel() {
                         transition={{ duration: 0.15 }}
                         className="flex items-center gap-2.5"
                       >
-                        <XtubeLogo size="sm" showText={false} />
-                        <span className="text-sm font-extrabold">
-                          <span className="text-white">X</span><span className="text-[#FF0000]">tube</span>
-                          <span className="text-xtube-text-secondary font-medium">.Admin</span>
-                        </span>
+                        <XtubeLogo size="sm" showText={true} showLive={false} />
+                        <span className="text-xs font-medium text-white/30">.Admin</span>
                       </motion.div>
                     ) : (
                       <motion.div

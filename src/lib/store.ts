@@ -43,6 +43,8 @@ interface AppState {
   adminSection: AdminSection
   adminSidebarCollapsed: boolean
   adminUnlocking: boolean // cinematic animation state
+  showAdminModal: boolean // login modal overlay
+  _adminClickTimer: ReturnType<typeof setTimeout> | null // internal timer ref
 
   // Video Player
   theaterMode: boolean
@@ -59,6 +61,7 @@ interface AppState {
   setAdminLoggedIn: (loggedIn: boolean) => void
   setAdminSection: (section: AdminSection) => void
   setAdminSidebarCollapsed: (collapsed: boolean) => void
+  setShowAdminModal: (show: boolean) => void
   setTheaterMode: (mode: boolean) => void
   navigateToVideo: (videoId: string) => void
   goBack: () => void
@@ -84,6 +87,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   adminSection: 'dashboard',
   adminSidebarCollapsed: false,
   adminUnlocking: false,
+  showAdminModal: false,
 
   // Video Player
   theaterMode: false,
@@ -104,6 +108,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
 
+  // Track click reset timer to avoid stacking timeouts
+  _adminClickTimer: null as ReturnType<typeof setTimeout> | null,
+
   incrementAdminClick: (isDesktopOrTablet: boolean) => {
     // Mobile users can NEVER unlock admin - just navigate home
     if (!isDesktopOrTablet) {
@@ -112,27 +119,39 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     const state = get()
-    // If already unlocked or unlocking, do nothing
-    if (state.adminUnlocked || state.adminUnlocking) return
+    // If already unlocked, just go home
+    if (state.adminUnlocked) {
+      set({ currentView: 'home', selectedVideoId: null })
+      return
+    }
+    // If modal is already open, don't process more clicks
+    if (state.showAdminModal || state.adminUnlocking) return
 
     const newCount = state.adminClickCount + 1
 
     if (newCount >= 7) {
-      // Start cinematic unlock animation
+      // 7th click: open admin login modal
       set({ adminClickCount: 0, adminUnlocking: true })
 
-      // After animation completes, unlock admin
+      // Short cinematic animation then show modal
       setTimeout(() => {
-        set({ adminUnlocking: false, adminUnlocked: true })
-      }, 1000)
+        set({ adminUnlocking: false, showAdminModal: true })
+      }, 600)
     } else {
       set({ adminClickCount: newCount })
-      // Reset after 3 seconds if not completed (anti-spam / accidental)
-      setTimeout(() => {
-        if (get().adminClickCount < 7 && !get().adminUnlocked) {
-          set({ adminClickCount: 0 })
+
+      // Clear existing timer
+      if (state._adminClickTimer) {
+        clearTimeout(state._adminClickTimer)
+      }
+
+      // Reset after 5 seconds if not completed
+      const timer = setTimeout(() => {
+        if (get().adminClickCount < 7 && !get().adminUnlocked && !get().showAdminModal) {
+          set({ adminClickCount: 0, _adminClickTimer: null })
         }
-      }, 3000)
+      }, 5000)
+      set({ _adminClickTimer: timer })
     }
   },
 
@@ -143,6 +162,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAdminSection: (section) => set({ adminSection: section }),
 
   setAdminSidebarCollapsed: (collapsed) => set({ adminSidebarCollapsed: collapsed }),
+
+  setShowAdminModal: (show) => set({ showAdminModal: show }),
 
   setTheaterMode: (mode) => set({ theaterMode: mode }),
 

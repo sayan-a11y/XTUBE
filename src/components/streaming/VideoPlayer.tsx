@@ -769,7 +769,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
           </motion.button>
 
           {/* Logo */}
-          <XtubeLogo size="sm" showText={true} />
+          <XtubeLogo size="sm" showText={true} showLive={true} />
 
           {/* Search Bar */}
           <div className="ml-2 hidden md:flex">

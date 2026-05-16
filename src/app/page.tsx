@@ -15,6 +15,7 @@ import { AdminPanel } from '@/components/streaming/AdminPanel'
 import { Flame, Sparkles, Clock, Search, Film, History } from 'lucide-react'
 import { AgeVerificationPopup } from '@/components/streaming/AgeVerificationPopup'
 import { XtubeLogo } from '@/components/shared/XtubeLogo'
+import { AdminLoginModal } from '@/components/shared/AdminLoginModal'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -634,6 +635,7 @@ export default function XtubeHome() {
                     <XtubeLogo
                       size="sm"
                       showText={true}
+                      showLive={true}
                       onClick={() => {
                         // Mobile: only refresh to home, NEVER unlock admin
                         useAppStore.getState().incrementAdminClick(false)
@@ -646,6 +648,7 @@ export default function XtubeHome() {
                     <XtubeLogo
                       size="sm"
                       showText={true}
+                      showLive={true}
                     />
                   </div>
 
@@ -689,6 +692,9 @@ export default function XtubeHome() {
 
       {/* Age Verification Popup */}
       <AgeVerificationPopup />
+
+      {/* Admin Login Modal (triggered by 7th logo click on desktop) */}
+      <AdminLoginModal />
 
       {/* Admin Panel Overlay */}
       <AdminPanel />

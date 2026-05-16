@@ -75,3 +75,55 @@ Stage Summary:
 - No scroll conflicts during progress bar dragging
 - Stale closure bug fixed with pendingSeekTimeRef
 - All existing premium UI preserved
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Replace old Xtube logo with premium SVG design, implement click system, admin login modal
+
+Work Log:
+- Analyzed reference image using VLM — design is: red circle with letter + white brand name + red "Live" text
+- Completely rewrote XtubeLogo.tsx with new premium SVG design:
+  - SVG-based red circle icon with 3D gradient + highlight overlay
+  - Animated glow ring when admin click counter is active
+  - White "Xtube" + red "Live" text matching reference style
+  - Added `showLive` prop (defaults true)
+  - Added `xs` size variant for compact placements
+  - Responsive scaling across all sizes (xs/sm/md/lg/xl)
+- Updated store (store.ts) with new admin click system:
+  - `showAdminModal` state for login modal overlay
+  - `_adminClickTimer` ref to prevent stacking timeouts
+  - 5-second inactivity reset (was 3s)
+  - Clicks 1-6 navigate to home (page refresh)
+  - 7th click triggers cinematic unlock then opens modal
+  - Mobile ALWAYS refreshes only — admin NEVER accessible on mobile
+  - Already-unlocked state: just navigates home
+- Created AdminLoginModal.tsx (premium dark glass UI):
+  - Premium glass card with red glow border
+  - Animated background orbs
+  - Admin ID + Password fields
+  - Rate limiting: 5 attempts per minute (in-memory)
+  - Shake animation on invalid credentials
+  - Escape key + backdrop click to close
+  - Focus trap + body scroll lock
+  - Session token storage
+- Updated admin-auth API with:
+  - IP-based rate limiting (5 req/min)
+  - 1-second artificial delay on failed auth (anti brute-force)
+  - Cryptographically secure token generation
+- Updated all logo placements:
+  - page.tsx: header mobile + desktop with showLive
+  - Sidebar.tsx: sidebar logo with showLive
+  - VideoPlayer.tsx: top bar logo with showLive
+  - AdminPanel.tsx: all logo instances updated, hardcoded "Xtube" → XtubeLogo component
+  - AdminLoginScreen.tsx: logo updated with showLive
+- Lint: 0 errors, 3 pre-existing warnings in unrelated file
+- Dev server: 200 OK, compiles successfully
+
+Stage Summary:
+- New premium "Xtube Live" SVG logo replaces old design
+- Logo visible everywhere: navbar, sidebar, video player, admin panel, login screens
+- Secret 7-click admin access on desktop/tablet only
+- Premium dark glass admin login modal with rate limiting
+- Mobile users can NEVER access admin (always just refreshes)
+- All existing layouts and UI preserved
