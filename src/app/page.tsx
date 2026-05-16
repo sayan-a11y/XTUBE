@@ -6,7 +6,8 @@ import { useAppStore } from '@/lib/store'
 import { Sidebar } from '@/components/streaming/Sidebar'
 import { BottomNav } from '@/components/streaming/BottomNav'
 import { SearchBar } from '@/components/streaming/SearchBar'
-import { HeroBanner } from '@/components/streaming/HeroBanner'
+import { HeroAdsSlider } from '@/components/streaming/HeroAdsSlider'
+import { FooterAds } from '@/components/streaming/FooterAds'
 import { CategorySection } from '@/components/streaming/CategorySection'
 import { VideoGrid } from '@/components/streaming/VideoGrid'
 import { VideoPlayer } from '@/components/streaming/VideoPlayer'
@@ -55,6 +56,36 @@ interface AdData {
   createdAt: string
 }
 
+interface HeroAdData {
+  id: string
+  title: string
+  description?: string
+  category?: string
+  mediaUrl: string
+  thumbnailUrl?: string
+  adType: string
+  mediaFormat: string
+  isActive: boolean
+  displayOrder: number
+  impressions: number
+  clicks: number
+  ctr: number
+}
+
+interface FooterAdData {
+  id: string
+  title: string
+  mediaUrl: string
+  thumbnailUrl?: string
+  adType: string
+  mediaFormat: string
+  linkUrl?: string
+  isActive: boolean
+  impressions: number
+  clicks: number
+  ctr: number
+}
+
 interface CommentData {
   id: string
   content: string
@@ -84,6 +115,8 @@ export default function XtubeHome() {
   const [videos, setVideos] = useState<VideoData[]>([])
   const [categories, setCategories] = useState<CategoryData[]>([])
   const [ads, setAds] = useState<AdData[]>([])
+  const [heroAds, setHeroAds] = useState<HeroAdData[]>([])
+  const [footerAds, setFooterAds] = useState<FooterAdData[]>([])
   const [currentVideo, setCurrentVideo] = useState<VideoData | null>(null)
   const [videoComments, setVideoComments] = useState<CommentData[]>([])
   const [loading, setLoading] = useState(true)
@@ -150,18 +183,46 @@ export default function XtubeHome() {
     }
   }, [])
 
+  // ─── Fetch Hero Ads ────────────────────────────────────────────────────────
+
+  const fetchHeroAds = useCallback(async () => {
+    try {
+      const res = await fetch('/api/hero-ads?active=true')
+      if (res.ok) {
+        const data = await res.json()
+        setHeroAds(data.heroAds || [])
+      }
+    } catch (err) {
+      console.error('Error fetching hero ads:', err)
+    }
+  }, [])
+
+  // ─── Fetch Footer Ads ─────────────────────────────────────────────────────
+
+  const fetchFooterAds = useCallback(async () => {
+    try {
+      const res = await fetch('/api/footer-ads?active=true')
+      if (res.ok) {
+        const data = await res.json()
+        setFooterAds(data.footerAds || [])
+      }
+    } catch (err) {
+      console.error('Error fetching footer ads:', err)
+    }
+  }, [])
+
   // ─── Load initial data ─────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!seeded) return
     let cancelled = false
     const loadData = async () => {
-      await Promise.all([fetchVideos(), fetchCategories(), fetchAds()])
+      await Promise.all([fetchVideos(), fetchCategories(), fetchAds(), fetchHeroAds(), fetchFooterAds()])
       if (!cancelled) setLoading(false)
     }
     loadData()
     return () => { cancelled = true }
-  }, [seeded, fetchVideos, fetchCategories, fetchAds])
+  }, [seeded, fetchVideos, fetchCategories, fetchAds, fetchHeroAds, fetchFooterAds])
 
   // ─── Load video when selected ──────────────────────────────────────────────
 
@@ -264,28 +325,29 @@ export default function XtubeHome() {
         }))
     : []
 
-  // ─── Prepare hero banners ──────────────────────────────────────────────────
+  // ─── Prepare hero ads for slider ──────────────────────────────────────────
 
-  const heroBanners = trendingVideos.slice(0, 5).map((v) => ({
-    id: v.id,
-    title: v.title,
-    description: v.description || `Watch ${v.title} on Xtube in stunning quality.`,
-    thumbnail: v.thumbnail,
-    category: v.category,
-    isAd: false,
+  const heroAdsSliderData = heroAds.map((ad) => ({
+    id: ad.id,
+    title: ad.title,
+    description: ad.description || undefined,
+    category: ad.category || undefined,
+    mediaUrl: ad.mediaUrl,
+    thumbnailUrl: ad.thumbnailUrl || undefined,
+    adType: ad.adType as 'image' | 'video',
+    mediaFormat: ad.mediaFormat,
   }))
 
-  if (ads.length > 0) {
-    const heroAd = ads[0]
-    heroBanners.splice(2, 0, {
-      id: `ad-${heroAd.id}`,
-      title: heroAd.title,
-      description: heroAd.linkUrl || 'Sponsored content',
-      thumbnail: heroAd.imageUrl,
-      category: 'Sponsored',
-      isAd: true,
-    })
-  }
+  // Prepare footer ads data
+  const footerAdsData = footerAds.map((ad) => ({
+    id: ad.id,
+    title: ad.title,
+    mediaUrl: ad.mediaUrl,
+    thumbnailUrl: ad.thumbnailUrl || undefined,
+    adType: ad.adType as 'image' | 'video' | 'gif' | 'html5',
+    mediaFormat: ad.mediaFormat,
+    linkUrl: ad.linkUrl || undefined,
+  }))
 
   // ─── Get videos for specific category ──────────────────────────────────────
 
@@ -318,7 +380,8 @@ export default function XtubeHome() {
 
     return (
     <div className="space-y-6 pb-20 md:pb-8">
-      <HeroBanner banners={heroBanners} />
+      {/* Hero Ads Slider - Only hero ads, no trending videos */}
+      <HeroAdsSlider ads={heroAdsSliderData} />
       <section className="px-3 md:px-5">
         <CategorySection
           title="🔥 Trending Now"
@@ -353,6 +416,10 @@ export default function XtubeHome() {
           />
         </section>
       ))}
+      {/* Footer Ads Section */}
+      <div className="mt-6">
+        <FooterAds ads={footerAdsData} />
+      </div>
     </div>
     )
   }
