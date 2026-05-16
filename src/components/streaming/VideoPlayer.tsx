@@ -340,7 +340,110 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
     }
   }, [])
 
+  // ─── Progress bar unified pointer/touch scrubbing ─────────────────────────
+  // Uses pointer events (works for mouse + touch + pen) with touch fallback
+  const seekPreviewRef = useRef<number | null>(null) // RAF-throttled visual position
+  const isDraggingRef = useRef(false) // ref for instant access in RAF
+  const progressRectRef = useRef<DOMRect | null>(null) // cached rect for performance
+
+  const getPointerPosition = useCallback((clientX: number): number => {
+    const rect = progressRectRef.current
+    if (!rect) return 0
+    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+  }, [])
+
+  const startDragSeek = useCallback((clientX: number) => {
+    const vid = videoRef.current
+    const bar = progressRef.current
+    if (!vid || !bar) return
+
+    isDraggingRef.current = true
+    setIsDragging(true)
+
+    // Cache the bounding rect once at drag start (avoids layout thrashing)
+    progressRectRef.current = bar.getBoundingClientRect()
+    const pos = getPointerPosition(clientX)
+
+    // Instant visual feedback
+    setCurrentTime(pos * vid.duration)
+    setHoverTime(pos * vid.duration)
+    setHoverX(clientX - progressRectRef.current.left)
+
+    // Pause video during drag for smooth scrubbing
+    const wasPlaying = !vid.paused
+    if (wasPlaying) vid.pause()
+
+    // Store wasPlaying for resume on release
+    ;(vid as any)._wasPlayingBeforeDrag = wasPlaying
+  }, [getPointerPosition])
+
+  const moveDragSeek = useCallback((clientX: number) => {
+    if (!isDraggingRef.current) return
+    const vid = videoRef.current
+    const rect = progressRectRef.current
+    if (!vid || !rect) return
+
+    const pos = getPointerPosition(clientX)
+    const newTime = pos * vid.duration
+
+    // Use RAF to throttle visual updates to 60fps
+    if (seekPreviewRef.current !== null) cancelAnimationFrame(seekPreviewRef.current)
+    seekPreviewRef.current = requestAnimationFrame(() => {
+      setCurrentTime(newTime)
+      setHoverTime(newTime)
+      setHoverX(clientX - rect.left)
+    })
+  }, [getPointerPosition])
+
+  const endDragSeek = useCallback(() => {
+    if (!isDraggingRef.current) return
+    const vid = videoRef.current
+    if (!vid) return
+
+    isDraggingRef.current = false
+    setIsDragging(false)
+    setHoverTime(null)
+
+    // Flush any pending RAF
+    if (seekPreviewRef.current !== null) {
+      cancelAnimationFrame(seekPreviewRef.current)
+      seekPreviewRef.current = null
+    }
+
+    // Actually seek the video to the final position
+    vid.currentTime = currentTime
+
+    // Resume playback if it was playing before drag
+    if ((vid as any)._wasPlayingBeforeDrag) {
+      vid.play().catch(() => {})
+      delete (vid as any)._wasPlayingBeforeDrag
+    }
+  }, [currentTime])
+
+  // Pointer events handler (unified mouse + touch + pen)
+  const handleProgressPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // Capture pointer so we get move/up even outside the element
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    startDragSeek(e.clientX)
+  }, [startDragSeek])
+
+  const handleProgressPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) return
+    e.preventDefault()
+    moveDragSeek(e.clientX)
+  }, [moveDragSeek])
+
+  const handleProgressPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) return
+    e.preventDefault()
+    endDragSeek()
+  }, [endDragSeek])
+
+  // Legacy mouse click seek (for simple clicks, not drags)
   const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (isDraggingRef.current) return // Don't seek if we just finished dragging
     const vid = videoRef.current
     const bar = progressRef.current
     if (!vid || !bar) return
@@ -348,29 +451,6 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
     const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
     vid.currentTime = pos * duration
   }, [duration])
-
-  // Progress bar drag scrubbing
-  const handleProgressMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    setIsDragging(true)
-    const vid = videoRef.current
-    const bar = progressRef.current
-    if (!vid || !bar) return
-    const rect = bar.getBoundingClientRect()
-    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-    vid.currentTime = pos * vid.duration
-
-    const onMouseMove = (ev: MouseEvent) => {
-      const p = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width))
-      vid.currentTime = p * vid.duration
-    }
-    const onMouseUp = () => {
-      setIsDragging(false)
-      document.removeEventListener('mousemove', onMouseMove)
-      document.removeEventListener('mouseup', onMouseUp)
-    }
-    document.addEventListener('mousemove', onMouseMove)
-    document.addEventListener('mouseup', onMouseUp)
-  }, [])
 
   // Progress bar hover preview
   const handleProgressHover = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
