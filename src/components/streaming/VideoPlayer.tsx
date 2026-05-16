@@ -345,6 +345,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
   const seekPreviewRef = useRef<number | null>(null) // RAF-throttled visual position
   const isDraggingRef = useRef(false) // ref for instant access in RAF
   const progressRectRef = useRef<DOMRect | null>(null) // cached rect for performance
+  const pendingSeekTimeRef = useRef<number>(0) // tracks final seek position during drag (avoids stale closure)
 
   const getPointerPosition = useCallback((clientX: number): number => {
     const rect = progressRectRef.current
@@ -365,8 +366,10 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
     const pos = getPointerPosition(clientX)
 
     // Instant visual feedback
-    setCurrentTime(pos * vid.duration)
-    setHoverTime(pos * vid.duration)
+    const newTime = pos * vid.duration
+    setCurrentTime(newTime)
+    pendingSeekTimeRef.current = newTime
+    setHoverTime(newTime)
     setHoverX(clientX - progressRectRef.current.left)
 
     // Pause video during drag for smooth scrubbing
@@ -385,6 +388,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
 
     const pos = getPointerPosition(clientX)
     const newTime = pos * vid.duration
+    pendingSeekTimeRef.current = newTime
 
     // Use RAF to throttle visual updates to 60fps
     if (seekPreviewRef.current !== null) cancelAnimationFrame(seekPreviewRef.current)
@@ -410,15 +414,15 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
       seekPreviewRef.current = null
     }
 
-    // Actually seek the video to the final position
-    vid.currentTime = currentTime
+    // Actually seek the video to the final position using ref (avoids stale closure)
+    vid.currentTime = pendingSeekTimeRef.current
 
     // Resume playback if it was playing before drag
     if ((vid as any)._wasPlayingBeforeDrag) {
       vid.play().catch(() => {})
       delete (vid as any)._wasPlayingBeforeDrag
     }
-  }, [currentTime])
+  }, [])
 
   // Pointer events handler (unified mouse + touch + pen)
   const handleProgressPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -440,17 +444,6 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
     e.preventDefault()
     endDragSeek()
   }, [endDragSeek])
-
-  // Legacy mouse click seek (for simple clicks, not drags)
-  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (isDraggingRef.current) return // Don't seek if we just finished dragging
-    const vid = videoRef.current
-    const bar = progressRef.current
-    if (!vid || !bar) return
-    const rect = bar.getBoundingClientRect()
-    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-    vid.currentTime = pos * duration
-  }, [duration])
 
   // Progress bar hover preview
   const handleProgressHover = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -578,7 +571,11 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
     const vid = videoRef.current
     if (!vid) return
 
-    const onTimeUpdate = () => setCurrentTime(vid.currentTime)
+    const onTimeUpdate = () => {
+      // Don't let timeupdate overwrite our manual drag position
+      if (isDraggingRef.current) return
+      setCurrentTime(vid.currentTime)
+    }
     const onLoadedMetadata = () => setDuration(vid.duration)
     const onPlay = () => setIsPlaying(true)
     const onPause = () => setIsPlaying(false)
@@ -697,6 +694,15 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
     }
     document.addEventListener('fullscreenchange', handleFullscreenChange)
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  // Cleanup RAF on unmount
+  useEffect(() => {
+    return () => {
+      if (seekPreviewRef.current !== null) {
+        cancelAnimationFrame(seekPreviewRef.current)
+      }
+    }
   }, [])
 
   // Close menus when clicking outside
@@ -945,31 +951,43 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
                   {/* ─── Progress Bar ──────────────────────────────────── */}
                   <div
                     ref={progressRef}
-                    className="group/progress mb-2 sm:mb-3 h-1 sm:h-1.5 cursor-pointer rounded-full bg-white/20 transition-all hover:h-2 sm:hover:h-2.5 relative"
-                    onClick={handleSeek}
-                    onMouseDown={handleProgressMouseDown}
-                    onMouseMove={handleProgressHover}
-                    onMouseLeave={() => setHoverTime(null)}
+                    className="group/progress mb-2 sm:mb-3 relative cursor-pointer"
+                    onPointerDown={handleProgressPointerDown}
+                    onPointerMove={handleProgressPointerMove}
+                    onPointerUp={handleProgressPointerUp}
+                    onPointerCancel={handleProgressPointerUp}
+                    onMouseMove={!isDragging ? handleProgressHover : undefined}
+                    onMouseLeave={() => { if (!isDragging) setHoverTime(null) }}
+                    style={{ touchAction: 'none' }}
                     role="slider"
                     aria-label="Video progress"
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-valuenow={Math.round(progress)}
                   >
-                    {/* Buffered */}
+                    {/* Expanded touch target (invisible, easier to grab on mobile) */}
+                    <div className="absolute -top-3 -bottom-3 left-0 right-0" />
+                    {/* Track background */}
+                    <div className="h-1 sm:h-1.5 rounded-full bg-white/20 transition-all group-hover/progress:h-2 sm:group-hover/progress:h-2.5">
+                      {/* Buffered */}
+                      <div
+                        className="absolute top-0 left-0 h-full rounded-full bg-white/20 transition-[width] duration-150"
+                        style={{ width: `${bufferedProgress}%` }}
+                      />
+                      {/* Progress fill */}
+                      <div
+                        className="absolute top-0 left-0 h-full rounded-full bg-xtube-red"
+                        style={{ width: `${progress}%`, transition: isDragging ? 'none' : 'width 75ms' }}
+                      />
+                    </div>
+                    {/* Scrubber thumb - enlarged on drag + mobile */}
                     <div
-                      className="absolute top-0 left-0 h-full rounded-full bg-white/20 transition-[width] duration-150"
-                      style={{ width: `${bufferedProgress}%` }}
-                    />
-                    {/* Progress fill */}
-                    <div
-                      className="absolute top-0 left-0 h-full rounded-full bg-xtube-red transition-[width] duration-75"
-                      style={{ width: `${progress}%` }}
-                    />
-                    {/* Animated scrubber dot */}
-                    <div
-                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3 w-3 sm:h-4 sm:w-4 rounded-full bg-xtube-red opacity-0 shadow-[0_0_10px_rgba(229,9,20,0.5)] transition-opacity group-hover/progress:opacity-100 group-hover/progress:scale-110"
-                      style={{ left: `${progress}%` }}
+                      className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full bg-xtube-red shadow-[0_0_10px_rgba(229,9,20,0.5)] transition-transform duration-150 ${
+                        isDragging
+                          ? 'h-5 w-5 sm:h-6 sm:w-6 scale-100 shadow-[0_0_16px_rgba(229,9,20,0.7)]'
+                          : 'h-3 w-3 sm:h-4 sm:w-4 opacity-0 group-hover/progress:opacity-100 group-hover/progress:scale-110'
+                      }`}
+                      style={{ left: `${progress}%`, transform: 'translate(-50%, -50%)' + (isDragging ? ' scale(1)' : ''), willChange: 'left' }}
                     />
                     {/* Hover time tooltip */}
                     {hoverTime !== null && (
