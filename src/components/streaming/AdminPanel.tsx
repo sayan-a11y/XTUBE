@@ -44,6 +44,7 @@ import { PostRollAdsPage } from '@/components/admin/PostRollAdsPage'
 import { OverlayAdsPage } from '@/components/admin/OverlayAdsPage'
 import { PopupAdsPage } from '@/components/admin/PopupAdsPage'
 import { BannerAdsPage } from '@/components/admin/BannerAdsPage'
+import { HeroFooterAdsPage } from '@/components/admin/HeroFooterAdsPage'
 
 // ─── Custom Hook: Tablet Detection ────────────────────────────────────────────
 
@@ -616,6 +617,8 @@ export function AdminPanel() {
         return <PopupAdsPage />
       case 'banner-ads':
         return <BannerAdsPage />
+      case 'hero-footer-ads':
+        return <HeroFooterAdsPage />
       case 'catalog':
         return <CatalogPage />
       case 'analytics':
