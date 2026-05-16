@@ -36,6 +36,7 @@ interface AppState {
   adminClickCount: number
   adminSection: AdminSection
   adminSidebarCollapsed: boolean
+  adminUnlocking: boolean // cinematic animation state
 
   // Video Player
   theaterMode: boolean
@@ -47,7 +48,7 @@ interface AppState {
   setSearchQuery: (query: string) => void
   toggleSidebar: () => void
   setMobileMenuOpen: (open: boolean) => void
-  incrementAdminClick: () => void
+  incrementAdminClick: (isDesktopOrTablet: boolean) => void
   setAdminUnlocked: (unlocked: boolean) => void
   setAdminSection: (section: AdminSection) => void
   setAdminSidebarCollapsed: (collapsed: boolean) => void
@@ -74,6 +75,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   adminClickCount: 0,
   adminSection: 'dashboard',
   adminSidebarCollapsed: false,
+  adminUnlocking: false,
 
   // Video Player
   theaterMode: false,
@@ -94,18 +96,35 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
 
-  incrementAdminClick: () => {
-    const newCount = get().adminClickCount + 1
+  incrementAdminClick: (isDesktopOrTablet: boolean) => {
+    // Mobile users can NEVER unlock admin - just navigate home
+    if (!isDesktopOrTablet) {
+      set({ adminClickCount: 0, currentView: 'home', selectedVideoId: null })
+      return
+    }
+
+    const state = get()
+    // If already unlocked or unlocking, do nothing
+    if (state.adminUnlocked || state.adminUnlocking) return
+
+    const newCount = state.adminClickCount + 1
+
     if (newCount >= 7) {
-      set({ adminClickCount: 0, adminUnlocked: true })
+      // Start cinematic unlock animation
+      set({ adminClickCount: 0, adminUnlocking: true })
+
+      // After animation completes, unlock admin
+      setTimeout(() => {
+        set({ adminUnlocking: false, adminUnlocked: true })
+      }, 1000)
     } else {
       set({ adminClickCount: newCount })
-      // Reset after 2 seconds if not completed
+      // Reset after 3 seconds if not completed (anti-spam / accidental)
       setTimeout(() => {
-        if (get().adminClickCount < 7) {
+        if (get().adminClickCount < 7 && !get().adminUnlocked) {
           set({ adminClickCount: 0 })
         }
-      }, 2000)
+      }, 3000)
     }
   },
 

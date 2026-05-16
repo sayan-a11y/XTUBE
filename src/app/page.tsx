@@ -562,7 +562,10 @@ export default function XtubeHome() {
                 <div className="flex items-center gap-3">
                   {/* Mobile Logo */}
                   <button
-                    onClick={() => useAppStore.getState().incrementAdminClick()}
+                    onClick={() => {
+                      // Mobile logo: only refresh to home, NEVER unlock admin
+                      useAppStore.getState().incrementAdminClick(false)
+                    }}
                     className="flex items-center gap-2 md:hidden"
                     aria-label="Xtube"
                   >

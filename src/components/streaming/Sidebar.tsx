@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Home,
@@ -32,7 +33,17 @@ const navItems: NavItem[] = [
 ]
 
 export function Sidebar() {
-  const { currentView, sidebarCollapsed, setView, toggleSidebar, incrementAdminClick } = useAppStore()
+  const { currentView, sidebarCollapsed, setView, toggleSidebar, incrementAdminClick, adminClickCount } = useAppStore()
+
+  const handleLogoClick = useCallback(() => {
+    // Sidebar is only rendered on md+ (desktop/tablet), so always pass true
+    incrementAdminClick(true)
+    // First 6 clicks: navigate to home (smooth refresh)
+    const store = useAppStore.getState()
+    if (!store.adminUnlocked && !store.adminUnlocking) {
+      setView('home')
+    }
+  }, [incrementAdminClick, setView])
 
   return (
     <motion.aside
@@ -44,13 +55,23 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex h-14 items-center border-b border-xtube-border px-3">
         <button
-          onClick={incrementAdminClick}
+          onClick={handleLogoClick}
           className="flex items-center gap-3 overflow-hidden focus:outline-none"
           aria-label="Xtube Home"
         >
-          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-xtube-red">
+          <motion.div
+            animate={adminClickCount > 0 ? {
+              boxShadow: [
+                '0 0 8px rgba(229,9,20,0.2)',
+                '0 0 16px rgba(229,9,20,0.4)',
+                '0 0 8px rgba(229,9,20,0.2)',
+              ],
+            } : {}}
+            transition={{ duration: 0.5, repeat: adminClickCount > 0 ? Infinity : 0 }}
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-xtube-red"
+          >
             <span className="text-xs font-bold text-white">X</span>
-          </div>
+          </motion.div>
           <AnimatePresence>
             {!sidebarCollapsed && (
               <motion.span

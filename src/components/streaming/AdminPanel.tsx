@@ -408,6 +408,7 @@ function SidebarNavItem({
 export function AdminPanel() {
   const {
     adminUnlocked,
+    adminUnlocking,
     adminSection,
     adminSidebarCollapsed,
     setAdminSection,
@@ -711,8 +712,81 @@ export function AdminPanel() {
   // ─── Main Render ────────────────────────────────────────────────────────
 
   return (
-    <AnimatePresence>
-      {adminUnlocked && (
+    <>
+      {/* ─── Cinematic Unlock Animation Overlay ─── */}
+      <AnimatePresence>
+        {adminUnlocking && (
+          <motion.div
+            key="admin-unlock-animation"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black"
+          >
+            {/* Red glow pulse */}
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{
+                scale: [0, 1.5, 2],
+                opacity: [0, 0.6, 0],
+              }}
+              transition={{ duration: 0.9, ease: 'easeOut' }}
+              className="absolute h-[400px] w-[400px] rounded-full bg-xtube-red blur-[120px]"
+            />
+            {/* Secondary glow ring */}
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{
+                scale: [0, 1.2, 1.8],
+                opacity: [0, 0.3, 0],
+              }}
+              transition={{ duration: 1.0, ease: 'easeOut', delay: 0.1 }}
+              className="absolute h-[600px] w-[600px] rounded-full border border-xtube-red/30"
+            />
+            {/* Logo reveal */}
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.15 }}
+              className="relative z-10 flex flex-col items-center gap-4"
+            >
+              <motion.div
+                animate={{
+                  boxShadow: [
+                    '0 0 20px rgba(229,9,20,0.3)',
+                    '0 0 60px rgba(229,9,20,0.6)',
+                    '0 0 100px rgba(229,9,20,0.3)',
+                  ],
+                }}
+                transition={{ duration: 0.8, ease: 'easeInOut' }}
+                className="flex h-16 w-16 items-center justify-center rounded-2xl bg-xtube-red"
+              >
+                <span className="text-2xl font-black text-white">X</span>
+              </motion.div>
+              <motion.span
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.3 }}
+                className="text-lg font-bold text-white"
+              >
+                Admin Access
+              </motion.span>
+            </motion.div>
+            {/* Dark fade overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.7, duration: 0.3 }}
+              className="absolute inset-0 bg-black"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Admin Panel ─── */}
+      <AnimatePresence>
+        {adminUnlocked && (
         <motion.div
           key="admin-panel"
           initial={{ x: '100%', opacity: 0 }}
@@ -928,6 +1002,7 @@ export function AdminPanel() {
           )}
         </motion.div>
       )}
-    </AnimatePresence>
+      </AnimatePresence>
+    </>
   )
 }
