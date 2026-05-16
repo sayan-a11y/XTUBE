@@ -128,6 +128,26 @@ model History {
   @@unique([userId, videoId])
 }
 
+model HeroAd {
+  id           String   @id @default(cuid())
+  title        String
+  description  String?
+  category     String?
+  mediaUrl     String
+  thumbnailUrl String?
+  adType       String   @default("image") // image, video
+  mediaFormat  String   @default("jpg")   // mp4, webm, mov, jpg, png, webp
+  isActive     Boolean  @default(true)
+  displayOrder Int      @default(0)
+  impressions  Int      @default(0)
+  clicks       Int      @default(0)
+  ctr          Float    @default(0)
+  startDate    DateTime?
+  endDate      DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model Analytics {
   id         String   @id @default(cuid())
   date       DateTime @default(now())
