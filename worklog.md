@@ -393,3 +393,37 @@ Stage Summary:
 - Full-width revenue overview area chart
 - Premium header with notification badge "12", admin dropdown, create ad button
 - Zero lint errors, dev server running
+
+---
+Task ID: 6
+Agent: Main
+Task: Add Video Ads Analytics section below Overlay Ads in the admin dashboard
+
+Work Log:
+- Created /src/components/admin/VideoAdsAnalytics.tsx - comprehensive analytics component
+- Built 8 KPI cards: Total Video Ad Revenue, Total Impressions, Total Clicks, Average CTR, Watch Time, Skip Rate, Engagement Rate, Active Ads
+- Each KPI card has: custom accent color, icon with colored background, trend indicator (green positive / red negative), percentage change, subtle description
+- Revenue Overview: AreaChart with green gradient fill and +18.4% growth badge
+- CTR Trend: LineChart with orange accent and +8.5% growth badge
+- Impressions by Ad Type: Stacked BarChart with 4 gradient fills (Pre-roll orange, Mid-roll purple, Post-roll blue, Overlay green), custom legend
+- Device Analytics: Donut PieChart with breakdown list (Mobile, Desktop, Tablet, TV), animated progress bars, percentage display
+- Ad Performance Heatmap: 7x7 grid (hours × days) with intensity-based red shading, hover scale effect, peak engagement labels
+- Top Performing Video Ads: Leaderboard with ranked items, color-coded type badges, revenue + CTR metrics, arrow navigation
+- Ad Performance Details: Full table with Ad Name, Type, Impressions, Clicks, CTR, Revenue, Watch Time, Status (Active/Paused badges), Live indicator
+- Real-time Stats Bar: Impressions Today, Clicks Today, Revenue Today, Ads Serving Now with green live pulse
+- Ad Type filter: All / Pre-roll / Mid-roll / Post-roll / Overlay
+- Time range filter: 7d / 14d / 30d / 90d
+- Section header with BarChart3 icon and red glow shadow
+- Integrated into AdsManager.tsx - appears below filter section on all video ad pages (pre-roll, mid-roll, post-roll, overlay)
+- All components use glassmorphism styling (#111111/80 backdrop-blur-xl border-white/5)
+- Framer Motion stagger animations throughout
+- Dark-themed Recharts with custom tooltips
+- Responsive: 4-col → 2-col grid on tablet
+- Lint: zero errors, dev server running cleanly
+
+Stage Summary:
+- Video Ads Analytics section fully implemented with 8 KPI cards, 4 charts (Revenue AreaChart, CTR LineChart, Impressions BarChart, Device PieChart), heatmap, leaderboard, analytics table, and real-time stats
+- Integrated into AdsManager component, visible on all video ad sections
+- Premium Netflix-style dark UI with glassmorphism, red glow accents, green positive indicators
+- Responsive for desktop, laptop, and tablet
+- Zero lint errors

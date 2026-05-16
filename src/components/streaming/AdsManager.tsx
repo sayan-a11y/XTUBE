@@ -62,6 +62,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppStore, type AdminSection } from '@/lib/store'
+import { VideoAdsAnalytics } from '@/components/admin/VideoAdsAnalytics'
 
 interface AdsManagerProps {
   ads: Array<{
@@ -644,6 +645,17 @@ export function AdsManager({ ads, onCreate, onDelete, onToggle, loading }: AdsMa
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Video Ads Analytics Section - shown on all video ad sections */}
+      {['pre-roll-ads', 'mid-roll-ads', 'post-roll-ads', 'overlay-ads'].includes(adminSection) && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.45, duration: 0.4 }}
+        >
+          <VideoAdsAnalytics ads={ads} />
+        </motion.div>
+      )}
 
       {/* Ads Table */}
       <motion.div
