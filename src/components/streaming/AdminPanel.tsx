@@ -37,6 +37,7 @@ import { UsersPage } from '@/components/admin/UsersPage'
 import { SettingsPage } from '@/components/admin/SettingsPage'
 import { CatalogPage } from '@/components/admin/CatalogPage'
 import { VideoAdsAnalytics } from '@/components/admin/VideoAdsAnalytics'
+import { VideoUploadPage } from '@/components/admin/VideoUploadPage'
 
 // ─── Custom Hook: Tablet Detection ────────────────────────────────────────────
 
@@ -577,7 +578,6 @@ export function AdminPanel() {
       case 'dashboard':
         return <AdminDashboard data={dashboardData} loading={dataLoading} />
       case 'all-videos':
-      case 'video-upload':
         return (
           <VideoManager
             videos={adminVideos.map((v) => ({
@@ -596,6 +596,8 @@ export function AdminPanel() {
             loading={dataLoading}
           />
         )
+      case 'video-upload':
+        return <VideoUploadPage />
       case 'catalog':
         return <CatalogPage />
       case 'analytics':
@@ -798,7 +800,7 @@ export function AdminPanel() {
                     </motion.button>
                     <div>
                       <h1 className="text-lg font-bold text-white">
-                        Admin Dashboard
+                        {sectionTitles[adminSection] || 'Admin Dashboard'}
                       </h1>
                     </div>
                   </div>
