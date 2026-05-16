@@ -2,6 +2,23 @@ import { create } from 'zustand'
 
 export type ViewMode = 'home' | 'trending' | 'category' | 'bookmarks' | 'history' | 'video' | 'admin' | 'search'
 
+export type AdminSection =
+  | 'dashboard'
+  | 'all-videos'
+  | 'video-upload'
+  | 'catalog'
+  | 'all-ads'
+  | 'banner-ads'
+  | 'popup-ads'
+  | 'hero-footer-ads'
+  | 'pre-roll-ads'
+  | 'mid-roll-ads'
+  | 'post-roll-ads'
+  | 'overlay-ads'
+  | 'analytics'
+  | 'users'
+  | 'settings'
+
 interface AppState {
   // Navigation
   currentView: ViewMode
@@ -16,7 +33,8 @@ interface AppState {
   // Admin
   adminUnlocked: boolean
   adminClickCount: number
-  adminTab: string
+  adminSection: AdminSection
+  adminSidebarCollapsed: boolean
 
   // Video Player
   theaterMode: boolean
@@ -30,7 +48,8 @@ interface AppState {
   setMobileMenuOpen: (open: boolean) => void
   incrementAdminClick: () => void
   setAdminUnlocked: (unlocked: boolean) => void
-  setAdminTab: (tab: string) => void
+  setAdminSection: (section: AdminSection) => void
+  setAdminSidebarCollapsed: (collapsed: boolean) => void
   setTheaterMode: (mode: boolean) => void
   navigateToVideo: (videoId: string) => void
   goBack: () => void
@@ -52,7 +71,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Admin
   adminUnlocked: false,
   adminClickCount: 0,
-  adminTab: 'dashboard',
+  adminSection: 'dashboard',
+  adminSidebarCollapsed: false,
 
   // Video Player
   theaterMode: false,
@@ -90,7 +110,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setAdminUnlocked: (unlocked) => set({ adminUnlocked: unlocked }),
 
-  setAdminTab: (tab) => set({ adminTab: tab }),
+  setAdminSection: (section) => set({ adminSection: section }),
+
+  setAdminSidebarCollapsed: (collapsed) => set({ adminSidebarCollapsed: collapsed }),
 
   setTheaterMode: (mode) => set({ theaterMode: mode }),
 
