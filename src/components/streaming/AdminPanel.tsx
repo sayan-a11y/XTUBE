@@ -39,6 +39,7 @@ import { CatalogPage } from '@/components/admin/CatalogPage'
 import { VideoAdsAnalytics } from '@/components/admin/VideoAdsAnalytics'
 import { VideoUploadPage } from '@/components/admin/VideoUploadPage'
 import { PreRollAdsPage } from '@/components/admin/PreRollAdsPage'
+import { MidRollAdsPage } from '@/components/admin/MidRollAdsPage'
 
 // ─── Custom Hook: Tablet Detection ────────────────────────────────────────────
 
@@ -601,6 +602,8 @@ export function AdminPanel() {
         return <VideoUploadPage />
       case 'pre-roll-ads':
         return <PreRollAdsPage />
+      case 'mid-roll-ads':
+        return <MidRollAdsPage />
       case 'catalog':
         return <CatalogPage />
       case 'analytics':
