@@ -14,6 +14,7 @@ import { VideoPlayer } from '@/components/streaming/VideoPlayer'
 import { AdminPanel } from '@/components/streaming/AdminPanel'
 import { Flame, Sparkles, Clock, Search, Film, History } from 'lucide-react'
 import { AgeVerificationPopup } from '@/components/streaming/AgeVerificationPopup'
+import { XtubeLogo } from '@/components/shared/XtubeLogo'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -628,20 +629,25 @@ export default function XtubeHome() {
             {currentView !== 'admin' && (
               <header className="sticky top-0 z-30 flex h-12 items-center justify-between border-b border-xtube-border bg-[#050505]/90 px-3 backdrop-blur-md md:px-5">
                 <div className="flex items-center gap-3">
-                  {/* Mobile Logo */}
-                  <button
-                    onClick={() => {
-                      // Mobile logo: only refresh to home, NEVER unlock admin
-                      useAppStore.getState().incrementAdminClick(false)
-                    }}
-                    className="flex items-center gap-2 md:hidden"
-                    aria-label="Xtube"
-                  >
-                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-xtube-red">
-                      <span className="text-[10px] font-bold text-white">X</span>
-                    </div>
-                    <span className="text-sm font-bold text-white">Xtube</span>
-                  </button>
+                  {/* Mobile Logo — refresh to home, never unlock admin */}
+                  <div className="md:hidden">
+                    <XtubeLogo
+                      size="sm"
+                      showText={true}
+                      onClick={() => {
+                        // Mobile: only refresh to home, NEVER unlock admin
+                        useAppStore.getState().incrementAdminClick(false)
+                      }}
+                    />
+                  </div>
+
+                  {/* Desktop Logo in header */}
+                  <div className="hidden md:block">
+                    <XtubeLogo
+                      size="sm"
+                      showText={true}
+                    />
+                  </div>
 
                   {/* View Title */}
                   <h2 className="hidden text-xs font-medium text-xtube-text-secondary md:block">

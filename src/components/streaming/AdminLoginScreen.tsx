@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, Loader2, ShieldAlert, ArrowRight } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
+import { XtubeLogo } from '@/components/shared/XtubeLogo'
 
 // ─── Validation Helpers ─────────────────────────────────────────────────────
 
@@ -189,35 +190,23 @@ export function AdminLoginScreen() {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="mb-8 flex flex-col items-center gap-4"
           >
-            {/* Xtube Logo with red X badge */}
-            <motion.div
-              animate={{
-                boxShadow: [
-                  '0 0 20px rgba(229,9,20,0.3)',
-                  '0 0 40px rgba(229,9,20,0.5)',
-                  '0 0 20px rgba(229,9,20,0.3)',
-                ],
-              }}
-              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-              className="flex h-14 w-14 items-center justify-center rounded-2xl bg-xtube-red shadow-[0_0_20px_rgba(229,9,20,0.4)]"
-            >
-              <span className="text-2xl font-black text-white tracking-tight">X</span>
-            </motion.div>
+            {/* Xtube Logo */}
+            <XtubeLogo size="xl" showText={false} />
 
             <div className="text-center">
-              <h1 className="text-2xl font-bold text-white">
-                <span className="text-xtube-red">X</span>tube
+              <h1 className="text-2xl font-extrabold">
+                <span className="text-white">X</span><span className="text-[#FF0000]">tube</span>
               </h1>
               <motion.p
                 animate={{
                   textShadow: [
-                    '0 0 8px rgba(229,9,20,0)',
-                    '0 0 20px rgba(229,9,20,0.4)',
-                    '0 0 8px rgba(229,9,20,0)',
+                    '0 0 8px rgba(255,0,0,0)',
+                    '0 0 20px rgba(255,0,0,0.4)',
+                    '0 0 8px rgba(255,0,0,0)',
                   ],
                 }}
                 transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                className="mt-1 text-sm font-semibold tracking-widest text-xtube-red uppercase"
+                className="mt-1 text-sm font-semibold tracking-widest text-[#FF0000] uppercase"
               >
                 Admin Access
               </motion.p>

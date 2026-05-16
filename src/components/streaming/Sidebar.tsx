@@ -17,6 +17,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip'
+import { XtubeLogo } from '@/components/shared/XtubeLogo'
 
 interface NavItem {
   icon: React.ElementType
@@ -38,7 +39,7 @@ export function Sidebar() {
   const handleLogoClick = useCallback(() => {
     // Sidebar is only rendered on md+ (desktop/tablet), so always pass true
     incrementAdminClick(true)
-    // First 6 clicks: navigate to home (smooth refresh)
+    // First 6 clicks: navigate to home (refresh)
     const store = useAppStore.getState()
     if (!store.adminUnlocked && !store.adminUnlocking) {
       setView('home')
@@ -54,38 +55,11 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="flex h-14 items-center border-b border-xtube-border px-3">
-        <button
+        <XtubeLogo
+          size="md"
+          showText={!sidebarCollapsed}
           onClick={handleLogoClick}
-          className="flex items-center gap-3 overflow-hidden focus:outline-none"
-          aria-label="Xtube Home"
-        >
-          <motion.div
-            animate={adminClickCount > 0 ? {
-              boxShadow: [
-                '0 0 8px rgba(229,9,20,0.2)',
-                '0 0 16px rgba(229,9,20,0.4)',
-                '0 0 8px rgba(229,9,20,0.2)',
-              ],
-            } : {}}
-            transition={{ duration: 0.5, repeat: adminClickCount > 0 ? Infinity : 0 }}
-            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-xtube-red"
-          >
-            <span className="text-xs font-bold text-white">X</span>
-          </motion.div>
-          <AnimatePresence>
-            {!sidebarCollapsed && (
-              <motion.span
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-                className="whitespace-nowrap text-base font-bold text-white"
-              >
-                Xtube
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </button>
+        />
       </div>
 
       {/* Navigation */}

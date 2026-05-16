@@ -37,6 +37,7 @@ import { AdminDashboard } from './AdminDashboard'
 import { VideoManager } from './VideoManager'
 import { AdsManager } from './AdsManager'
 import { AdminLoginScreen } from './AdminLoginScreen'
+import { XtubeLogo } from '@/components/shared/XtubeLogo'
 
 // ─── Dynamic Imports for Admin Sub-pages (Code Splitting) ────────────────────
 const AnalyticsPage = lazy(() => import('@/components/admin/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })))
@@ -213,11 +214,10 @@ function MobileBlockScreen({ onReturn }: { onReturn: () => void }) {
       <div className="relative z-10 flex flex-col items-center gap-6 px-8 text-center">
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-xtube-red shadow-[0_0_20px_rgba(229,9,20,0.4)]">
-            <span className="text-xl font-bold text-white">X</span>
-          </div>
-          <span className="text-2xl font-bold text-white">
-            Xtube<span className="text-xtube-text-secondary">.Admin</span>
+          <XtubeLogo size="lg" showText={false} />
+          <span className="text-2xl font-extrabold">
+            <span className="text-white">X</span><span className="text-[#FF0000]">tube</span>
+            <span className="text-xtube-text-secondary">.Admin</span>
           </span>
         </div>
 
@@ -790,23 +790,24 @@ export function AdminPanel() {
               <motion.div
                 animate={{
                   boxShadow: [
-                    '0 0 20px rgba(229,9,20,0.3)',
-                    '0 0 60px rgba(229,9,20,0.6)',
-                    '0 0 100px rgba(229,9,20,0.3)',
+                    '0 0 20px rgba(255,0,0,0.3)',
+                    '0 0 60px rgba(255,0,0,0.6)',
+                    '0 0 100px rgba(255,0,0,0.3)',
                   ],
                 }}
                 transition={{ duration: 0.8, ease: 'easeInOut' }}
-                className="flex h-16 w-16 items-center justify-center rounded-2xl bg-xtube-red"
+                className="flex h-16 w-16 items-center justify-center rounded-full bg-[#FF0000]"
               >
-                <span className="text-2xl font-black text-white">X</span>
+                <span className="text-2xl font-black text-white">x</span>
               </motion.div>
               <motion.span
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.3 }}
-                className="text-lg font-bold text-white"
+                className="text-lg font-extrabold text-white"
               >
-                Admin Access
+                <span className="text-white">X</span><span className="text-[#FF0000]">tube</span>{' '}
+                <span className="text-xtube-text-secondary font-medium">Admin Access</span>
               </motion.span>
             </motion.div>
             {/* Dark fade overlay */}
@@ -870,11 +871,10 @@ export function AdminPanel() {
                         transition={{ duration: 0.15 }}
                         className="flex items-center gap-2.5"
                       >
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-xtube-red shadow-[0_0_8px_rgba(229,9,20,0.3)]">
-                          <span className="text-xs font-bold text-white">X</span>
-                        </div>
-                        <span className="text-sm font-bold text-white">
-                          Xtube<span className="text-xtube-text-secondary">.Admin</span>
+                        <XtubeLogo size="sm" showText={false} />
+                        <span className="text-sm font-extrabold">
+                          <span className="text-white">X</span><span className="text-[#FF0000]">tube</span>
+                          <span className="text-xtube-text-secondary font-medium">.Admin</span>
                         </span>
                       </motion.div>
                     ) : (
@@ -886,9 +886,7 @@ export function AdminPanel() {
                         transition={{ duration: 0.15 }}
                         className="flex items-center justify-center w-full"
                       >
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-xtube-red shadow-[0_0_8px_rgba(229,9,20,0.3)]">
-                          <span className="text-xs font-bold text-white">X</span>
-                        </div>
+                        <XtubeLogo size="sm" showText={false} />
                       </motion.div>
                     )}
                   </AnimatePresence>

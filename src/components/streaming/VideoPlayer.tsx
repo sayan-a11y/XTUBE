@@ -40,6 +40,7 @@ import {
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import { Comments } from '@/components/streaming/Comments'
+import { XtubeLogo } from '@/components/shared/XtubeLogo'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -682,12 +683,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
           </motion.button>
 
           {/* Logo */}
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-xtube-red">
-              <span className="text-[10px] font-black text-white">X</span>
-            </div>
-            <span className="hidden text-base font-bold text-white sm:inline">Xtube</span>
-          </div>
+          <XtubeLogo size="sm" showText={true} />
 
           {/* Search Bar */}
           <div className="ml-2 hidden md:flex">
