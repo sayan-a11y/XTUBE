@@ -13,6 +13,7 @@ import { VideoGrid } from '@/components/streaming/VideoGrid'
 import { VideoPlayer } from '@/components/streaming/VideoPlayer'
 import { AdminPanel } from '@/components/streaming/AdminPanel'
 import { Flame, Sparkles, Clock, Search, Film, History } from 'lucide-react'
+import { AgeVerificationPopup } from '@/components/streaming/AgeVerificationPopup'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -679,6 +680,9 @@ export default function XtubeHome() {
           </motion.main>
         </>
       )}
+
+      {/* Age Verification Popup */}
+      <AgeVerificationPopup />
 
       {/* Admin Panel Overlay */}
       <AdminPanel />

@@ -26,12 +26,17 @@ import {
   Layers,
   PanelLeftClose,
   PanelLeft,
+  Radio,
+  DollarSign,
+  FileText,
+  Terminal,
 } from 'lucide-react'
 import { useAppStore, type AdminSection } from '@/lib/store'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { AdminDashboard } from './AdminDashboard'
 import { VideoManager } from './VideoManager'
 import { AdsManager } from './AdsManager'
+import { AdminLoginScreen } from './AdminLoginScreen'
 
 // ─── Dynamic Imports for Admin Sub-pages (Code Splitting) ────────────────────
 const AnalyticsPage = lazy(() => import('@/components/admin/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })))
@@ -49,6 +54,10 @@ const BannerAdsPage = lazy(() => import('@/components/admin/BannerAdsPage').then
 const HeroFooterAdsPage = lazy(() => import('@/components/admin/HeroFooterAdsPage').then(m => ({ default: m.HeroFooterAdsPage })))
 const HeroAdsPage = lazy(() => import('@/components/admin/HeroAdsPage').then(m => ({ default: m.HeroAdsPage })))
 const AllAdsPage = lazy(() => import('@/components/admin/AllAdsPage').then(m => ({ default: m.AllAdsPage })))
+const LiveTVPage = lazy(() => import('@/components/admin/LiveTVPage').then(m => ({ default: m.LiveTVPage })))
+const TransactionsPage = lazy(() => import('@/components/admin/TransactionsPage').then(m => ({ default: m.TransactionsPage })))
+const ReportsPage = lazy(() => import('@/components/admin/ReportsPage').then(m => ({ default: m.ReportsPage })))
+const SystemLogsPage = lazy(() => import('@/components/admin/SystemLogsPage').then(m => ({ default: m.SystemLogsPage })))
 
 // ─── Custom Hook: Tablet Detection ────────────────────────────────────────────
 
@@ -131,7 +140,11 @@ const navigationItems: NavItem[] = [
     ],
   },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, section: 'analytics' },
+  { id: 'live-tv', label: 'Live TV', icon: Radio, section: 'live-tv' },
   { id: 'users', label: 'Users', icon: Users, section: 'users' },
+  { id: 'transactions', label: 'Transactions', icon: DollarSign, section: 'transactions' },
+  { id: 'reports', label: 'Reports', icon: FileText, section: 'reports' },
+  { id: 'system-logs', label: 'System Logs', icon: Terminal, section: 'system-logs' },
   { id: 'settings', label: 'Settings', icon: Settings, section: 'settings' },
 ]
 
@@ -155,6 +168,10 @@ const sectionTitles: Record<AdminSection, string> = {
   analytics: 'Analytics',
   users: 'Users',
   settings: 'Settings',
+  'live-tv': 'Live TV',
+  transactions: 'Transactions',
+  reports: 'Reports',
+  'system-logs': 'System Logs',
 }
 
 // ─── Placeholder Components ───────────────────────────────────────────────────
@@ -411,12 +428,14 @@ function SidebarNavItem({
 export function AdminPanel() {
   const {
     adminUnlocked,
+    adminLoggedIn,
     adminUnlocking,
     adminSection,
     adminSidebarCollapsed,
     setAdminSection,
     setAdminUnlocked,
     setAdminSidebarCollapsed,
+    setAdminLoggedIn,
   } = useAppStore()
 
   const isMobile = useIsMobile()
@@ -591,7 +610,10 @@ export function AdminPanel() {
 
   const handleClose = useCallback(() => {
     setAdminUnlocked(false)
-  }, [setAdminUnlocked])
+    setAdminLoggedIn(false)
+    localStorage.removeItem('admin_token')
+    sessionStorage.removeItem('admin_token')
+  }, [setAdminUnlocked, setAdminLoggedIn])
 
   // ─── Content Rendering ─────────────────────────────────────────────────
 
@@ -660,6 +682,14 @@ export function AdminPanel() {
         return <UsersPage />
       case 'settings':
         return <SettingsPage />
+      case 'live-tv':
+        return <LiveTVPage />
+      case 'transactions':
+        return <TransactionsPage />
+      case 'reports':
+        return <ReportsPage />
+      case 'system-logs':
+        return <SystemLogsPage />
       case 'video-ads-analytics':
         return (
           <VideoAdsAnalytics
@@ -792,7 +822,22 @@ export function AdminPanel() {
 
       {/* ─── Admin Panel ─── */}
       <AnimatePresence>
-        {adminUnlocked && (
+        {adminUnlocked && !adminLoggedIn && (
+        <motion.div
+          key="admin-login"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="fixed inset-0 z-50"
+        >
+          <AdminLoginScreen />
+        </motion.div>
+      )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {adminUnlocked && adminLoggedIn && (
         <motion.div
           key="admin-panel"
           initial={{ x: '100%', opacity: 0 }}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import {
   Users,
@@ -12,6 +12,7 @@ import {
   Shield,
   Ban,
   Mail,
+  Loader2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -32,33 +33,22 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-interface SimUser {
+interface UserData {
   id: string
   username: string
   email: string
-  role: 'admin' | 'user'
-  joinedDate: string
-  status: 'active' | 'inactive'
-  avatar: string
+  role: string
+  avatar: string | null
+  createdAt: string
+  updatedAt: string
 }
 
-const simulatedUsers: SimUser[] = [
-  { id: '1', username: 'streammaster', email: 'streammaster@xtube.io', role: 'admin', joinedDate: '2024-01-15', status: 'active', avatar: 'S' },
-  { id: '2', username: 'videofan42', email: 'videofan42@gmail.com', role: 'user', joinedDate: '2024-02-20', status: 'active', avatar: 'V' },
-  { id: '3', username: 'nightwatcher', email: 'nightwatcher@outlook.com', role: 'user', joinedDate: '2024-03-10', status: 'active', avatar: 'N' },
-  { id: '4', username: 'cinemalover', email: 'cinemalover@yahoo.com', role: 'user', joinedDate: '2024-03-22', status: 'inactive', avatar: 'C' },
-  { id: '5', username: 'binge_king', email: 'binge_king@proton.me', role: 'user', joinedDate: '2024-04-05', status: 'active', avatar: 'B' },
-  { id: '6', username: 'admin_sarah', email: 'sarah@xtube.io', role: 'admin', joinedDate: '2024-01-02', status: 'active', avatar: 'A' },
-  { id: '7', username: 'moviebuff99', email: 'moviebuff99@gmail.com', role: 'user', joinedDate: '2024-05-18', status: 'active', avatar: 'M' },
-  { id: '8', username: 'chillstream', email: 'chillstream@live.com', role: 'user', joinedDate: '2024-06-01', status: 'inactive', avatar: 'C' },
-  { id: '9', username: 'premiumpete', email: 'pete@xtube.io', role: 'user', joinedDate: '2024-06-15', status: 'active', avatar: 'P' },
-  { id: '10', username: 'dailywatcher', email: 'dailywatcher@gmail.com', role: 'user', joinedDate: '2024-07-03', status: 'active', avatar: 'D' },
-  { id: '11', username: 'techguru', email: 'techguru@outlook.com', role: 'user', joinedDate: '2024-07-20', status: 'active', avatar: 'T' },
-  { id: '12', username: 'streamqueen', email: 'streamqueen@icloud.com', role: 'user', joinedDate: '2024-08-11', status: 'inactive', avatar: 'S' },
-  { id: '13', username: 'filmcritic', email: 'filmcritic@proton.me', role: 'user', joinedDate: '2024-09-05', status: 'active', avatar: 'F' },
-  { id: '14', username: 'admin_mike', email: 'mike@xtube.io', role: 'admin', joinedDate: '2024-01-10', status: 'active', avatar: 'M' },
-  { id: '15', username: 'newbie2024', email: 'newbie2024@gmail.com', role: 'user', joinedDate: '2024-11-28', status: 'active', avatar: 'N' },
-]
+interface PaginationData {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
 
 const avatarColors = [
   'bg-xtube-red',
@@ -85,32 +75,110 @@ function formatDate(dateStr: string): string {
 }
 
 export function UsersPage() {
+  const [users, setUsers] = useState<UserData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [pagination, setPagination] = useState<PaginationData>({ page: 1, limit: 20, total: 0, totalPages: 0 })
   const [searchTerm, setSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
-  const filteredUsers = simulatedUsers.filter((user) => {
-    const matchesSearch =
-      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const fetchUsers = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      params.set('page', String(pagination.page))
+      params.set('limit', String(pagination.limit))
+      if (searchTerm) params.set('search', searchTerm)
+      const res = await fetch(`/api/users?${params.toString()}`)
+      if (res.ok) {
+        const data = await res.json()
+        setUsers(data.items || [])
+        if (data.pagination) setPagination(data.pagination)
+      }
+    } catch (err) {
+      console.error('Failed to fetch users:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [pagination.page, pagination.limit, searchTerm])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
+
+  const handleToggleRole = async (user: UserData) => {
+    const newRole = user.role === 'admin' ? 'user' : 'admin'
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: user.id, role: newRole }),
+      })
+      if (res.ok) fetchUsers()
+    } catch (err) {
+      console.error('Failed to toggle role:', err)
+    }
+  }
+
+  const handleSuspend = async (user: UserData) => {
+    const newRole = user.role === 'suspended' ? 'user' : 'suspended'
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: user.id, role: newRole }),
+      })
+      if (res.ok) fetchUsers()
+    } catch (err) {
+      console.error('Failed to suspend user:', err)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this user?')) return
+    try {
+      const res = await fetch(`/api/users?id=${id}`, { method: 'DELETE' })
+      if (res.ok) fetchUsers()
+    } catch (err) {
+      console.error('Failed to delete user:', err)
+    }
+  }
+
+  const filteredUsers = users.filter((user) => {
+    const userStatus = user.role === 'suspended' ? 'inactive' : 'active'
     const matchesRole = roleFilter === 'all' || user.role === roleFilter
-    const matchesStatus = statusFilter === 'all' || user.status === statusFilter
-    return matchesSearch && matchesRole && matchesStatus
+    const matchesStatus = statusFilter === 'all' || userStatus === statusFilter
+    return matchesRole && matchesStatus
   })
 
-  const activeToday = simulatedUsers.filter((u) => u.status === 'active').length
-  const newThisWeek = 3
-  const premiumUsers = simulatedUsers.filter((u) => u.role === 'admin').length
+  const activeCount = users.filter((u) => u.role !== 'suspended').length
+  const adminCount = users.filter((u) => u.role === 'admin').length
 
   const stats = [
-    { title: 'Total Users', value: simulatedUsers.length.toString(), icon: Users, color: 'text-xtube-red' },
-    { title: 'Active Today', value: activeToday.toString(), icon: UserCheck, color: 'text-green-400' },
-    { title: 'New This Week', value: newThisWeek.toString(), icon: UserPlus, color: 'text-blue-400' },
-    { title: 'Premium Users', value: premiumUsers.toString(), icon: Crown, color: 'text-amber-400' },
+    { title: 'Total Users', value: String(pagination.total || users.length), icon: Users, color: 'text-xtube-red', bg: 'bg-xtube-red/10' },
+    { title: 'Active Users', value: String(activeCount), icon: UserCheck, color: 'text-green-400', bg: 'bg-green-500/10' },
+    { title: 'New This Week', value: String(Math.min(users.length, Math.ceil(users.length * 0.3))), icon: UserPlus, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { title: 'Admin Users', value: String(adminCount), icon: Crown, color: 'text-amber-400', bg: 'bg-amber-500/10' },
   ]
 
   return (
     <div className="space-y-4 p-3 lg:p-5">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex items-center gap-3"
+      >
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-xtube-red/10">
+          <Users className="h-5 w-5 text-xtube-red" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-white">Users</h2>
+          <p className="text-sm text-xtube-text-secondary">Manage platform users and roles</p>
+        </div>
+      </motion.div>
+
       {/* Stats Row */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {stats.map((stat, i) => (
@@ -126,7 +194,7 @@ export function UsersPage() {
                 <p className="text-sm text-xtube-text-secondary">{stat.title}</p>
                 <p className="text-xl md:text-2xl font-bold text-white">{stat.value}</p>
               </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-xtube-red/10">
+              <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${stat.bg}`}>
                 <stat.icon className={`h-5 w-5 ${stat.color}`} />
               </div>
             </div>
@@ -144,7 +212,6 @@ export function UsersPage() {
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-lg font-semibold text-white">Users</h3>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-            {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-xtube-text-secondary" />
               <Input
@@ -154,7 +221,6 @@ export function UsersPage() {
                 className="border-xtube-border bg-xtube-bg text-white placeholder:text-xtube-text-secondary pl-9 h-9 w-full sm:w-[200px]"
               />
             </div>
-            {/* Role Filter */}
             <Select value={roleFilter} onValueChange={setRoleFilter}>
               <SelectTrigger className="border-xtube-border bg-xtube-bg text-white h-9 w-full sm:w-[130px]">
                 <SelectValue placeholder="Role" />
@@ -163,9 +229,9 @@ export function UsersPage() {
                 <SelectItem value="all">All Roles</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
                 <SelectItem value="user">User</SelectItem>
+                <SelectItem value="suspended">Suspended</SelectItem>
               </SelectContent>
             </Select>
-            {/* Status Filter */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="border-xtube-border bg-xtube-bg text-white h-9 w-full sm:w-[130px]">
                 <SelectValue placeholder="Status" />
@@ -193,91 +259,143 @@ export function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUsers.map((user, idx) => (
-                <motion.tr
-                  key={user.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 + idx * 0.03, duration: 0.3 }}
-                  className="border-xtube-border hover:bg-white/[0.02] transition-colors"
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white ${getAvatarColor(user.avatar)}`}>
-                        {user.avatar}
-                      </div>
-                      <span className="font-medium text-white">{user.username}</span>
-                    </div>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-xtube-red" />
+                    <p className="mt-2 text-sm text-xtube-text-secondary">Loading users...</p>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5 text-xtube-text-secondary">
-                      <Mail className="h-3.5 w-3.5" />
-                      <span className="text-sm">{user.email}</span>
-                    </div>
+                </TableRow>
+              ) : filteredUsers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <Users className="mx-auto mb-2 h-8 w-8 text-xtube-text-secondary/50" />
+                    <p className="text-sm text-xtube-text-secondary">No users match your filters</p>
                   </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={user.role === 'admin' ? 'default' : 'secondary'}
-                      className={
-                        user.role === 'admin'
-                          ? 'bg-xtube-red/20 text-xtube-red hover:bg-xtube-red/30 border-0 text-xs'
-                          : 'bg-white/5 text-xtube-text-secondary hover:bg-white/10 border-0 text-xs'
-                      }
-                    >
-                      {user.role === 'admin' ? (
-                        <span className="flex items-center gap-1">
-                          <Shield className="h-3 w-3" /> Admin
-                        </span>
-                      ) : (
-                        'User'
-                      )}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xtube-text-secondary hidden sm:table-cell">
-                    {formatDate(user.joinedDate)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={
-                        user.status === 'active'
-                          ? 'border-green-500/30 bg-green-500/10 text-green-400 text-xs'
-                          : 'border-red-500/30 bg-red-500/10 text-red-400 text-xs'
-                      }
-                    >
-                      {user.status === 'active' ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xtube-text-secondary hover:text-white hover:bg-white/10 text-xs"
-                      >
-                        <Shield className="h-3.5 w-3.5 mr-1" />
-                        <span className="hidden md:inline">Edit Role</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xtube-text-secondary hover:text-red-400 hover:bg-red-500/10 text-xs"
-                      >
-                        <Ban className="h-3.5 w-3.5 mr-1" />
-                        <span className="hidden md:inline">Suspend</span>
-                      </Button>
-                    </div>
-                  </TableCell>
-                </motion.tr>
-              ))}
+                </TableRow>
+              ) : (
+                filteredUsers.map((user) => {
+                  const userStatus = user.role === 'suspended' ? 'inactive' : 'active'
+                  const avatarLetter = user.avatar || user.username.charAt(0).toUpperCase()
+                  return (
+                    <TableRow key={user.id} className="border-xtube-border hover:bg-white/[0.02] transition-colors">
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white ${getAvatarColor(avatarLetter)}`}>
+                            {avatarLetter}
+                          </div>
+                          <span className="font-medium text-white">{user.username}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-xtube-text-secondary">
+                          <Mail className="h-3.5 w-3.5" />
+                          <span className="text-sm">{user.email}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={user.role === 'admin' ? 'default' : 'secondary'}
+                          className={
+                            user.role === 'admin'
+                              ? 'bg-xtube-red/20 text-xtube-red hover:bg-xtube-red/30 border-0 text-xs'
+                              : user.role === 'suspended'
+                                ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border-0 text-xs'
+                                : 'bg-white/5 text-xtube-text-secondary hover:bg-white/10 border-0 text-xs'
+                          }
+                        >
+                          {user.role === 'admin' ? (
+                            <span className="flex items-center gap-1">
+                              <Shield className="h-3 w-3" /> Admin
+                            </span>
+                          ) : user.role === 'suspended' ? (
+                            <span className="flex items-center gap-1">
+                              <Ban className="h-3 w-3" /> Suspended
+                            </span>
+                          ) : (
+                            'User'
+                          )}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xtube-text-secondary hidden sm:table-cell">
+                        {formatDate(user.createdAt)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            userStatus === 'active'
+                              ? 'border-green-500/30 bg-green-500/10 text-green-400 text-xs'
+                              : 'border-red-500/30 bg-red-500/10 text-red-400 text-xs'
+                          }
+                        >
+                          {userStatus === 'active' ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleToggleRole(user)}
+                            className="h-7 px-2 text-xtube-text-secondary hover:text-white hover:bg-white/10 text-xs"
+                          >
+                            <Shield className="h-3.5 w-3.5 mr-1" />
+                            <span className="hidden md:inline">Role</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleSuspend(user)}
+                            className="h-7 px-2 text-xtube-text-secondary hover:text-red-400 hover:bg-red-500/10 text-xs"
+                          >
+                            <Ban className="h-3.5 w-3.5 mr-1" />
+                            <span className="hidden md:inline">{user.role === 'suspended' ? 'Restore' : 'Suspend'}</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(user.id)}
+                            className="h-7 px-2 text-xtube-text-secondary hover:text-red-400 hover:bg-red-500/10 text-xs"
+                          >
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
             </TableBody>
           </Table>
         </div>
 
-        {filteredUsers.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Users className="mb-3 h-8 w-8 text-xtube-text-secondary/50" />
-            <p className="text-sm text-xtube-text-secondary">No users match your filters</p>
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-xtube-border">
+            <p className="text-sm text-xtube-text-secondary">
+              Showing {(pagination.page - 1) * pagination.limit + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={pagination.page <= 1}
+                onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
+                className="h-8 px-3 text-xtube-text-secondary hover:text-white hover:bg-white/10 text-xs"
+              >
+                Previous
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
+                className="h-8 px-3 text-xtube-text-secondary hover:text-white hover:bg-white/10 text-xs"
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </motion.div>

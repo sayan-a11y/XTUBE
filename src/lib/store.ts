@@ -20,6 +20,10 @@ export type AdminSection =
   | 'analytics'
   | 'users'
   | 'settings'
+  | 'live-tv'
+  | 'transactions'
+  | 'reports'
+  | 'system-logs'
 
 interface AppState {
   // Navigation
@@ -34,6 +38,7 @@ interface AppState {
 
   // Admin
   adminUnlocked: boolean
+  adminLoggedIn: boolean
   adminClickCount: number
   adminSection: AdminSection
   adminSidebarCollapsed: boolean
@@ -51,6 +56,7 @@ interface AppState {
   setMobileMenuOpen: (open: boolean) => void
   incrementAdminClick: (isDesktopOrTablet: boolean) => void
   setAdminUnlocked: (unlocked: boolean) => void
+  setAdminLoggedIn: (loggedIn: boolean) => void
   setAdminSection: (section: AdminSection) => void
   setAdminSidebarCollapsed: (collapsed: boolean) => void
   setTheaterMode: (mode: boolean) => void
@@ -73,6 +79,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Admin
   adminUnlocked: false,
+  adminLoggedIn: false,
   adminClickCount: 0,
   adminSection: 'dashboard',
   adminSidebarCollapsed: false,
@@ -130,6 +137,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setAdminUnlocked: (unlocked) => set({ adminUnlocked: unlocked }),
+
+  setAdminLoggedIn: (loggedIn) => set({ adminLoggedIn: loggedIn }),
 
   setAdminSection: (section) => set({ adminSection: section }),
 

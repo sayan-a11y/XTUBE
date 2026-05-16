@@ -6,7 +6,48 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const position = searchParams.get('position')
     const type = searchParams.get('type')
+    const admin = searchParams.get('admin')
+    const status = searchParams.get('status')
+    const search = searchParams.get('search')
+    const page = parseInt(searchParams.get('page') || '1', 10)
+    const limit = parseInt(searchParams.get('limit') || '10', 10)
 
+    // Admin mode: return all ads with pagination & filters (no isActive filter, no impression increment)
+    if (admin === 'true') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const where: any = {}
+      if (position) where.position = position
+      if (type) where.type = type
+      if (status === 'active') where.isActive = true
+      else if (status === 'paused') where.isActive = false
+      if (search) {
+        where.title = { contains: search }
+      }
+
+      const [ads, total] = await Promise.all([
+        db.ad.findMany({
+          where,
+          include: { videoAds: true },
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        db.ad.count({ where }),
+      ])
+
+      return NextResponse.json({
+        ads,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      })
+    }
+
+    // Public mode: only active ads within date range, increment impressions
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = { isActive: true }
     if (position) where.position = position
     if (type) where.type = type
@@ -45,15 +86,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { type, position, title, imageUrl, linkUrl, startDate, endDate, frequency } = body
+    const { type, position, title, imageUrl, linkUrl, isActive, startDate, endDate, frequency } = body
 
     const ad = await db.ad.create({
       data: {
         type,
         position,
         title,
-        imageUrl,
-        linkUrl,
+        imageUrl: imageUrl || '',
+        linkUrl: linkUrl || null,
+        isActive: isActive !== undefined ? isActive : true,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         frequency: frequency || 1,
@@ -72,9 +114,23 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { id, ...data } = body
 
+    if (!id) {
+      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+    }
+
+    // Handle date fields
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateData: any = { ...data }
+    if ('startDate' in data) {
+      updateData.startDate = data.startDate ? new Date(data.startDate) : null
+    }
+    if ('endDate' in data) {
+      updateData.endDate = data.endDate ? new Date(data.endDate) : null
+    }
+
     const ad = await db.ad.update({
       where: { id },
-      data,
+      data: updateData,
     })
 
     return NextResponse.json({ ad })

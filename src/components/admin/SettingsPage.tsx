@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import {
   Settings,
@@ -26,6 +26,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { Separator } from '@/components/ui/separator'
+import { useToast } from '@/hooks/use-toast'
 import {
   Select,
   SelectContent,
@@ -86,6 +87,10 @@ function SettingRow({ label, description, children }: { label: string; descripti
 }
 
 export function SettingsPage() {
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(true)
+  const [savingSection, setSavingSection] = useState<string | null>(null)
+
   // General
   const [siteName, setSiteName] = useState('Xtube')
   const [siteDescription, setSiteDescription] = useState('Premium streaming platform for high-quality video content.')
@@ -119,9 +124,110 @@ export function SettingsPage() {
   const [maxFileSize, setMaxFileSize] = useState('500')
   const [allowedFormats, setAllowedFormats] = useState('mp4, webm, mkv, avi')
 
-  const handleSave = (section: string) => {
-    // Simulated save - would call API in production
-    console.log(`Saving ${section} settings...`)
+  const fetchSettings = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/settings')
+      if (res.ok) {
+        const data = await res.json()
+        const kv = data.kv as Record<string, string>
+        if (kv.siteName) setSiteName(kv.siteName)
+        if (kv.siteDescription) setSiteDescription(kv.siteDescription)
+        if (kv.defaultQuality) setDefaultQuality(kv.defaultQuality)
+        if (kv.maintenanceMode) setMaintenanceMode(kv.maintenanceMode === 'true')
+        if (kv.autoplay) setAutoplay(kv.autoplay === 'true')
+        if (kv.defaultVolume) setDefaultVolume([Number(kv.defaultVolume)])
+        if (kv.subtitleLanguage) setSubtitleLanguage(kv.subtitleLanguage)
+        if (kv.adaptiveBitrate) setAdaptiveBitrate(kv.adaptiveBitrate === 'true')
+        if (kv.adsEnabled) setAdsEnabled(kv.adsEnabled === 'true')
+        if (kv.maxAdsPerSession) setMaxAdsPerSession(kv.maxAdsPerSession)
+        if (kv.adCooldown) setAdCooldown(kv.adCooldown)
+        if (kv.preRollAds) setPreRollAds(kv.preRollAds === 'true')
+        if (kv.midRollAds) setMidRollAds(kv.midRollAds === 'true')
+        if (kv.postRollAds) setPostRollAds(kv.postRollAds === 'true')
+        if (kv.overlayAds) setOverlayAds(kv.overlayAds === 'true')
+        if (kv.require2fa) setRequire2fa(kv.require2fa === 'true')
+        if (kv.sessionTimeout) setSessionTimeout(kv.sessionTimeout)
+        if (kv.ipWhitelist) setIpWhitelist(kv.ipWhitelist)
+        if (kv.rateLimiting) setRateLimiting(kv.rateLimiting === 'true')
+        if (kv.bucketName) setBucketName(kv.bucketName)
+        if (kv.cdnDomain) setCdnDomain(kv.cdnDomain)
+        if (kv.maxFileSize) setMaxFileSize(kv.maxFileSize)
+        if (kv.allowedFormats) setAllowedFormats(kv.allowedFormats)
+      }
+    } catch (err) {
+      console.error('Failed to fetch settings:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
+
+  const handleSave = async (section: string) => {
+    setSavingSection(section)
+    try {
+      let entries: { key: string; value: string }[] = []
+
+      if (section === 'general') {
+        entries = [
+          { key: 'siteName', value: siteName },
+          { key: 'siteDescription', value: siteDescription },
+          { key: 'defaultQuality', value: defaultQuality },
+          { key: 'maintenanceMode', value: String(maintenanceMode) },
+        ]
+      } else if (section === 'streaming') {
+        entries = [
+          { key: 'autoplay', value: String(autoplay) },
+          { key: 'defaultVolume', value: String(defaultVolume[0]) },
+          { key: 'subtitleLanguage', value: subtitleLanguage },
+          { key: 'adaptiveBitrate', value: String(adaptiveBitrate) },
+        ]
+      } else if (section === 'ads') {
+        entries = [
+          { key: 'adsEnabled', value: String(adsEnabled) },
+          { key: 'maxAdsPerSession', value: maxAdsPerSession },
+          { key: 'adCooldown', value: adCooldown },
+          { key: 'preRollAds', value: String(preRollAds) },
+          { key: 'midRollAds', value: String(midRollAds) },
+          { key: 'postRollAds', value: String(postRollAds) },
+          { key: 'overlayAds', value: String(overlayAds) },
+        ]
+      } else if (section === 'security') {
+        entries = [
+          { key: 'require2fa', value: String(require2fa) },
+          { key: 'sessionTimeout', value: sessionTimeout },
+          { key: 'ipWhitelist', value: ipWhitelist },
+          { key: 'rateLimiting', value: String(rateLimiting) },
+        ]
+      } else if (section === 'storage') {
+        entries = [
+          { key: 'bucketName', value: bucketName },
+          { key: 'cdnDomain', value: cdnDomain },
+          { key: 'maxFileSize', value: maxFileSize },
+          { key: 'allowedFormats', value: allowedFormats },
+        ]
+      }
+
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entries),
+      })
+
+      if (res.ok) {
+        toast({ title: 'Settings saved', description: `${section} settings saved successfully.` })
+      } else {
+        toast({ title: 'Save failed', description: `Failed to save ${section} settings.`, variant: 'destructive' })
+      }
+    } catch (err) {
+      console.error('Failed to save settings:', err)
+      toast({ title: 'Save failed', description: `Failed to save ${section} settings.`, variant: 'destructive' })
+    } finally {
+      setSavingSection(null)
+    }
   }
 
   return (
