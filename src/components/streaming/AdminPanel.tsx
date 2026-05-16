@@ -759,12 +759,14 @@ export function AdminPanel() {
               {/* ── Main Content Area ── */}
               <div className="flex flex-1 flex-col overflow-hidden">
                 {/* Top Header */}
-                <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-xtube-border bg-[#0a0a0a] px-4 md:px-6">
-                  {/* Left: Page Title + Collapse Toggle */}
+                <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-xl px-4 md:px-6">
+                  {/* Left: Hamburger + Title */}
                   <div className="flex items-center gap-3">
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => setAdminSidebarCollapsed(!adminSidebarCollapsed)}
-                      className="rounded-lg p-2 text-xtube-text-secondary transition-colors hover:bg-white/10 hover:text-white md:hidden lg:flex"
+                      className="rounded-lg p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
                       aria-label="Toggle sidebar"
                     >
                       {adminSidebarCollapsed ? (
@@ -772,14 +774,11 @@ export function AdminPanel() {
                       ) : (
                         <PanelLeftClose className="h-5 w-5" />
                       )}
-                    </button>
+                    </motion.button>
                     <div>
-                      <h1 className="text-lg font-semibold text-white">
-                        {sectionTitles[adminSection] || 'Dashboard'}
+                      <h1 className="text-lg font-bold text-white">
+                        Admin Dashboard
                       </h1>
-                      <p className="hidden text-xs text-xtube-text-secondary sm:block">
-                        Admin Panel
-                      </p>
                     </div>
                   </div>
 
@@ -790,26 +789,42 @@ export function AdminPanel() {
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
                       onClick={() => setAdminSection('all-ads')}
-                      className="hidden items-center gap-2 rounded-xl bg-xtube-red px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-xtube-red-hover sm:flex"
+                      className="hidden items-center gap-2 rounded-xl bg-xtube-red px-4 py-2 text-sm font-semibold text-white shadow-[0_0_15px_rgba(229,9,20,0.3)] transition-colors hover:bg-xtube-red-hover sm:flex"
                     >
                       <Plus className="h-4 w-4" />
                       Create New Ad
                     </motion.button>
 
-                    {/* Notification Bell */}
-                    <button
-                      className="relative rounded-lg p-2 text-xtube-text-secondary transition-colors hover:bg-white/10 hover:text-white"
+                    {/* Notification Bell with badge count */}
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="relative rounded-lg p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
                       aria-label="Notifications"
                     >
                       <Bell className="h-5 w-5" />
-                      {/* Red dot indicator */}
-                      <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-xtube-red shadow-[0_0_6px_rgba(229,9,20,0.6)]" />
-                    </button>
+                      {/* Notification count badge */}
+                      <span className="absolute -top-0.5 -right-0.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-xtube-red text-[9px] font-bold text-white shadow-[0_0_8px_rgba(229,9,20,0.6)]">
+                        12
+                      </span>
+                    </motion.button>
 
-                    {/* Admin Avatar */}
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-xtube-red/50 bg-xtube-card shadow-[0_0_10px_rgba(229,9,20,0.2)]">
-                      <span className="text-sm font-bold text-xtube-red">A</span>
-                    </div>
+                    {/* Admin Avatar + Dropdown */}
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-white/5"
+                      aria-label="Admin profile"
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-xtube-red to-red-700 shadow-[0_0_12px_rgba(229,9,20,0.3)]">
+                        <span className="text-xs font-bold text-white">A</span>
+                      </div>
+                      <div className="hidden sm:block text-left">
+                        <p className="text-xs font-semibold text-white">Admin</p>
+                        <p className="text-[10px] text-white/30">Super Admin</p>
+                      </div>
+                      <ChevronDown className="hidden h-3 w-3 text-white/40 sm:block" />
+                    </motion.button>
                   </div>
                 </header>
 
