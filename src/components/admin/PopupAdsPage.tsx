@@ -228,7 +228,7 @@ function StatCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-4 backdrop-blur-xl transition-all duration-300 hover:border-white/10 hover:shadow-lg md:p-5"
+      className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-3 lg:p-4 backdrop-blur-xl transition-all duration-300 hover:border-white/10 hover:shadow-lg"
     >
       {/* Top accent line */}
       <div className="absolute left-0 top-0 h-[2px] w-full" style={{ background: `linear-gradient(to right, ${color}, transparent)` }} />
@@ -238,14 +238,14 @@ function StatCard({
       <div className="flex items-start justify-between">
         <div className="space-y-1.5">
           <p className="text-[11px] font-medium uppercase tracking-wider text-white/40">{title}</p>
-          <p className="text-xl font-bold text-white md:text-2xl">{value}</p>
+          <p className="text-xl font-bold text-white">{value}</p>
           <div className="flex items-center gap-1.5">
             <TrendingUp className="h-3 w-3 text-emerald-400" />
             <span className="text-xs font-semibold text-emerald-400">{change}</span>
             <span className="text-[10px] text-white/25">from last 30 days</span>
           </div>
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: `${color}15` }}>
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ background: `${color}15` }}>
           <Icon className="h-5 w-5" style={{ color }} />
         </div>
       </div>
@@ -386,17 +386,17 @@ export function PopupAdsPage() {
       transition={{ duration: 0.3 }}
       className="h-full overflow-y-auto no-scrollbar"
     >
-      <div className="min-h-full p-4 md:p-6 lg:p-8 space-y-6">
+      <div className="min-h-full p-3 lg:p-5 xl:p-6 space-y-4">
         {/* ═══════════════════════════════════════════════════════════════════
             TOP HEADER
             ═══════════════════════════════════════════════════════════════════ */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ff1e1e]/10">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#ff1e1e]/10">
               <LayoutGrid className="h-5 w-5 text-[#ff1e1e]" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white md:text-3xl">Popup Ads</h1>
+              <h1 className="text-xl font-bold text-white md:text-2xl">Popup Ads</h1>
               <p className="mt-0.5 text-sm text-white/40">Create and manage popup ads for your platform</p>
             </div>
           </div>
@@ -435,7 +435,7 @@ export function PopupAdsPage() {
         {/* ═══════════════════════════════════════════════════════════════════
             TOP ANALYTICS CARDS (5 cards)
             ═══════════════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           <StatCard title="Total Popup Ads" value="29" change="+14.2%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
           <StatCard title="Active Ads" value="24" change="+11.8%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
           <StatCard title="Impressions" value="3.78M" change="+22.4%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
@@ -446,7 +446,7 @@ export function PopupAdsPage() {
         {/* ═══════════════════════════════════════════════════════════════════
             THREE COLUMN LAYOUT
             ═══════════════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_1fr_300px] 2xl:grid-cols-[1fr_1fr_340px]">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_1fr_300px] 2xl:grid-cols-[1fr_1fr_340px]">
           {/* ── LEFT: Create Popup Ad ── */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -454,7 +454,7 @@ export function PopupAdsPage() {
             transition={{ delay: 0.25, duration: 0.4 }}
             className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl"
           >
-            <div className="p-4 md:p-5">
+            <div className="p-3 lg:p-4">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-base font-bold text-white">Create Popup Ad</h2>
                 {uploadStage === 'success' && (
@@ -539,7 +539,7 @@ export function PopupAdsPage() {
                       className="hidden"
                       onChange={(e) => { if (e.target.files?.length) simulateUpload(e.target.files[0].name) }}
                     />
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#ff1e1e]/10">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ff1e1e]/10">
                       <CloudUpload className="h-6 w-6 text-[#ff1e1e]" />
                     </div>
                     <div className="text-center">
@@ -561,7 +561,7 @@ export function PopupAdsPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="rounded-xl border border-white/5 bg-[#0a0a0a]/60 p-4"
+                    className="rounded-xl border border-white/5 bg-[#0a0a0a]/60 p-3 lg:p-4"
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -773,7 +773,7 @@ export function PopupAdsPage() {
                 {/* Device Target */}
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-medium text-white/50">Device Target</label>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <Checkbox
                         checked={deviceDesktop}
@@ -822,11 +822,11 @@ export function PopupAdsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.4 }}
-            className="space-y-5"
+            className="space-y-4"
           >
             {/* Popup Preview */}
             <div className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl">
-              <div className="p-4 md:p-5">
+              <div className="p-3 lg:p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <h2 className="text-base font-bold text-white">Ad Preview</h2>
                   <div className="flex items-center gap-2">
@@ -845,7 +845,7 @@ export function PopupAdsPage() {
                   {/* Fake website background */}
                   <div className="absolute inset-0 opacity-20">
                     <div className="h-8 bg-white/5 border-b border-white/10" />
-                    <div className="p-4 space-y-3">
+                    <div className="p-3 lg:p-4 space-y-3">
                       <div className="h-3 w-2/3 rounded bg-white/10" />
                       <div className="h-2 w-full rounded bg-white/5" />
                       <div className="h-2 w-4/5 rounded bg-white/5" />
@@ -977,11 +977,11 @@ export function PopupAdsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.35, duration: 0.4 }}
-            className="space-y-5"
+            className="space-y-4"
           >
             {/* Quick Actions */}
             <div className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl">
-              <div className="p-4 md:p-5">
+              <div className="p-3 lg:p-4">
                 <h2 className="mb-4 text-base font-bold text-white">Quick Actions</h2>
                 <div className="space-y-2.5">
                   {[
@@ -1011,7 +1011,7 @@ export function PopupAdsPage() {
 
             {/* Ad Performance Overview */}
             <div className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl">
-              <div className="p-4 md:p-5">
+              <div className="p-3 lg:p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <h2 className="text-sm font-bold text-white">Ad Performance Overview</h2>
                   <button className="text-[10px] text-white/30 hover:text-white/50">Last 30 Days</button>
@@ -1086,7 +1086,7 @@ export function PopupAdsPage() {
           transition={{ delay: 0.4, duration: 0.4 }}
           className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl"
         >
-          <div className="p-4 md:p-5">
+          <div className="p-3 lg:p-4">
             {/* Table header */}
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-base font-bold text-white">Popup Ads List</h2>
@@ -1135,7 +1135,7 @@ export function PopupAdsPage() {
                       className="group transition-colors hover:bg-white/[0.02]"
                     >
                       {/* Preview */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <div className="relative h-10 w-16 overflow-hidden rounded-lg">
                           <div className={`absolute inset-0 bg-gradient-to-br ${ad.gradient}`} />
                           <div className="absolute inset-0 flex items-center justify-center">
@@ -1150,11 +1150,11 @@ export function PopupAdsPage() {
                         </div>
                       </td>
                       {/* Ad Name */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <p className="text-xs font-medium text-white">{ad.name}</p>
                       </td>
                       {/* Type */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${typeStyles[ad.type]}`}>
                           {ad.type === 'Image' && <ImageIcon className="h-2.5 w-2.5" />}
                           {ad.type === 'HTML5' && <Code2 className="h-2.5 w-2.5" />}
@@ -1163,27 +1163,27 @@ export function PopupAdsPage() {
                         </span>
                       </td>
                       {/* Trigger */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <span className="text-xs text-white/50">{ad.trigger}</span>
                       </td>
                       {/* Display On */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <span className="text-xs text-white/50">{ad.displayOn}</span>
                       </td>
                       {/* Impressions */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <span className="text-xs font-medium text-white/70">{ad.impressions}</span>
                       </td>
                       {/* CTR */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <span className="text-xs font-medium text-white/70">{ad.ctr}</span>
                       </td>
                       {/* Revenue */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <span className="text-xs font-semibold text-emerald-400">{ad.revenue}</span>
                       </td>
                       {/* Status */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium ${statusStyles[ad.status]}`}>
                           {ad.status === 'Active' && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
                           {ad.status === 'Paused' && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
@@ -1192,7 +1192,7 @@ export function PopupAdsPage() {
                         </span>
                       </td>
                       {/* Actions */}
-                      <td className="py-3">
+                      <td className="py-2">
                         <div className="flex items-center gap-1">
                           <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-white/10 hover:text-white" title="Edit">
                             <Pencil className="h-3.5 w-3.5" />

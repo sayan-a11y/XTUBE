@@ -44,7 +44,7 @@ export function HeroBanner({ banners }: HeroBannerProps) {
   return (
     <div className="relative w-full overflow-hidden bg-xtube-bg">
       {/* Banner area */}
-      <div className="relative h-[300px] sm:h-[400px] md:h-[500px]">
+      <div className="relative h-[240px] sm:h-[320px] md:h-[420px] lg:h-[480px]">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentIndex}
@@ -68,7 +68,7 @@ export function HeroBanner({ banners }: HeroBannerProps) {
             <div className="absolute inset-0 bg-gradient-to-r from-xtube-bg/80 via-transparent to-transparent" />
 
             {/* Content overlay */}
-            <div className="absolute inset-0 flex items-end pb-16 sm:pb-20 md:pb-24">
+            <div className="absolute inset-0 flex items-end pb-12 sm:pb-16 md:pb-20">
               <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 md:px-8">
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -92,12 +92,12 @@ export function HeroBanner({ banners }: HeroBannerProps) {
                   </span>
 
                   {/* Title */}
-                  <h1 className="text-2xl font-bold text-white sm:text-3xl md:text-4xl lg:text-5xl leading-tight">
+                  <h1 className="text-xl font-bold text-white sm:text-2xl md:text-3xl lg:text-4xl leading-tight">
                     {currentBanner.title}
                   </h1>
 
                   {/* Description */}
-                  <p className="line-clamp-2 text-sm text-xtube-text-secondary sm:text-base">
+                  <p className="line-clamp-2 text-xs text-xtube-text-secondary sm:text-sm">
                     {currentBanner.description}
                   </p>
 
@@ -107,7 +107,7 @@ export function HeroBanner({ banners }: HeroBannerProps) {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => navigateToVideo(currentBanner.id)}
-                      className="flex items-center gap-2 rounded-md bg-xtube-red px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-xtube-red-hover sm:px-6 sm:py-3 sm:text-base"
+                      className="flex items-center gap-2 rounded-md bg-xtube-red px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-xtube-red-hover sm:px-5 sm:py-2.5 sm:text-sm"
                     >
                       <Play className="h-4 w-4 sm:h-5 sm:w-5" fill="currentColor" />
                       Watch Now
@@ -116,7 +116,7 @@ export function HeroBanner({ banners }: HeroBannerProps) {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="glass flex items-center gap-2 rounded-md px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10 sm:px-6 sm:py-3 sm:text-base"
+                      className="glass flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/10 sm:px-5 sm:py-2.5 sm:text-sm"
                     >
                       <Info className="h-4 w-4 sm:h-5 sm:w-5" />
                       More Info

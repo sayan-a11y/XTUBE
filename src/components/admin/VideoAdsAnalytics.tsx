@@ -170,7 +170,7 @@ const analyticsTableData = [
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; name: string; color: string }>; label?: string }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="rounded-xl border border-white/10 bg-[#111111]/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
+    <div className="rounded-xl border border-white/10 bg-[#111111]/95 px-3 py-2 shadow-2xl backdrop-blur-xl">
       <p className="mb-2 text-xs font-medium text-white/50">{label}</p>
       {payload.map((entry, idx) => (
         <p key={idx} className="flex items-center gap-2 text-sm font-semibold text-white">
@@ -206,7 +206,7 @@ function KPICard({ title, value, icon: Icon, change, delay, accent = '#E50914', 
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-4 backdrop-blur-xl transition-all duration-300 hover:border-white/10 hover:shadow-[0_0_20px_rgba(229,9,20,0.12)] md:p-5"
+      className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-3 lg:p-4 backdrop-blur-xl transition-all duration-300 hover:border-white/10 hover:shadow-[0_0_20px_rgba(229,9,20,0.12)]"
     >
       {/* Top accent line */}
       <div className="absolute left-0 top-0 h-[2px] w-full" style={{ background: `linear-gradient(to right, ${accent}, transparent)` }} />
@@ -216,7 +216,7 @@ function KPICard({ title, value, icon: Icon, change, delay, accent = '#E50914', 
       <div className="flex items-start justify-between">
         <div className="space-y-2">
           <p className="text-[11px] font-medium uppercase tracking-wider text-white/40">{title}</p>
-          <p className="text-xl font-bold text-white md:text-2xl">{value}</p>
+          <p className="text-xl font-bold text-white">{value}</p>
           {subtitle && <p className="text-[10px] text-white/30">{subtitle}</p>}
           <div className="flex items-center gap-1.5">
             {isPositive ? (
@@ -230,7 +230,7 @@ function KPICard({ title, value, icon: Icon, change, delay, accent = '#E50914', 
             <span className="text-[10px] text-white/30">vs last 30 days</span>
           </div>
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl md:h-12 md:w-12" style={{ backgroundColor: `${accent}15` }}>
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl md:h-10 md:w-10" style={{ backgroundColor: `${accent}15` }}>
           <Icon className="h-5 w-5 md:h-6 md:w-6" style={{ color: accent }} />
         </div>
       </div>
@@ -262,7 +262,7 @@ function SectionCard({
       transition={{ delay, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
       className={`overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl ${className}`}
     >
-      <div className="p-4 md:p-5">
+      <div className="p-3 lg:p-4">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             {Icon && (
@@ -369,7 +369,7 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className="space-y-5"
+      className="space-y-4"
     >
       {/* ═══════════════════════════════════════════════════════════════════
           SECTION HEADER
@@ -381,11 +381,11 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
         className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-xtube-red/10 shadow-[0_0_15px_rgba(229,9,20,0.15)]">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-xtube-red/10 shadow-[0_0_15px_rgba(229,9,20,0.15)]">
             <BarChart3 className="h-5 w-5 text-xtube-red" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-white">Video Ads Analytics</h2>
+            <h2 className="text-xl font-bold text-white">Video Ads Analytics</h2>
             <p className="text-sm text-white/40">Advanced analytics for all video ad types</p>
           </div>
         </div>
@@ -419,7 +419,7 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
       {/* ═══════════════════════════════════════════════════════════════════
           KPI CARDS (4 columns desktop, 2 tablet)
           ═══════════════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {kpiCards.map((card, i) => (
           <KPICard key={card.title} {...card} delay={0.05 + i * 0.04} />
         ))}
@@ -428,7 +428,7 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
       {/* ═══════════════════════════════════════════════════════════════════
           REVENUE GRAPH + CTR GRAPH (2 columns)
           ═══════════════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {/* Revenue Graph */}
         <SectionCard
           title="Revenue Overview"
@@ -507,7 +507,7 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
       {/* ═══════════════════════════════════════════════════════════════════
           IMPRESSIONS CHART + DEVICE ANALYTICS DONUT (2 columns)
           ═══════════════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {/* Impressions Chart - Stacked Bar */}
         <SectionCard
           title="Impressions by Ad Type"
@@ -564,8 +564,8 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
           delay={0.55}
           icon={Monitor}
         >
-          <div className="flex flex-col items-center gap-4 md:flex-row md:items-start md:gap-6">
-            <div className="h-56 w-full md:h-64 md:w-1/2">
+          <div className="flex flex-col items-center gap-3 md:flex-row md:items-start md:gap-4">
+            <div className="h-44 w-full md:h-64 md:w-1/2">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -595,7 +595,7 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
                       const total = deviceAnalyticsData.reduce((s, e) => s + e.value, 0)
                       const pct = ((d.value as number) / total * 100).toFixed(1)
                       return (
-                        <div className="rounded-xl border border-white/10 bg-[#111111]/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
+                        <div className="rounded-xl border border-white/10 bg-[#111111]/95 px-3 py-2 shadow-2xl backdrop-blur-xl">
                           <p className="text-sm font-semibold text-white">{d.name}</p>
                           <p className="text-xs text-white/50">{(d.value as number).toLocaleString()} ({pct}%)</p>
                         </div>
@@ -707,7 +707,7 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
       {/* ═══════════════════════════════════════════════════════════════════
           TOP PERFORMING ADS + ANALYTICS TABLE (2 columns)
           ═══════════════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {/* Top Performing Video Ads */}
         <SectionCard
           title="Top Performing Video Ads"
@@ -863,7 +863,7 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
         transition={{ delay: 0.8, duration: 0.5 }}
         className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl"
       >
-        <div className="p-4 md:p-5">
+        <div className="p-3 lg:p-4">
           <div className="flex items-center gap-2 mb-4">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-xtube-red/10">
               <Zap className="h-4 w-4 text-xtube-red" />

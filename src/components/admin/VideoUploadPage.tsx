@@ -251,12 +251,12 @@ export function VideoUploadPage() {
       transition={{ duration: 0.3 }}
       className="h-full overflow-y-auto no-scrollbar"
     >
-      <div className="min-h-full p-4 md:p-6 lg:p-8">
+      <div className="min-h-full p-3 lg:p-5 xl:p-6">
         {/* ── Header Section ── */}
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-white md:text-3xl">Upload Video</h1>
+              <h1 className="text-xl font-bold text-white md:text-2xl">Upload Video</h1>
               <p className="mt-1 text-sm text-white/40">Upload a video — preview is auto-generated</p>
             </div>
           </div>
@@ -276,11 +276,11 @@ export function VideoUploadPage() {
         </div>
 
         {/* ── Two Column Layout ── */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px]">
           {/* ═══════════════════════════════════════════════════════════════════
               LEFT COLUMN — Upload Video
               ═══════════════════════════════════════════════════════════════════ */}
-          <div className="space-y-5">
+          <div className="space-y-4">
             {/* Section Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -317,7 +317,7 @@ export function VideoUploadPage() {
                   exit={{ opacity: 0, y: -10 }}
                   className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl"
                 >
-                  <div className="flex items-center gap-4 p-4">
+                  <div className="flex items-center gap-3 p-3 lg:p-4">
                     {/* Thumbnail Preview */}
                     <div className="relative h-16 w-28 flex-shrink-0 overflow-hidden rounded-lg">
                       <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/60 via-teal-800/40 to-cyan-900/30" />
@@ -441,7 +441,7 @@ export function VideoUploadPage() {
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                   onClick={handleBrowseClick}
-                  className={`relative flex min-h-[260px] cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed backdrop-blur-xl transition-all duration-200 ${
+                  className={`relative flex min-h-[260px] cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed backdrop-blur-xl transition-all duration-200 ${
                     isDragOver
                       ? 'border-xtube-red bg-xtube-red/5 shadow-[0_0_20px_rgba(229,9,20,0.15)]'
                       : 'border-white/10 bg-[#111111]/60 hover:border-white/20 hover:bg-[#111111]/80'
@@ -488,13 +488,13 @@ export function VideoUploadPage() {
                   exit={{ opacity: 0, y: -10 }}
                   className="flex items-center gap-3"
                 >
-                  <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-4 py-3 text-sm font-medium text-white/60 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-[#111111]/80 hover:text-white">
+                  <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2 text-sm font-medium text-white/60 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-[#111111]/80 hover:text-white">
                     <Link className="h-4 w-4" />
                     Paste Video URL
                   </button>
                   <button
                     onClick={handleBrowseClick}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-4 py-3 text-sm font-medium text-white/60 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-[#111111]/80 hover:text-white"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2 text-sm font-medium text-white/60 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-[#111111]/80 hover:text-white"
                   >
                     <Upload className="h-4 w-4" />
                     Manual Upload
@@ -510,7 +510,7 @@ export function VideoUploadPage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-5 backdrop-blur-xl"
+                  className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-3 lg:p-4 backdrop-blur-xl"
                 >
                   <div className="mb-3 flex items-center justify-between">
                     <span className="text-sm font-semibold text-white">
@@ -539,7 +539,7 @@ export function VideoUploadPage() {
                   </div>
 
                   {uploadStage === 'uploading' ? (
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-3 gap-3">
                       <div>
                         <p className="text-xs text-white/30">Uploaded</p>
                         <p className="text-sm font-semibold text-white">
@@ -572,7 +572,7 @@ export function VideoUploadPage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-4 backdrop-blur-xl"
+                  className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-3 lg:p-4 backdrop-blur-xl"
                 >
                   <div className="mb-3 flex items-center gap-2">
                     <Settings className="h-4 w-4 text-white/40" />
@@ -623,7 +623,7 @@ export function VideoUploadPage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-4 backdrop-blur-xl"
+                  className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-3 lg:p-4 backdrop-blur-xl"
                 >
                   <div className="mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -684,7 +684,7 @@ export function VideoUploadPage() {
           {/* ═══════════════════════════════════════════════════════════════════
               RIGHT COLUMN — Video Details
               ═══════════════════════════════════════════════════════════════════ */}
-          <div className="space-y-5">
+          <div className="space-y-4">
             {/* Section Header */}
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold text-xtube-red">2.</span>
@@ -694,7 +694,7 @@ export function VideoUploadPage() {
 
             {/* ── Form Card ── */}
             <div className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl">
-              <div className="space-y-5 p-5">
+              <div className="space-y-4 p-3 lg:p-4">
                 {/* Title */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -781,7 +781,7 @@ export function VideoUploadPage() {
                 </div>
 
                 {/* Checkboxes */}
-                <div className="space-y-3 rounded-lg border border-white/5 bg-[#0a0a0a]/50 p-4">
+                <div className="space-y-3 rounded-lg border border-white/5 bg-[#0a0a0a]/50 p-3 lg:p-4">
                   <label className="flex items-center gap-3 cursor-pointer">
                     <Checkbox
                       checked={isFeatured}
@@ -842,7 +842,7 @@ export function VideoUploadPage() {
 
             {/* ── Legal Notice ── */}
             <div className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/50 backdrop-blur-xl">
-              <div className="flex items-start gap-3 p-4">
+              <div className="flex items-start gap-3 p-3 lg:p-4">
                 <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-xtube-red/10">
                   <Shield className="h-4 w-4 text-xtube-red" />
                 </div>

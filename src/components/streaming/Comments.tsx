@@ -355,8 +355,8 @@ export function Comments({ comments, onAddComment, loading }: CommentsProps) {
   return (
     <div>
       {/* Header */}
-      <div className="mb-5 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-base font-bold text-white sm:text-lg">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-sm font-bold text-white sm:text-base">
           {totalComments.toLocaleString()} Comments
         </h2>
 
@@ -411,8 +411,8 @@ export function Comments({ comments, onAddComment, loading }: CommentsProps) {
       </div>
 
       {/* Add comment input */}
-      <div className="mb-6 flex gap-3">
-        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-xtube-red to-red-700 text-sm font-bold text-white sm:h-10 sm:w-10">
+      <div className="mb-4 flex gap-3">
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-xtube-red to-red-700 text-xs font-bold text-white sm:h-9 sm:w-9">
           U
         </div>
         <div className="flex-1">
@@ -477,7 +477,7 @@ export function Comments({ comments, onAddComment, loading }: CommentsProps) {
           </p>
         </motion.div>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {sortedComments.map((comment) => (
             <CommentItem
               key={comment.id}

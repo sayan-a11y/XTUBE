@@ -53,13 +53,13 @@ export function CategorySection({ title, category, videos }: CategorySectionProp
   return (
     <section className="group relative">
       {/* Section header */}
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-bold text-white sm:text-xl md:text-2xl">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-base font-bold text-white sm:text-lg md:text-xl">
           {title}
         </h2>
         <button
           onClick={handleSeeAll}
-          className="flex items-center gap-1 text-sm font-medium text-xtube-red transition-colors hover:text-xtube-red-hover"
+          className="flex items-center gap-1 text-xs font-medium text-xtube-red transition-colors hover:text-xtube-red-hover"
         >
           See All
           <ArrowRight className="h-4 w-4" />
@@ -114,12 +114,12 @@ export function CategorySection({ title, category, videos }: CategorySectionProp
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="no-scrollbar flex gap-4 overflow-x-auto scroll-smooth pb-2"
+          className="no-scrollbar flex gap-3 overflow-x-auto scroll-smooth pb-2"
         >
           {videos.map((video) => (
             <div
               key={video.id}
-              className="w-[260px] flex-shrink-0 sm:w-[280px] md:w-[300px]"
+              className="w-[200px] flex-shrink-0 sm:w-[220px] md:w-[240px] lg:w-[260px]"
             >
               <VideoCard {...video} />
             </div>

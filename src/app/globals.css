@@ -124,28 +124,41 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
   body {
     @apply bg-background text-foreground;
+    font-size: clamp(13px, 0.833vw, 16px);
+    overflow-x: hidden;
   }
 }
 
-/* Custom scrollbar */
+/* Netflix-style custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
 /* Video player custom styles */
@@ -277,4 +290,67 @@ input[type="range"]::-moz-range-thumb {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
+}
+
+/* ─── Responsive Sizing Utilities ─────────────────────────────── */
+
+/* GPU-accelerated transforms */
+.gpu-accelerate {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* Compact scrollbar for admin tables */
+.compact-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.compact-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+.compact-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+/* Responsive admin card height */
+.admin-card {
+  min-height: 0;
+  max-height: 140px;
+}
+
+@media (max-width: 1440px) {
+  .admin-card {
+    max-height: 130px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .admin-card {
+    max-height: 120px;
+  }
+}
+
+/* Prevent layout shift on scroll */
+.prevent-layout-shift {
+  overflow-anchor: none;
+}
+
+/* Responsive text scaling */
+.text-responsive-xs {
+  font-size: clamp(10px, 0.625vw, 12px);
+}
+.text-responsive-sm {
+  font-size: clamp(12px, 0.75vw, 14px);
+}
+.text-responsive-base {
+  font-size: clamp(13px, 0.833vw, 16px);
+}
+.text-responsive-lg {
+  font-size: clamp(16px, 1vw, 20px);
+}
+.text-responsive-xl {
+  font-size: clamp(18px, 1.125vw, 24px);
 }

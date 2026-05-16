@@ -298,13 +298,13 @@ export default function XtubeHome() {
   const renderHomeView = () => {
     if (loading) {
       return (
-        <div className="space-y-8 pb-20 md:pb-8">
-          <div className="h-[300px] sm:h-[400px] md:h-[500px] animate-shimmer bg-xtube-card" />
-          <section className="px-4 md:px-6 space-y-4">
-            <div className="h-8 w-48 rounded-lg animate-shimmer bg-xtube-card" />
-            <div className="flex gap-4 overflow-hidden">
+        <div className="space-y-6 pb-20 md:pb-8">
+          <div className="h-[240px] sm:h-[320px] md:h-[420px] animate-shimmer bg-xtube-card" />
+          <section className="px-3 md:px-5 space-y-4">
+            <div className="h-7 w-40 rounded-lg animate-shimmer bg-xtube-card" />
+            <div className="flex gap-3 overflow-hidden">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="w-[260px] sm:w-[280px] md:w-[300px] flex-shrink-0 space-y-2">
+                <div key={i} className="w-[200px] sm:w-[220px] md:w-[240px] flex-shrink-0 space-y-2">
                   <div className="aspect-video rounded-lg animate-shimmer bg-xtube-card" />
                   <div className="h-4 w-3/4 rounded animate-shimmer bg-xtube-card" />
                   <div className="h-3 w-1/2 rounded animate-shimmer bg-xtube-card" />
@@ -317,9 +317,9 @@ export default function XtubeHome() {
     }
 
     return (
-    <div className="space-y-8 pb-20 md:pb-8">
+    <div className="space-y-6 pb-20 md:pb-8">
       <HeroBanner banners={heroBanners} />
-      <section className="px-4 md:px-6">
+      <section className="px-3 md:px-5">
         <CategorySection
           title="🔥 Trending Now"
           category="trending"
@@ -358,7 +358,7 @@ export default function XtubeHome() {
   }
 
   const renderTrendingView = () => (
-    <div className="px-4 md:px-6 pb-20 md:pb-8">
+    <div className="px-3 md:px-5 pb-20 md:pb-8">
       <div className="mb-6 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-xtube-red/20">
           <Flame className="h-5 w-5 text-xtube-red" />
@@ -386,7 +386,7 @@ export default function XtubeHome() {
   )
 
   const renderCategoryView = () => (
-    <div className="px-4 md:px-6 pb-20 md:pb-8">
+    <div className="px-3 md:px-5 pb-20 md:pb-8">
       <div className="mb-6 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-xtube-red/20">
           <Sparkles className="h-5 w-5 text-xtube-red" />
@@ -435,7 +435,7 @@ export default function XtubeHome() {
   )
 
   const renderBookmarksView = () => (
-    <div className="px-4 md:px-6 pb-20 md:pb-8">
+    <div className="px-3 md:px-5 pb-20 md:pb-8">
       <div className="mb-6 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-xtube-red/20">
           <Clock className="h-5 w-5 text-xtube-red" />
@@ -454,7 +454,7 @@ export default function XtubeHome() {
   )
 
   const renderHistoryView = () => (
-    <div className="px-4 md:px-6 pb-20 md:pb-8">
+    <div className="px-3 md:px-5 pb-20 md:pb-8">
       <div className="mb-6 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-xtube-red/20">
           <History className="h-5 w-5 text-xtube-red" />
@@ -473,7 +473,7 @@ export default function XtubeHome() {
   )
 
   const renderSearchView = () => (
-    <div className="px-4 md:px-6 pb-20 md:pb-8">
+    <div className="px-3 md:px-5 pb-20 md:pb-8">
       <div className="mb-6 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-xtube-red/20">
           <Search className="h-5 w-5 text-xtube-red" />
@@ -553,12 +553,12 @@ export default function XtubeHome() {
           {/* Main Content Area */}
           <motion.main
             className={`min-h-screen transition-all duration-300 ${
-              sidebarCollapsed ? 'md:ml-[72px]' : 'md:ml-[240px]'
+              sidebarCollapsed ? 'md:ml-[64px]' : 'md:ml-[220px]'
             }`}
           >
             {/* Top Header Bar */}
             {currentView !== 'admin' && (
-              <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-xtube-border bg-[#050505]/90 px-4 backdrop-blur-md md:px-6">
+              <header className="sticky top-0 z-30 flex h-12 items-center justify-between border-b border-xtube-border bg-[#050505]/90 px-3 backdrop-blur-md md:px-5">
                 <div className="flex items-center gap-3">
                   {/* Mobile Logo */}
                   <button
@@ -566,14 +566,14 @@ export default function XtubeHome() {
                     className="flex items-center gap-2 md:hidden"
                     aria-label="Xtube"
                   >
-                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-xtube-red">
-                      <span className="text-xs font-bold text-white">X</span>
+                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-xtube-red">
+                      <span className="text-[10px] font-bold text-white">X</span>
                     </div>
-                    <span className="text-base font-bold text-white">Xtube</span>
+                    <span className="text-sm font-bold text-white">Xtube</span>
                   </button>
 
                   {/* View Title */}
-                  <h2 className="hidden text-sm font-medium text-xtube-text-secondary md:block">
+                  <h2 className="hidden text-xs font-medium text-xtube-text-secondary md:block">
                     {currentView === 'home' && 'Home'}
                     {currentView === 'trending' && 'Trending'}
                     {currentView === 'category' && 'Categories'}

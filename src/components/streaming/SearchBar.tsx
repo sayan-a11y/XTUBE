@@ -77,7 +77,7 @@ export function SearchBar() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={handleExpand}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-xtube-text-secondary transition-colors hover:bg-white/5 hover:text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-xtube-text-secondary transition-colors hover:bg-white/5 hover:text-white"
               aria-label="Open search"
             >
               <Search className="h-5 w-5" />
@@ -89,7 +89,7 @@ export function SearchBar() {
               animate={{ width: 260, opacity: 1 }}
               exit={{ width: 36, opacity: 0 }}
               transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-              className="flex items-center gap-2 rounded-full glass px-3 py-1.5"
+              className="flex items-center gap-2 rounded-full glass px-3 py-1"
             >
               <Search className="h-4 w-4 flex-shrink-0 text-xtube-text-secondary" />
               <input
@@ -120,14 +120,14 @@ export function SearchBar() {
 
       {/* Desktop: always-visible search bar */}
       <div className="hidden md:block">
-        <div className="flex items-center gap-2 rounded-full glass px-4 py-2 transition-shadow duration-200 focus-within:ring-1 focus-within:ring-xtube-red">
+        <div className="flex items-center gap-2 rounded-full glass px-3 py-1.5 transition-shadow duration-200 focus-within:ring-1 focus-within:ring-xtube-red">
           <Search className="h-4 w-4 flex-shrink-0 text-xtube-text-secondary" />
           <input
             type="text"
             value={localValue}
             onChange={(e) => handleInputChange(e.target.value)}
             placeholder="Search videos..."
-            className="w-48 bg-transparent text-sm text-white placeholder:text-xtube-text-secondary focus:outline-none lg:w-64"
+            className="w-40 bg-transparent text-xs text-white placeholder:text-xtube-text-secondary focus:outline-none lg:w-56"
             aria-label="Search videos"
           />
           <AnimatePresence>

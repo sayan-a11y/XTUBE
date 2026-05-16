@@ -226,10 +226,10 @@ function UploadView({ onUpload }: { onUpload: (data: Record<string, unknown>) =>
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
-      className="space-y-6 p-4 md:p-6"
+      className="space-y-4 p-3 lg:p-5"
     >
       <div>
-        <h2 className="text-2xl font-bold text-white">Upload Video</h2>
+        <h2 className="text-xl font-bold text-white">Upload Video</h2>
         <p className="text-sm text-xtube-text-secondary">Drag and drop your video files or browse to upload</p>
       </div>
 
@@ -239,7 +239,7 @@ function UploadView({ onUpload }: { onUpload: (data: Record<string, unknown>) =>
         onDrop={handleDrop}
         animate={{ borderColor: isDragOver ? '#E50914' : '#1f1f1f', backgroundColor: isDragOver ? 'rgba(229,9,20,0.05)' : 'rgba(15,15,15,0.8)' }}
         transition={{ duration: 0.2 }}
-        className="relative flex min-h-[280px] cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed bg-[#0f0f0f]/80 backdrop-blur-xl transition-shadow hover:shadow-[0_0_15px_rgba(229,9,20,0.1)]"
+        className="relative flex min-h-[220px] cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed bg-[#0f0f0f]/80 backdrop-blur-xl transition-shadow hover:shadow-[0_0_15px_rgba(229,9,20,0.1)]"
         onClick={handleBrowseClick}
       >
         <input ref={fileInputRef} type="file" accept="video/*" className="hidden" onChange={handleFileSelect} />
@@ -255,7 +255,7 @@ function UploadView({ onUpload }: { onUpload: (data: Record<string, unknown>) =>
             </motion.div>
           )}
           {uploadState === 'uploading' && (
-            <motion.div key="uploading" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="flex w-full max-w-sm flex-col items-center gap-4 px-6">
+            <motion.div key="uploading" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="flex w-full max-w-sm flex-col items-center gap-3 px-4">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-xtube-red/10"><Upload className="h-8 w-8 animate-bounce text-xtube-red" /></div>
               <div className="w-full space-y-2">
                 <div className="flex items-center justify-between text-sm">
@@ -286,7 +286,7 @@ function UploadView({ onUpload }: { onUpload: (data: Record<string, unknown>) =>
         className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 p-6 backdrop-blur-xl transition-shadow hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)]"
       >
         <h3 className="mb-5 text-lg font-semibold text-white">Video Details</h3>
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2"><Label className="text-white">Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Enter video title" className="border-xtube-border bg-xtube-bg text-white placeholder:text-xtube-text-secondary focus:border-xtube-red/40 focus:ring-xtube-red/20" required /></div>
           <div className="space-y-2"><Label className="text-white">Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Describe your video..." className="min-h-[100px] border-xtube-border bg-xtube-bg text-white placeholder:text-xtube-text-secondary focus:border-xtube-red/40 focus:ring-xtube-red/20" rows={4} /></div>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -492,7 +492,7 @@ function VideoListRow({
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.03, duration: 0.3 }}
-      className="group flex items-center gap-4 rounded-xl border border-white/5 bg-[#111111]/80 p-3 backdrop-blur-xl transition-all duration-200 hover:border-white/10 hover:bg-[#111111]/95 hover:shadow-[0_0_15px_rgba(229,9,20,0.08)]"
+      className="group flex items-center gap-3 rounded-xl border border-white/5 bg-[#111111]/80 p-3 backdrop-blur-xl transition-all duration-200 hover:border-white/10 hover:bg-[#111111]/95 hover:shadow-[0_0_15px_rgba(229,9,20,0.08)]"
     >
       {/* Thumbnail */}
       <div className="relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg">
@@ -630,7 +630,7 @@ function AllVideosView({
 
   if (loading) {
     return (
-      <div className="space-y-6 p-4 md:p-6">
+      <div className="space-y-4 p-3 lg:p-5">
         <div className="flex items-center justify-between">
           <div><Skeleton className="h-8 w-48 bg-xtube-card" /><Skeleton className="mt-2 h-4 w-60 bg-xtube-card" /></div>
           <Skeleton className="h-10 w-36 rounded-xl bg-xtube-card" />
@@ -640,7 +640,7 @@ function AllVideosView({
           <Skeleton className="h-10 w-36 bg-xtube-card" />
           <Skeleton className="h-10 w-36 bg-xtube-card" />
         </div>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80">
               <Skeleton className="aspect-video bg-xtube-card" />
@@ -657,18 +657,18 @@ function AllVideosView({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
-      className="space-y-5 p-4 md:p-6"
+      className="space-y-4 p-3 lg:p-5"
     >
       {/* ═══════════════════════════════════════════════════════════════════
           TOP HEADER
           ═══════════════════════════════════════════════════════════════════ */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-xtube-red/10">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-xtube-red/10">
             <Film className="h-5 w-5 text-xtube-red" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-white">All Videos</h2>
+            <h2 className="text-xl font-bold text-white">All Videos</h2>
             <p className="text-sm text-white/40">Manage your entire video library</p>
           </div>
         </div>
@@ -795,7 +795,7 @@ function AllVideosView({
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex flex-col items-center justify-center gap-4 rounded-xl border border-white/5 bg-[#0f0f0f]/80 p-16 backdrop-blur-xl"
+          className="flex flex-col items-center justify-center gap-3 rounded-xl border border-white/5 bg-[#0f0f0f]/80 p-16 backdrop-blur-xl"
         >
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-xtube-red/5">
             <Film className="h-8 w-8 text-white/20" />
@@ -813,7 +813,7 @@ function AllVideosView({
         </motion.div>
       ) : viewMode === 'grid' ? (
         /* GRID VIEW */
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {paginatedVideos.map((video, index) => (
             <VideoCard
               key={video.id}

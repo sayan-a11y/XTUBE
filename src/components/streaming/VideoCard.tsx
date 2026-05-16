@@ -60,7 +60,7 @@ export function VideoCard({
 
   return (
     <motion.div
-      whileHover={{ scale: 1.05 }}
+      whileHover={{ scale: 1.03 }}
       transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
       className="group cursor-pointer"
       onClick={() => navigateToVideo(id)}
@@ -90,9 +90,9 @@ export function VideoCard({
             initial={{ scale: 0.5, opacity: 0 }}
             whileHover={{ scale: 1 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-xtube-red/90 text-white shadow-lg"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-xtube-red/90 text-white shadow-lg"
           >
-            <Play className="h-6 w-6 ml-0.5" fill="currentColor" />
+            <Play className="h-5 w-5 ml-0.5" fill="currentColor" />
           </motion.div>
         </div>
 
@@ -130,12 +130,12 @@ export function VideoCard({
       {/* Card info below thumbnail */}
       <div className="mt-2 space-y-1">
         {/* Title */}
-        <h3 className="truncate text-sm font-medium text-white transition-colors group-hover:text-xtube-red">
+        <h3 className="truncate text-[13px] font-medium text-white transition-colors group-hover:text-xtube-red">
           {title}
         </h3>
 
         {/* Views + date */}
-        <div className="flex items-center gap-2 text-xs text-xtube-text-secondary">
+        <div className="flex items-center gap-2 text-[11px] text-xtube-text-secondary">
           <span className="flex items-center gap-1">
             <Eye className="h-3 w-3" />
             {formatViews(views)}

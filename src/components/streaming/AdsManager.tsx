@@ -261,7 +261,7 @@ export function AdsManager({ ads, onCreate, onDelete, onToggle, loading }: AdsMa
   if (loading) {
     return (
       <div className="space-y-6 p-6">
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-28 rounded-xl bg-xtube-card" />
           ))}
@@ -273,7 +273,7 @@ export function AdsManager({ ads, onCreate, onDelete, onToggle, loading }: AdsMa
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-4 p-3 lg:p-5">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -282,7 +282,7 @@ export function AdsManager({ ads, onCreate, onDelete, onToggle, loading }: AdsMa
         className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
       >
         <div>
-          <h2 className="text-2xl font-bold text-white">{sectionInfo.title}</h2>
+          <h2 className="text-xl font-bold text-white">{sectionInfo.title}</h2>
           <p className="text-sm text-xtube-text-secondary">{sectionInfo.description}</p>
           <p className="mt-1 text-xs text-xtube-text-secondary">
             {filteredAds.length} ad{filteredAds.length !== 1 ? 's' : ''} shown
@@ -311,7 +311,7 @@ export function AdsManager({ ads, onCreate, onDelete, onToggle, loading }: AdsMa
                   required
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label className="text-white">Type</Label>
                   <Select
@@ -372,7 +372,7 @@ export function AdsManager({ ads, onCreate, onDelete, onToggle, loading }: AdsMa
                   required
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label className="text-white">Start Date</Label>
                   <Input
@@ -417,7 +417,7 @@ export function AdsManager({ ads, onCreate, onDelete, onToggle, loading }: AdsMa
         variants={containerVariants}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4"
+        className="grid grid-cols-2 gap-3 lg:grid-cols-4"
       >
         <motion.div
           variants={itemVariants}
@@ -425,12 +425,12 @@ export function AdsManager({ ads, onCreate, onDelete, onToggle, loading }: AdsMa
         >
           <div className="absolute left-0 top-0 h-[2px] w-full bg-gradient-to-r from-xtube-red to-transparent" />
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-xtube-red/10 md:h-12 md:w-12">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-xtube-red/10 lg:h-10 lg:w-10">
               <Eye className="h-5 w-5 text-xtube-red md:h-6 md:w-6" />
             </div>
             <div className="min-w-0">
               <p className="text-xs text-xtube-text-secondary">Impressions</p>
-              <p className="text-xl font-bold text-white md:text-2xl">{formatNumber(totalImpressions)}</p>
+              <p className="text-lg font-bold text-white lg:text-xl">{formatNumber(totalImpressions)}</p>
             </div>
           </div>
         </motion.div>
@@ -441,12 +441,12 @@ export function AdsManager({ ads, onCreate, onDelete, onToggle, loading }: AdsMa
         >
           <div className="absolute left-0 top-0 h-[2px] w-full bg-gradient-to-r from-xtube-red to-transparent" />
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-xtube-red/10 md:h-12 md:w-12">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-xtube-red/10 lg:h-10 lg:w-10">
               <MousePointer className="h-5 w-5 text-xtube-red md:h-6 md:w-6" />
             </div>
             <div className="min-w-0">
               <p className="text-xs text-xtube-text-secondary">Clicks</p>
-              <p className="text-xl font-bold text-white md:text-2xl">{formatNumber(totalClicks)}</p>
+              <p className="text-lg font-bold text-white lg:text-xl">{formatNumber(totalClicks)}</p>
             </div>
           </div>
         </motion.div>
@@ -457,12 +457,12 @@ export function AdsManager({ ads, onCreate, onDelete, onToggle, loading }: AdsMa
         >
           <div className="absolute left-0 top-0 h-[2px] w-full bg-gradient-to-r from-xtube-red to-transparent" />
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-xtube-red/10 md:h-12 md:w-12">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-xtube-red/10 lg:h-10 lg:w-10">
               <TrendingUp className="h-5 w-5 text-xtube-red md:h-6 md:w-6" />
             </div>
             <div className="min-w-0">
               <p className="text-xs text-xtube-text-secondary">CTR</p>
-              <p className="text-xl font-bold text-white md:text-2xl">{overallCTR}%</p>
+              <p className="text-lg font-bold text-white lg:text-xl">{overallCTR}%</p>
             </div>
           </div>
         </motion.div>
@@ -473,12 +473,12 @@ export function AdsManager({ ads, onCreate, onDelete, onToggle, loading }: AdsMa
         >
           <div className="absolute left-0 top-0 h-[2px] w-full bg-gradient-to-r from-xtube-red to-transparent" />
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-xtube-red/10 md:h-12 md:w-12">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-xtube-red/10 lg:h-10 lg:w-10">
               <DollarSign className="h-5 w-5 text-xtube-red md:h-6 md:w-6" />
             </div>
             <div className="min-w-0">
               <p className="text-xs text-xtube-text-secondary">Revenue</p>
-              <p className="text-xl font-bold text-white md:text-2xl">{formatCurrency(totalRevenue)}</p>
+              <p className="text-lg font-bold text-white lg:text-xl">{formatCurrency(totalRevenue)}</p>
             </div>
           </div>
         </motion.div>
@@ -508,7 +508,7 @@ export function AdsManager({ ads, onCreate, onDelete, onToggle, loading }: AdsMa
           </div>
         ) : (
           <div className="flex h-48 flex-col items-center justify-center gap-2">
-            <BarChart3 className="h-10 w-10 text-xtube-text-secondary" />
+            <BarChart3 className="h-8 w-8 text-xtube-text-secondary" />
             <p className="text-sm text-xtube-text-secondary">No chart data available</p>
           </div>
         )}
@@ -525,7 +525,7 @@ export function AdsManager({ ads, onCreate, onDelete, onToggle, loading }: AdsMa
           variants={containerVariants}
           initial="hidden"
           animate="show"
-          className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4"
+          className="grid grid-cols-2 gap-3 md:grid-cols-4"
         >
           {/* Average CTR */}
           <motion.div

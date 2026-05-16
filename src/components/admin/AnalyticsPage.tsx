@@ -130,13 +130,13 @@ function TopMetricCard({ title, value, icon: Icon, change, delay }: TopMetricCar
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.4 }}
-      className="group rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-4 md:p-6 transition-colors hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)]"
+      className="group rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-3 lg:p-5 transition-colors hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)]"
     >
       <div className="absolute left-0 top-0 h-[2px] w-full bg-gradient-to-r from-xtube-red to-transparent" />
       <div className="flex items-start justify-between">
         <div className="space-y-2">
           <p className="text-sm text-xtube-text-secondary">{title}</p>
-          <p className="text-2xl md:text-3xl font-bold text-white">{value}</p>
+          <p className="text-xl md:text-2xl font-bold text-white">{value}</p>
           <div className="flex items-center gap-1">
             {isPositive ? (
               <TrendingUp className="h-3.5 w-3.5 text-green-400" />
@@ -149,7 +149,7 @@ function TopMetricCard({ title, value, icon: Icon, change, delay }: TopMetricCar
             <span className="text-xs text-xtube-text-secondary">vs last month</span>
           </div>
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-xtube-red/10 md:h-12 md:w-12">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-xtube-red/10 md:h-10 md:w-10">
           <Icon className="h-5 w-5 text-xtube-red md:h-6 md:w-6" />
         </div>
       </div>
@@ -159,13 +159,13 @@ function TopMetricCard({ title, value, icon: Icon, change, delay }: TopMetricCar
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+    <div className="space-y-4 p-3 lg:p-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-28 rounded-xl bg-xtube-card" />
         ))}
       </div>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {Array.from({ length: 6 }).map((_, i) => (
           <Skeleton key={i} className="h-72 rounded-xl bg-xtube-card" />
         ))}
@@ -197,22 +197,22 @@ export function AnalyticsPage({ data, loading }: AnalyticsPageProps) {
   ]
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-4 p-3 lg:p-5">
       {/* Top Metrics Row */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {topMetrics.map((metric, i) => (
           <TopMetricCard key={metric.title} {...metric} delay={i * 0.05} />
         ))}
       </div>
 
       {/* Traffic Overview + Revenue Analytics */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Traffic Overview - Large Area Chart */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-4 md:p-6 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
+          className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-3 lg:p-5 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
         >
           <h3 className="text-lg font-semibold text-white mb-4">Traffic Overview</h3>
           <div className="h-64 md:h-72">
@@ -246,7 +246,7 @@ export function AnalyticsPage({ data, loading }: AnalyticsPageProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-4 md:p-6 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
+          className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-3 lg:p-5 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
         >
           <h3 className="text-lg font-semibold text-white mb-4">Revenue Analytics</h3>
           <div className="h-64 md:h-72">
@@ -271,13 +271,13 @@ export function AnalyticsPage({ data, loading }: AnalyticsPageProps) {
       </div>
 
       {/* User Growth + Traffic Sources */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* User Growth Line Chart */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-4 md:p-6 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
+          className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-3 lg:p-5 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
         >
           <h3 className="text-lg font-semibold text-white mb-4">User Growth</h3>
           <div className="h-64 md:h-72">
@@ -306,7 +306,7 @@ export function AnalyticsPage({ data, loading }: AnalyticsPageProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
-          className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-4 md:p-6 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
+          className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-3 lg:p-5 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
         >
           <h3 className="text-lg font-semibold text-white mb-4">Traffic Sources</h3>
           <div className="h-64 md:h-72">
@@ -336,13 +336,13 @@ export function AnalyticsPage({ data, loading }: AnalyticsPageProps) {
       </div>
 
       {/* Ad Performance + Geographic Distribution */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* Ad Performance Bar Chart */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-4 md:p-6 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
+          className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-3 lg:p-5 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
         >
           <h3 className="text-lg font-semibold text-white mb-4">Ad Performance</h3>
           <div className="h-64 md:h-72">
@@ -366,7 +366,7 @@ export function AnalyticsPage({ data, loading }: AnalyticsPageProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45 }}
-          className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-4 md:p-6 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
+          className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-3 lg:p-5 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
         >
           <h3 className="text-lg font-semibold text-white mb-4">Geographic Distribution</h3>
           <div className="space-y-3">
@@ -402,7 +402,7 @@ export function AnalyticsPage({ data, loading }: AnalyticsPageProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-4 md:p-6 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
+        className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-3 lg:p-5 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
       >
         <div className="flex items-center gap-2 mb-4">
           <h3 className="text-lg font-semibold text-white">Real-time Stats</h3>
@@ -414,32 +414,32 @@ export function AnalyticsPage({ data, loading }: AnalyticsPageProps) {
             <span className="text-xs font-medium text-green-400">Live</span>
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="flex items-center gap-3 rounded-lg border border-xtube-border bg-xtube-bg/50 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-xtube-red/10">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="flex items-center gap-3 rounded-lg border border-xtube-border bg-xtube-bg/50 p-3 lg:p-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-xtube-red/10">
               <Wifi className="h-5 w-5 text-xtube-red" />
             </div>
             <div>
               <p className="text-sm text-xtube-text-secondary">Active Users Now</p>
-              <p className="text-2xl font-bold text-white">{Math.round(data.totalViews * 0.003).toLocaleString()}</p>
+              <p className="text-xl font-bold text-white">{Math.round(data.totalViews * 0.003).toLocaleString()}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-lg border border-xtube-border bg-xtube-bg/50 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-xtube-red/10">
+          <div className="flex items-center gap-3 rounded-lg border border-xtube-border bg-xtube-bg/50 p-3 lg:p-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-xtube-red/10">
               <Play className="h-5 w-5 text-xtube-red" />
             </div>
             <div>
               <p className="text-sm text-xtube-text-secondary">Videos Being Watched</p>
-              <p className="text-2xl font-bold text-white">{Math.round(data.totalViews * 0.0012).toLocaleString()}</p>
+              <p className="text-xl font-bold text-white">{Math.round(data.totalViews * 0.0012).toLocaleString()}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-lg border border-xtube-border bg-xtube-bg/50 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-xtube-red/10">
+          <div className="flex items-center gap-3 rounded-lg border border-xtube-border bg-xtube-bg/50 p-3 lg:p-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-xtube-red/10">
               <DollarSign className="h-5 w-5 text-xtube-red" />
             </div>
             <div>
               <p className="text-sm text-xtube-text-secondary">Revenue Today</p>
-              <p className="text-2xl font-bold text-white">{formatCurrency(Math.round(data.totalRevenue * 0.035))}</p>
+              <p className="text-xl font-bold text-white">{formatCurrency(Math.round(data.totalRevenue * 0.035))}</p>
             </div>
           </div>
         </div>

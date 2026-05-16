@@ -193,7 +193,7 @@ export function CatalogPage() {
   const sortedCategories = [...categories].sort((a, b) => a.order - b.order)
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-4 p-3 lg:p-5">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -202,7 +202,7 @@ export function CatalogPage() {
         className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-xtube-red/10">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-xtube-red/10">
             <Grid3X3 className="h-5 w-5 text-xtube-red" />
           </div>
           <div>
@@ -305,7 +305,7 @@ export function CatalogPage() {
       </motion.div>
 
       {/* Category Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <AnimatePresence>
           {sortedCategories.map((category, idx) => {
             const IconComp = iconMap[category.icon] || Film
@@ -319,7 +319,7 @@ export function CatalogPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ delay: 0.05 + idx * 0.03, duration: 0.3 }}
-                className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-4 md:p-5 transition-all hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)]"
+                className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-3 lg:p-4 transition-all hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)]"
               >
                 {/* Background gradient */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${gradientColor} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
@@ -331,7 +331,7 @@ export function CatalogPage() {
                       <div className="flex h-3 w-3 items-center justify-center text-xtube-text-secondary/40">
                         <GripVertical className="h-3 w-3" />
                       </div>
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-xtube-red/10">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-xtube-red/10">
                         <IconComp className="h-5 w-5 text-xtube-red" />
                       </div>
                     </div>
@@ -358,7 +358,7 @@ export function CatalogPage() {
                   <p className="text-xs text-xtube-text-secondary font-mono mb-3">/{category.slug}</p>
 
                   {/* Stats */}
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1.5">
                       <Film className="h-3.5 w-3.5 text-xtube-text-secondary" />
                       <span className="text-sm text-xtube-text-secondary">{category.videoCount} videos</span>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard,
@@ -32,20 +32,22 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { AdminDashboard } from './AdminDashboard'
 import { VideoManager } from './VideoManager'
 import { AdsManager } from './AdsManager'
-import { AnalyticsPage } from '@/components/admin/AnalyticsPage'
-import { UsersPage } from '@/components/admin/UsersPage'
-import { SettingsPage } from '@/components/admin/SettingsPage'
-import { CatalogPage } from '@/components/admin/CatalogPage'
-import { VideoAdsAnalytics } from '@/components/admin/VideoAdsAnalytics'
-import { VideoUploadPage } from '@/components/admin/VideoUploadPage'
-import { PreRollAdsPage } from '@/components/admin/PreRollAdsPage'
-import { MidRollAdsPage } from '@/components/admin/MidRollAdsPage'
-import { PostRollAdsPage } from '@/components/admin/PostRollAdsPage'
-import { OverlayAdsPage } from '@/components/admin/OverlayAdsPage'
-import { PopupAdsPage } from '@/components/admin/PopupAdsPage'
-import { BannerAdsPage } from '@/components/admin/BannerAdsPage'
-import { HeroFooterAdsPage } from '@/components/admin/HeroFooterAdsPage'
-import { AllAdsPage } from '@/components/admin/AllAdsPage'
+
+// ─── Dynamic Imports for Admin Sub-pages (Code Splitting) ────────────────────
+const AnalyticsPage = lazy(() => import('@/components/admin/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })))
+const UsersPage = lazy(() => import('@/components/admin/UsersPage').then(m => ({ default: m.UsersPage })))
+const SettingsPage = lazy(() => import('@/components/admin/SettingsPage').then(m => ({ default: m.SettingsPage })))
+const CatalogPage = lazy(() => import('@/components/admin/CatalogPage').then(m => ({ default: m.CatalogPage })))
+const VideoAdsAnalytics = lazy(() => import('@/components/admin/VideoAdsAnalytics').then(m => ({ default: m.VideoAdsAnalytics })))
+const VideoUploadPage = lazy(() => import('@/components/admin/VideoUploadPage').then(m => ({ default: m.VideoUploadPage })))
+const PreRollAdsPage = lazy(() => import('@/components/admin/PreRollAdsPage').then(m => ({ default: m.PreRollAdsPage })))
+const MidRollAdsPage = lazy(() => import('@/components/admin/MidRollAdsPage').then(m => ({ default: m.MidRollAdsPage })))
+const PostRollAdsPage = lazy(() => import('@/components/admin/PostRollAdsPage').then(m => ({ default: m.PostRollAdsPage })))
+const OverlayAdsPage = lazy(() => import('@/components/admin/OverlayAdsPage').then(m => ({ default: m.OverlayAdsPage })))
+const PopupAdsPage = lazy(() => import('@/components/admin/PopupAdsPage').then(m => ({ default: m.PopupAdsPage })))
+const BannerAdsPage = lazy(() => import('@/components/admin/BannerAdsPage').then(m => ({ default: m.BannerAdsPage })))
+const HeroFooterAdsPage = lazy(() => import('@/components/admin/HeroFooterAdsPage').then(m => ({ default: m.HeroFooterAdsPage })))
+const AllAdsPage = lazy(() => import('@/components/admin/AllAdsPage').then(m => ({ default: m.AllAdsPage })))
 
 // ─── Custom Hook: Tablet Detection ────────────────────────────────────────────
 
@@ -63,6 +65,22 @@ function useIsTablet() {
   }, [])
 
   return !!isTablet
+}
+
+function useIsLaptop() {
+  const [isLaptop, setIsLaptop] = useState<boolean | undefined>(undefined)
+
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 1024px) and (max-width: 1440px)')
+    const onChange = () => {
+      setIsLaptop(window.innerWidth >= 1024 && window.innerWidth <= 1440)
+    }
+    mql.addEventListener('change', onChange)
+    onChange()
+    return () => mql.removeEventListener('change', onChange)
+  }, [])
+
+  return !!isLaptop
 }
 
 // ─── Navigation Types ─────────────────────────────────────────────────────────
@@ -310,8 +328,8 @@ function SidebarNavItem({
         onClick={handleClick}
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.99 }}
-        className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-          depth > 0 ? 'pl-7' : ''
+        className={`group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors ${
+          depth > 0 ? 'pl-6' : ''
         } ${
           isActive
             ? 'bg-xtube-red/10 text-white shadow-[0_0_10px_rgba(229,9,20,0.15)]'
@@ -330,7 +348,7 @@ function SidebarNavItem({
         )}
 
         <Icon
-          className={`h-[18px] w-[18px] flex-shrink-0 ${
+          className={`h-4 w-4 flex-shrink-0 ${
             isActive
               ? 'text-xtube-red'
               : isChildActive
@@ -399,6 +417,10 @@ export function AdminPanel() {
 
   const isMobile = useIsMobile()
   const isTablet = useIsTablet()
+  const isLaptop = useIsLaptop()
+
+  // Compute sidebar width based on screen size
+  const sidebarExpandedWidth = isLaptop ? 220 : 260
 
   // Auto-collapse sidebar on tablet
   useEffect(() => {
@@ -582,10 +604,11 @@ export function AdminPanel() {
   ]
 
   const renderContent = () => {
-    switch (adminSection) {
-      case 'dashboard':
-        return <AdminDashboard data={dashboardData} loading={dataLoading} />
-      case 'all-videos':
+    const content = (() => {
+      switch (adminSection) {
+        case 'dashboard':
+          return <AdminDashboard data={dashboardData} loading={dataLoading} />
+        case 'all-videos':
         return (
           <VideoManager
             videos={adminVideos.map((v) => ({
@@ -672,6 +695,17 @@ export function AdminPanel() {
         }
         return <AdminDashboard data={dashboardData} loading={dataLoading} />
     }
+    })()
+
+    return (
+      <Suspense fallback={
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-xtube-red border-t-transparent" />
+        </div>
+      }>
+        {content}
+      </Suspense>
+    )
   }
 
   // ─── Main Render ────────────────────────────────────────────────────────
@@ -695,12 +729,12 @@ export function AdminPanel() {
             <>
               {/* ── Left Sidebar ── */}
               <motion.aside
-                animate={{ width: adminSidebarCollapsed ? 72 : 240 }}
+                animate={{ width: adminSidebarCollapsed ? 64 : sidebarExpandedWidth }}
                 transition={{ duration: 0.3, ease: 'easeInOut' }}
                 className="relative flex flex-shrink-0 flex-col border-r border-xtube-border bg-[#0a0a0a] overflow-hidden"
               >
                 {/* Sidebar Header */}
-                <div className="flex h-16 flex-shrink-0 items-center justify-between border-b border-xtube-border px-4">
+                <div className="flex h-14 flex-shrink-0 items-center justify-between border-b border-xtube-border px-3">
                   <AnimatePresence mode="wait">
                     {!adminSidebarCollapsed ? (
                       <motion.div
@@ -711,10 +745,10 @@ export function AdminPanel() {
                         transition={{ duration: 0.15 }}
                         className="flex items-center gap-2.5"
                       >
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-xtube-red shadow-[0_0_10px_rgba(229,9,20,0.3)]">
-                          <span className="text-sm font-bold text-white">X</span>
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-xtube-red shadow-[0_0_8px_rgba(229,9,20,0.3)]">
+                          <span className="text-xs font-bold text-white">X</span>
                         </div>
-                        <span className="text-base font-bold text-white">
+                        <span className="text-sm font-bold text-white">
                           Xtube<span className="text-xtube-text-secondary">.Admin</span>
                         </span>
                       </motion.div>
@@ -727,8 +761,8 @@ export function AdminPanel() {
                         transition={{ duration: 0.15 }}
                         className="flex items-center justify-center w-full"
                       >
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-xtube-red shadow-[0_0_10px_rgba(229,9,20,0.3)]">
-                          <span className="text-sm font-bold text-white">X</span>
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-xtube-red shadow-[0_0_8px_rgba(229,9,20,0.3)]">
+                          <span className="text-xs font-bold text-white">X</span>
                         </div>
                       </motion.div>
                     )}
@@ -746,7 +780,7 @@ export function AdminPanel() {
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 overflow-y-auto p-3 space-y-0.5 no-scrollbar">
+                <nav className="flex-1 overflow-y-auto p-2 space-y-0.5 no-scrollbar compact-scrollbar">
                   {navigationItems.map((item, idx) => (
                     <SidebarNavItem
                       key={item.id}
@@ -763,7 +797,7 @@ export function AdminPanel() {
                 </nav>
 
                 {/* Sidebar Footer - Logout */}
-                <div className="flex-shrink-0 border-t border-xtube-border p-3">
+                <div className="flex-shrink-0 border-t border-xtube-border p-2">
                   {adminSidebarCollapsed ? (
                     <div className="relative group">
                       <button
@@ -783,7 +817,7 @@ export function AdminPanel() {
                       onClick={handleClose}
                       className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-xtube-text-secondary transition-colors hover:bg-xtube-red/10 hover:text-xtube-red"
                     >
-                      <LogOut className="h-[18px] w-[18px] flex-shrink-0" />
+                      <LogOut className="h-4 w-4 flex-shrink-0" />
                       <span>Logout</span>
                     </motion.button>
                   )}
@@ -792,7 +826,7 @@ export function AdminPanel() {
                 {/* Collapse/Expand Toggle */}
                 <button
                   onClick={() => setAdminSidebarCollapsed(!adminSidebarCollapsed)}
-                  className="absolute -right-3 top-20 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-xtube-border bg-xtube-card text-xtube-text-secondary shadow-md transition-colors hover:bg-white/10 hover:text-white"
+                  className="absolute -right-3 top-16 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-xtube-border bg-xtube-card text-xtube-text-secondary shadow-md transition-colors hover:bg-white/10 hover:text-white"
                   aria-label={adminSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                 >
                   {adminSidebarCollapsed ? (
@@ -806,7 +840,7 @@ export function AdminPanel() {
               {/* ── Main Content Area ── */}
               <div className="flex flex-1 flex-col overflow-hidden">
                 {/* Top Header */}
-                <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-xl px-4 md:px-6">
+                <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-xl px-3 md:px-5">
                   {/* Left: Hamburger + Title */}
                   <div className="flex items-center gap-3">
                     <motion.button
@@ -823,7 +857,7 @@ export function AdminPanel() {
                       )}
                     </motion.button>
                     <div>
-                      <h1 className="text-lg font-bold text-white">
+                      <h1 className="text-base font-bold text-white">
                         {sectionTitles[adminSection] || 'Admin Dashboard'}
                       </h1>
                     </div>
@@ -836,10 +870,10 @@ export function AdminPanel() {
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
                       onClick={() => setAdminSection('all-ads')}
-                      className="hidden items-center gap-2 rounded-xl bg-xtube-red px-4 py-2 text-sm font-semibold text-white shadow-[0_0_15px_rgba(229,9,20,0.3)] transition-colors hover:bg-xtube-red-hover sm:flex"
+                      className="hidden items-center gap-1.5 rounded-lg bg-xtube-red px-3 py-1.5 text-xs font-semibold text-white shadow-[0_0_12px_rgba(229,9,20,0.3)] transition-colors hover:bg-xtube-red-hover sm:flex"
                     >
-                      <Plus className="h-4 w-4" />
-                      Create New Ad
+                      <Plus className="h-3.5 w-3.5" />
+                      New Ad
                     </motion.button>
 
                     {/* Notification Bell with badge count */}
@@ -851,7 +885,7 @@ export function AdminPanel() {
                     >
                       <Bell className="h-5 w-5" />
                       {/* Notification count badge */}
-                      <span className="absolute -top-0.5 -right-0.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-xtube-red text-[9px] font-bold text-white shadow-[0_0_8px_rgba(229,9,20,0.6)]">
+                      <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-xtube-red text-[9px] font-bold text-white shadow-[0_0_8px_rgba(229,9,20,0.6)]">
                         12
                       </span>
                     </motion.button>
@@ -860,10 +894,10 @@ export function AdminPanel() {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-white/5"
+                      className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/5"
                       aria-label="Admin profile"
                     >
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-xtube-red to-red-700 shadow-[0_0_12px_rgba(229,9,20,0.3)]">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-xtube-red to-red-700 shadow-[0_0_10px_rgba(229,9,20,0.3)]">
                         <span className="text-xs font-bold text-white">A</span>
                       </div>
                       <div className="hidden sm:block text-left">
@@ -876,7 +910,7 @@ export function AdminPanel() {
                 </header>
 
                 {/* Content Area */}
-                <main className="flex-1 overflow-y-auto bg-xtube-bg">
+                <main className="flex-1 overflow-y-auto bg-xtube-bg compact-scrollbar">
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={adminSection}

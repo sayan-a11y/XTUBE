@@ -447,7 +447,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
       {/* ═══════════════════════════════════════════════════════════════════
           PREMIUM TOPBAR
           ═══════════════════════════════════════════════════════════════════ */}
-      <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-white/5 bg-[#050505]/95 px-4 backdrop-blur-xl sm:px-6">
+      <header className="sticky top-0 z-50 flex h-12 items-center justify-between border-b border-white/5 bg-[#050505]/95 px-3 backdrop-blur-xl sm:px-5">
         {/* Left: Back + Logo + Search */}
         <div className="flex items-center gap-3">
           {/* Back button - transparent minimal */}
@@ -515,7 +515,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
       {/* ═══════════════════════════════════════════════════════════════════
           MAIN CONTENT - TWO COLUMN LAYOUT
           ═══════════════════════════════════════════════════════════════════ */}
-      <div className={`mx-auto ${theaterMode ? 'max-w-full' : 'max-w-[1800px]'} px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6`}>
+      <div className={`mx-auto ${theaterMode ? 'max-w-full' : 'max-w-[1600px]'} px-2 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4`}>
         <div className={`flex flex-col ${theaterMode ? '' : 'lg:flex-row'} gap-5 lg:gap-6`}>
 
           {/* ─── LEFT: Player + Video Info + Description + Comments ───────── */}

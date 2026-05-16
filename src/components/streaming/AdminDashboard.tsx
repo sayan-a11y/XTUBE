@@ -153,7 +153,7 @@ function StatCard({ title, value, icon: Icon, change, delay, gradientIdx }: Stat
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-4 backdrop-blur-xl transition-all duration-300 hover:border-xtube-red/20 hover:shadow-[0_0_20px_rgba(229,9,20,0.12)] md:p-5"
+      className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-3 backdrop-blur-xl transition-all duration-300 hover:border-xtube-red/20 hover:shadow-[0_0_20px_rgba(229,9,20,0.12)] lg:p-4"
     >
       {/* Red accent top line */}
       <div className="absolute left-0 top-0 h-[2px] w-full bg-gradient-to-r from-xtube-red to-transparent" />
@@ -163,8 +163,8 @@ function StatCard({ title, value, icon: Icon, change, delay, gradientIdx }: Stat
 
       <div className="flex items-start justify-between">
         <div className="space-y-2">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-white/40">{title}</p>
-          <p className="text-xl font-bold text-white md:text-2xl">{value}</p>
+          <p className="text-[10px] font-medium uppercase tracking-wider text-white/40">{title}</p>
+          <p className="text-lg font-bold text-white lg:text-xl">{value}</p>
           <div className="flex items-center gap-1.5">
             {isPositive ? (
               <TrendingUp className="h-3 w-3 text-emerald-400" />
@@ -177,8 +177,8 @@ function StatCard({ title, value, icon: Icon, change, delay, gradientIdx }: Stat
             <span className="text-[10px] text-white/30">from last 30 days</span>
           </div>
         </div>
-        <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${ICON_BG_GRADIENTS[gradientIdx]} md:h-12 md:w-12`}>
-          <Icon className={`h-5 w-5 ${ICON_COLORS[gradientIdx]} md:h-6 md:w-6`} />
+        <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${ICON_BG_GRADIENTS[gradientIdx]} lg:h-10 lg:w-10`}>
+          <Icon className={`h-4 w-4 ${ICON_COLORS[gradientIdx]} lg:h-5 lg:w-5`} />
         </div>
       </div>
     </motion.div>
@@ -207,9 +207,9 @@ function SectionCard({
       transition={{ delay, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
       className={`overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl ${className}`}
     >
-      <div className="p-4 md:p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white md:text-base">{title}</h3>
+      <div className="p-3 lg:p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-xs font-semibold text-white lg:text-sm">{title}</h3>
           {action}
         </div>
         {children}
@@ -285,8 +285,8 @@ const topPerformingAds = [
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-5 p-4 md:p-6">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-6">
+    <div className="space-y-4 p-3 lg:p-5">
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-6">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-4 backdrop-blur-xl">
             <Skeleton className="mb-3 h-3 w-20 bg-white/5" />
@@ -295,7 +295,7 @@ function LoadingSkeleton() {
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-4 backdrop-blur-xl">
             <Skeleton className="mb-4 h-5 w-32 bg-white/5" />
@@ -303,7 +303,7 @@ function LoadingSkeleton() {
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 md:gap-4">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {Array.from({ length: 2 }).map((_, i) => (
           <div key={i} className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-4 backdrop-blur-xl">
             <Skeleton className="mb-4 h-5 w-40 bg-white/5" />
@@ -350,12 +350,12 @@ export function AdminDashboard({ data, loading }: AdminDashboardProps) {
   ]
 
   return (
-    <div className="space-y-5 p-4 md:p-6">
+    <div className="space-y-4 p-3 lg:p-5">
 
       {/* ═══════════════════════════════════════════════════════════════════
           TOP STATISTICS ROW
           ═══════════════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-6">
         {statCards.map((card, i) => (
           <StatCard key={card.title} {...card} delay={i * 0.05} />
         ))}
@@ -364,7 +364,7 @@ export function AdminDashboard({ data, loading }: AdminDashboardProps) {
       {/* ═══════════════════════════════════════════════════════════════════
           PERFORMANCE + TRAFFIC + DEVICE ROW (3-column on desktop)
           ═══════════════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {/* Performance Overview */}
         <SectionCard
           title="Performance Overview"
@@ -377,7 +377,7 @@ export function AdminDashboard({ data, loading }: AdminDashboardProps) {
             </button>
           }
         >
-          <div className="h-56">
+          <div className="h-44">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={performanceData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" vertical={false} />
@@ -395,15 +395,15 @@ export function AdminDashboard({ data, loading }: AdminDashboardProps) {
 
         {/* Traffic Source */}
         <SectionCard title="Traffic Source" delay={0.35}>
-          <div className="h-56">
+          <div className="h-44">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={trafficSourceData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={55}
-                  outerRadius={80}
+                  innerRadius={45}
+                  outerRadius={70}
                   paddingAngle={3}
                   dataKey="value"
                   stroke="none"
@@ -449,15 +449,15 @@ export function AdminDashboard({ data, loading }: AdminDashboardProps) {
 
         {/* User Device */}
         <SectionCard title="User Device" delay={0.4}>
-          <div className="h-56">
+          <div className="h-44">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={userDeviceData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={55}
-                  outerRadius={80}
+                  innerRadius={45}
+                  outerRadius={70}
                   paddingAngle={3}
                   dataKey="value"
                   stroke="none"
@@ -607,7 +607,7 @@ export function AdminDashboard({ data, loading }: AdminDashboardProps) {
       {/* ═══════════════════════════════════════════════════════════════════
           VIDEO AD PLACEMENT PREVIEW + CATALOG OVERVIEW (2 columns)
           ═══════════════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {/* Video Ad Placement Preview */}
         <SectionCard
           title="Video Ad Placement Preview"
@@ -726,7 +726,7 @@ export function AdminDashboard({ data, loading }: AdminDashboardProps) {
       {/* ═══════════════════════════════════════════════════════════════════
           VIDEO ADS OVERVIEW + TOP PERFORMING ADS (2 columns)
           ═══════════════════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {/* Video Ads Overview */}
         <SectionCard
           title="Video Ads Overview"

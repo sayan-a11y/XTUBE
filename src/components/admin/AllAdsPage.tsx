@@ -191,21 +191,21 @@ function StatCard({ title, value, change, icon: Icon, color, delay, index }: {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 p-4 backdrop-blur-xl transition-all duration-300 hover:border-white/10 hover:shadow-lg md:p-5"
+      className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 p-3 lg:p-4 backdrop-blur-xl transition-all duration-300 hover:border-white/10 hover:shadow-lg"
     >
       <div className="absolute left-0 top-0 h-[2px] w-full" style={{ background: `linear-gradient(to right, ${color}, transparent)` }} />
       <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: color, filter: 'blur(40px)', opacity: 0.06 }} />
       <div className="flex items-start justify-between">
         <div className="space-y-1.5">
           <p className="text-[11px] font-medium uppercase tracking-wider text-white/40">{title}</p>
-          <p className="text-xl font-bold text-white md:text-2xl">{value}</p>
+          <p className="text-xl font-bold text-white">{value}</p>
           <div className="flex items-center gap-1.5">
             <TrendingUp className="h-3 w-3 text-emerald-400" />
             <span className="text-xs font-semibold text-emerald-400">{change}</span>
             <span className="text-[10px] text-white/25">from last 30 days</span>
           </div>
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: `${color}15` }}>
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ background: `${color}15` }}>
           <Icon className="h-5 w-5" style={{ color }} />
         </div>
       </div>
@@ -266,17 +266,17 @@ export function AllAdsPage() {
       transition={{ duration: 0.3 }}
       className="h-full overflow-y-auto no-scrollbar"
     >
-      <div className="min-h-full p-4 md:p-6 lg:p-8 space-y-6">
+      <div className="min-h-full p-3 lg:p-5 xl:p-6 space-y-4">
         {/* ═══════════════════════════════════════════════════════════════════
             TOP HEADER
             ═══════════════════════════════════════════════════════════════════ */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ff0000]/10">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#ff0000]/10">
               <Megaphone className="h-5 w-5 text-[#ff0000]" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white md:text-3xl">All Ads</h1>
+              <h1 className="text-xl font-bold text-white md:text-2xl">All Ads</h1>
               <p className="mt-0.5 text-sm text-white/40">Manage all ads across your platform</p>
             </div>
           </div>
@@ -310,7 +310,7 @@ export function AllAdsPage() {
         {/* ═══════════════════════════════════════════════════════════════════
             TOP ANALYTICS CARDS (5 cards)
             ═══════════════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           <StatCard title="Total Ads" value="156" change="+18.5%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
           <StatCard title="Active Ads" value="124" change="+14.2%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
           <StatCard title="Impressions" value="8.42M" change="+26.7%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
@@ -321,7 +321,7 @@ export function AllAdsPage() {
         {/* ═══════════════════════════════════════════════════════════════════
             CHARTS ROW: Donut + Impressions + Revenue
             ═══════════════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[320px_1fr_1fr] xl:grid-cols-[340px_1fr_1fr]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr_1fr] xl:grid-cols-[340px_1fr_1fr]">
           {/* Ads Distribution Donut */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -329,7 +329,7 @@ export function AllAdsPage() {
             transition={{ delay: 0.25, duration: 0.4 }}
             className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl"
           >
-            <div className="p-4 md:p-5">
+            <div className="p-3 lg:p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-bold text-white">Ads Distribution</h2>
                 <span className="text-[10px] text-white/30">156 Total Ads</span>
@@ -390,7 +390,7 @@ export function AllAdsPage() {
             transition={{ delay: 0.3, duration: 0.4 }}
             className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl"
           >
-            <div className="p-4 md:p-5">
+            <div className="p-3 lg:p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-bold text-white">Impressions Overview</h2>
                 <Select value="30d" onValueChange={() => {}}>
@@ -404,7 +404,7 @@ export function AllAdsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="h-56">
+              <div className="h-44">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={impressionsData} barSize={14}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
@@ -435,7 +435,7 @@ export function AllAdsPage() {
             transition={{ delay: 0.35, duration: 0.4 }}
             className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl"
           >
-            <div className="p-4 md:p-5">
+            <div className="p-3 lg:p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-bold text-white">Revenue Overview</h2>
                 <Select value="30d" onValueChange={() => {}}>
@@ -449,7 +449,7 @@ export function AllAdsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="h-56">
+              <div className="h-44">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={revenueData}>
                     <defs>
@@ -522,7 +522,7 @@ export function AllAdsPage() {
           transition={{ delay: 0.4, duration: 0.4 }}
           className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl"
         >
-          <div className="p-4 md:p-5">
+          <div className="p-3 lg:p-4">
             {/* Table header */}
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-base font-bold text-white">All Ads List</h2>
@@ -586,7 +586,7 @@ export function AllAdsPage() {
                       className="group transition-colors hover:bg-white/[0.02]"
                     >
                       {/* Preview */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <div className="relative h-9 w-16 overflow-hidden rounded-lg">
                           <div className={`absolute inset-0 bg-gradient-to-br ${ad.gradient}`} />
                           <div className="absolute inset-0 flex items-center justify-center">
@@ -599,46 +599,46 @@ export function AllAdsPage() {
                         </div>
                       </td>
                       {/* Ad Name */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <p className="text-xs font-medium text-white">{ad.name}</p>
                         <p className="text-[10px] text-white/25">{ad.date}</p>
                       </td>
                       {/* Type */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${AD_TYPE_STYLES[ad.type]}`}>
                           <span className="h-1.5 w-1.5 rounded-full" style={{ background: AD_TYPE_COLORS[ad.type] }} />
                           {ad.type}
                         </span>
                       </td>
                       {/* Placement */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <span className="text-xs text-white/50">{ad.placement}</span>
                       </td>
                       {/* Size / Duration */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <span className="text-xs text-white/50">{ad.sizeDuration}</span>
                       </td>
                       {/* Impressions */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <span className="text-xs font-medium text-white/70">{ad.impressions}</span>
                       </td>
                       {/* CTR */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <span className="text-xs font-medium text-white/70">{ad.ctr}</span>
                       </td>
                       {/* Revenue */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <span className="text-xs font-semibold text-emerald-400">{ad.revenue}</span>
                       </td>
                       {/* Status */}
-                      <td className="py-3 pr-3">
+                      <td className="py-2 pr-3">
                         <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium ${statusStyles[ad.status]}`}>
                           <span className={`h-1.5 w-1.5 rounded-full ${ad.status === 'Active' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                           {ad.status}
                         </span>
                       </td>
                       {/* Actions */}
-                      <td className="py-3">
+                      <td className="py-2">
                         <div className="flex items-center gap-0.5">
                           <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-white/10 hover:text-white" title="View">
                             <Eye className="h-3.5 w-3.5" />

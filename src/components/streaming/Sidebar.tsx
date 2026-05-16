@@ -37,19 +37,19 @@ export function Sidebar() {
   return (
     <motion.aside
       initial={false}
-      animate={{ width: sidebarCollapsed ? 72 : 240 }}
+      animate={{ width: sidebarCollapsed ? 64 : 220 }}
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       className="fixed left-0 top-0 z-40 hidden h-screen flex-col border-r border-xtube-border bg-[#0a0a0a] md:flex"
     >
       {/* Logo */}
-      <div className="flex h-16 items-center border-b border-xtube-border px-4">
+      <div className="flex h-14 items-center border-b border-xtube-border px-3">
         <button
           onClick={incrementAdminClick}
           className="flex items-center gap-3 overflow-hidden focus:outline-none"
           aria-label="Xtube Home"
         >
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-xtube-red">
-            <span className="text-sm font-bold text-white">X</span>
+          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-xtube-red">
+            <span className="text-xs font-bold text-white">X</span>
           </div>
           <AnimatePresence>
             {!sidebarCollapsed && (
@@ -58,7 +58,7 @@ export function Sidebar() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
                 transition={{ duration: 0.2 }}
-                className="whitespace-nowrap text-lg font-bold text-white"
+                className="whitespace-nowrap text-base font-bold text-white"
               >
                 Xtube
               </motion.span>
@@ -79,7 +79,7 @@ export function Sidebar() {
               onClick={() => setView(item.view)}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className={`group relative flex w-full items-center gap-3 overflow-hidden rounded-lg px-3 py-2.5 transition-colors duration-200 ${
+              className={`group relative flex w-full items-center gap-2.5 overflow-hidden rounded-lg px-2.5 py-2 transition-colors duration-200 ${
                 isActive
                   ? 'bg-xtube-red/10 text-white'
                   : 'text-xtube-text-secondary hover:bg-white/5 hover:text-white'
@@ -103,7 +103,7 @@ export function Sidebar() {
               )}
 
               <Icon
-                className={`relative z-10 h-5 w-5 flex-shrink-0 ${
+                className={`relative z-10 h-4 w-4 flex-shrink-0 ${
                   isActive ? 'text-xtube-red' : 'text-xtube-text-secondary group-hover:text-white'
                 }`}
               />
@@ -114,7 +114,7 @@ export function Sidebar() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -10 }}
                     transition={{ duration: 0.2 }}
-                    className={`relative z-10 whitespace-nowrap text-sm font-medium ${
+                    className={`relative z-10 whitespace-nowrap text-[13px] font-medium ${
                       isActive ? 'text-white' : ''
                     }`}
                   >
@@ -149,7 +149,7 @@ export function Sidebar() {
               onClick={toggleSidebar}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xtube-text-secondary transition-colors hover:bg-white/5 hover:text-white"
+              className="flex w-full items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-xtube-text-secondary transition-colors hover:bg-white/5 hover:text-white"
               aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {sidebarCollapsed ? (

@@ -56,7 +56,7 @@ function SettingsCard({ children, section, delay }: { children: React.ReactNode;
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.4 }}
-      className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-4 md:p-6 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
+      className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-3 lg:p-5 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
     >
       <div className="flex items-center gap-3 mb-1">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-xtube-red/10">
@@ -125,7 +125,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-4 p-3 lg:p-5">
       {/* General Settings */}
       <SettingsCard section={settingsSections[0]} delay={0}>
         <div className="space-y-1">

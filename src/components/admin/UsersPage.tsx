@@ -110,23 +110,23 @@ export function UsersPage() {
   ]
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="space-y-4 p-3 lg:p-5">
       {/* Stats Row */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {stats.map((stat, i) => (
           <motion.div
             key={stat.title}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05, duration: 0.4 }}
-            className="group rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-4 md:p-6 transition-colors hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)]"
+            className="group rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-3 lg:p-5 transition-colors hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)]"
           >
             <div className="flex items-start justify-between">
               <div className="space-y-1">
                 <p className="text-sm text-xtube-text-secondary">{stat.title}</p>
-                <p className="text-2xl md:text-3xl font-bold text-white">{stat.value}</p>
+                <p className="text-xl md:text-2xl font-bold text-white">{stat.value}</p>
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-xtube-red/10">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-xtube-red/10">
                 <stat.icon className={`h-5 w-5 ${stat.color}`} />
               </div>
             </div>
@@ -139,7 +139,7 @@ export function UsersPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-4 md:p-6 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
+        className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-3 lg:p-5 hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)] transition-colors"
       >
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-lg font-semibold text-white">Users</h3>
@@ -276,7 +276,7 @@ export function UsersPage() {
 
         {filteredUsers.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Users className="mb-3 h-10 w-10 text-xtube-text-secondary/50" />
+            <Users className="mb-3 h-8 w-8 text-xtube-text-secondary/50" />
             <p className="text-sm text-xtube-text-secondary">No users match your filters</p>
           </div>
         )}
