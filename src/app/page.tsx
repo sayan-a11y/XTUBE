@@ -10,7 +10,6 @@ import { HeroBanner } from '@/components/streaming/HeroBanner'
 import { CategorySection } from '@/components/streaming/CategorySection'
 import { VideoGrid } from '@/components/streaming/VideoGrid'
 import { VideoPlayer } from '@/components/streaming/VideoPlayer'
-import { Comments } from '@/components/streaming/Comments'
 import { AdminPanel } from '@/components/streaming/AdminPanel'
 import { Flame, Sparkles, Clock, Search, Film, History } from 'lucide-react'
 
@@ -530,17 +529,12 @@ export default function XtubeHome() {
     }
 
     return (
-      <div>
-        <VideoPlayer video={currentVideo} relatedVideos={relatedVideos} />
-        <div className="mx-auto max-w-[1800px] px-4 md:px-6 lg:px-10">
-          <Comments
-            videoId={currentVideo.id}
-            comments={videoComments}
-            onAddComment={handleAddComment}
-            loading={false}
-          />
-        </div>
-      </div>
+      <VideoPlayer
+        video={currentVideo}
+        relatedVideos={relatedVideos}
+        comments={videoComments}
+        onAddComment={handleAddComment}
+      />
     )
   }
 
@@ -548,70 +542,86 @@ export default function XtubeHome() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white">
-      {/* Desktop Sidebar */}
-      <Sidebar />
-
-      {/* Mobile Bottom Nav */}
-      <BottomNav />
-
-      {/* Main Content Area */}
-      <motion.main
-        className={`min-h-screen transition-all duration-300 ${
-          sidebarCollapsed ? 'md:ml-[72px]' : 'md:ml-[240px]'
-        }`}
-      >
-        {/* Top Header Bar */}
-        {currentView !== 'video' && currentView !== 'admin' && (
-          <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-xtube-border bg-[#050505]/90 px-4 backdrop-blur-md md:px-6">
-            <div className="flex items-center gap-3">
-              {/* Mobile Logo */}
-              <button
-                onClick={() => useAppStore.getState().incrementAdminClick()}
-                className="flex items-center gap-2 md:hidden"
-                aria-label="Xtube"
-              >
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-xtube-red">
-                  <span className="text-xs font-bold text-white">X</span>
-                </div>
-                <span className="text-base font-bold text-white">Xtube</span>
-              </button>
-
-              {/* View Title */}
-              <h2 className="hidden text-sm font-medium text-xtube-text-secondary md:block">
-                {currentView === 'home' && 'Home'}
-                {currentView === 'trending' && 'Trending'}
-                {currentView === 'category' && 'Categories'}
-                {currentView === 'bookmarks' && 'Bookmarks'}
-                {currentView === 'history' && 'History'}
-                {currentView === 'search' && 'Search'}
-              </h2>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <SearchBar />
-            </div>
-          </header>
-        )}
-
-        {/* Page Content */}
+      {/* Video view has its own full layout */}
+      {currentView === 'video' ? (
         <AnimatePresence mode="wait">
           <motion.div
-            key={currentView}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            key="video"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
           >
-            {currentView === 'home' && renderHomeView()}
-            {currentView === 'trending' && renderTrendingView()}
-            {currentView === 'category' && renderCategoryView()}
-            {currentView === 'bookmarks' && renderBookmarksView()}
-            {currentView === 'history' && renderHistoryView()}
-            {currentView === 'search' && renderSearchView()}
-            {currentView === 'video' && renderVideoView()}
+            {renderVideoView()}
           </motion.div>
         </AnimatePresence>
-      </motion.main>
+      ) : (
+        <>
+          {/* Desktop Sidebar */}
+          <Sidebar />
+
+          {/* Mobile Bottom Nav */}
+          <BottomNav />
+
+          {/* Main Content Area */}
+          <motion.main
+            className={`min-h-screen transition-all duration-300 ${
+              sidebarCollapsed ? 'md:ml-[72px]' : 'md:ml-[240px]'
+            }`}
+          >
+            {/* Top Header Bar */}
+            {currentView !== 'admin' && (
+              <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-xtube-border bg-[#050505]/90 px-4 backdrop-blur-md md:px-6">
+                <div className="flex items-center gap-3">
+                  {/* Mobile Logo */}
+                  <button
+                    onClick={() => useAppStore.getState().incrementAdminClick()}
+                    className="flex items-center gap-2 md:hidden"
+                    aria-label="Xtube"
+                  >
+                    <div className="flex h-7 w-7 items-center justify-center rounded-md bg-xtube-red">
+                      <span className="text-xs font-bold text-white">X</span>
+                    </div>
+                    <span className="text-base font-bold text-white">Xtube</span>
+                  </button>
+
+                  {/* View Title */}
+                  <h2 className="hidden text-sm font-medium text-xtube-text-secondary md:block">
+                    {currentView === 'home' && 'Home'}
+                    {currentView === 'trending' && 'Trending'}
+                    {currentView === 'category' && 'Categories'}
+                    {currentView === 'bookmarks' && 'Bookmarks'}
+                    {currentView === 'history' && 'History'}
+                    {currentView === 'search' && 'Search'}
+                  </h2>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <SearchBar />
+                </div>
+              </header>
+            )}
+
+            {/* Page Content */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentView}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+              >
+                {currentView === 'home' && renderHomeView()}
+                {currentView === 'trending' && renderTrendingView()}
+                {currentView === 'category' && renderCategoryView()}
+                {currentView === 'bookmarks' && renderBookmarksView()}
+                {currentView === 'history' && renderHistoryView()}
+                {currentView === 'search' && renderSearchView()}
+              </motion.div>
+            </AnimatePresence>
+          </motion.main>
+        </>
+      )}
 
       {/* Admin Panel Overlay */}
       <AdminPanel />

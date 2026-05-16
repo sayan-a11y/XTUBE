@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Play,
   Pause,
+  SkipForward,
+  SkipBack,
   Volume2,
   VolumeX,
   Volume1,
@@ -17,13 +19,18 @@ import {
   ThumbsDown,
   Share2,
   Bookmark,
-  Download,
-  ChevronDown,
+  Subtitles,
   MonitorPlay,
-  Eye,
+  Bell,
+  ChevronDown,
+  MoreHorizontal,
+  CheckCircle2,
   Clock,
+  Eye,
+  Search,
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
+import { Comments } from '@/components/streaming/Comments'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -48,6 +55,30 @@ interface VideoPlayerProps {
     views: number
     category: string
   }>
+  comments: Array<{
+    id: string
+    content: string
+    likes: number
+    createdAt: string
+    user: {
+      id: string
+      username: string
+      avatar: string | null
+    }
+    replies?: Array<{
+      id: string
+      content: string
+      likes: number
+      createdAt: string
+      user: {
+        id: string
+        username: string
+        avatar: string | null
+      }
+      replies?: Array<never>
+    }>
+  }>
+  onAddComment: (content: string, parentId?: string) => void
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -109,7 +140,7 @@ const SPEED_OPTIONS = [
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
+export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: VideoPlayerProps) {
   // Store
   const goBack = useAppStore((s) => s.goBack)
   const theaterMode = useAppStore((s) => s.theaterMode)
@@ -140,6 +171,7 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
   const [bookmarked, setBookmarked] = useState(false)
   const [showFullDescription, setShowFullDescription] = useState(false)
   const [autoPlayNext, setAutoPlayNext] = useState(true)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
 
   // ─── Controls auto-hide ──────────────────────────────────────────────────
 
@@ -229,7 +261,6 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't capture if user is typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
 
       switch (e.key.toLowerCase()) {
@@ -292,12 +323,8 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
     const vid = videoRef.current
     if (!vid) return
 
-    const onTimeUpdate = () => {
-      setCurrentTime(vid.currentTime)
-    }
-    const onLoadedMetadata = () => {
-      setDuration(vid.duration)
-    }
+    const onTimeUpdate = () => setCurrentTime(vid.currentTime)
+    const onLoadedMetadata = () => setDuration(vid.duration)
     const onPlay = () => setIsPlaying(true)
     const onPause = () => setIsPlaying(false)
     const onProgress = () => {
@@ -348,9 +375,6 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
         })
         hls.loadSource(url)
         hls.attachMedia(vid)
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          // Auto-play after manifest is parsed
-        })
         hls.on(Hls.Events.ERROR, (_event, data) => {
           if (data.fatal) {
             switch (data.type) {
@@ -367,18 +391,14 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
           }
         })
       } else if (vid.canPlayType('application/vnd.apple.mpegurl')) {
-        // Native HLS support (Safari)
         vid.src = url
       }
     } else {
-      // Regular video URL
       vid.src = url
     }
 
     return () => {
-      if (hls) {
-        hls.destroy()
-      }
+      if (hls) hls.destroy()
     }
   }, [video.videoUrl])
 
@@ -396,9 +416,9 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
     const handleClickOutside = () => {
       setShowQualityMenu(false)
       setShowSpeedMenu(false)
+      setShowMoreMenu(false)
     }
-    if (showQualityMenu || showSpeedMenu) {
-      // Small delay so the click that opened doesn't immediately close
+    if (showQualityMenu || showSpeedMenu || showMoreMenu) {
       const timer = setTimeout(() => {
         document.addEventListener('click', handleClickOutside, { once: true })
       }, 50)
@@ -407,44 +427,103 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
         document.removeEventListener('click', handleClickOutside)
       }
     }
-  }, [showQualityMenu, showSpeedMenu])
+  }, [showQualityMenu, showSpeedMenu, showMoreMenu])
 
   // ─── Computed values ─────────────────────────────────────────────────────
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0
   const bufferedProgress = duration > 0 ? (buffered / duration) * 100 : 0
-  const volumePercent = isMuted ? 0 : volume * 100
-
   const VolumeIcon = isMuted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2
+
+  // ─── Extract hashtags from description ────────────────────────────────────
+
+  const hashtags = video.description?.match(/#\w+/g) || []
+  const descriptionWithoutTags = video.description?.replace(/#\w+/g, '').trim() || ''
 
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-xtube-bg">
-      {/* Back button - top left */}
-      <motion.button
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        whileHover={{ scale: 1.05, backgroundColor: 'rgba(255,255,255,0.1)' }}
-        whileTap={{ scale: 0.95 }}
-        onClick={goBack}
-        className="fixed left-4 top-4 z-50 flex items-center gap-2 rounded-full px-3 py-2 text-white/80 transition-colors hover:text-white"
-        aria-label="Go back"
-      >
-        <ArrowLeft className="h-5 w-5" />
-        <span className="text-sm font-medium hidden sm:inline">Back</span>
-      </motion.button>
+    <div className="min-h-screen bg-[#050505]">
+      {/* ═══════════════════════════════════════════════════════════════════
+          PREMIUM TOPBAR
+          ═══════════════════════════════════════════════════════════════════ */}
+      <header className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-white/5 bg-[#050505]/95 px-4 backdrop-blur-xl sm:px-6">
+        {/* Left: Back + Logo + Search */}
+        <div className="flex items-center gap-3">
+          {/* Back button - transparent minimal */}
+          <motion.button
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={goBack}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </motion.button>
 
-      {/* Main layout */}
-      <div className={`mx-auto ${theaterMode ? 'max-w-full' : 'max-w-[1800px]'} px-0 md:px-6 lg:px-10 pt-14 pb-10`}>
-        <div className={`flex flex-col ${theaterMode ? '' : 'lg:flex-row'} gap-6`}>
+          {/* Logo */}
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-xtube-red">
+              <span className="text-[10px] font-black text-white">X</span>
+            </div>
+            <span className="hidden text-base font-bold text-white sm:inline">Xtube</span>
+          </div>
 
-          {/* ─── Left: Player + Info ─────────────────────────────────── */}
+          {/* Premium Search Bar */}
+          <div className="ml-2 hidden md:flex">
+            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-[#111111] px-4 py-1.5 transition-all duration-200 focus-within:border-xtube-red/30 focus-within:shadow-[0_0_15px_rgba(229,9,20,0.1)]">
+              <Search className="h-4 w-4 text-white/40" />
+              <input
+                type="text"
+                placeholder="Search videos, categories..."
+                className="w-48 bg-transparent text-sm text-white placeholder:text-white/30 focus:outline-none lg:w-64"
+                aria-label="Search videos"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Notification + Avatar */}
+        <div className="flex items-center gap-3">
+          {/* Notification bell */}
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            className="relative flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+            aria-label="Notifications"
+          >
+            <Bell className="h-5 w-5" />
+            <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-xtube-red text-[10px] font-bold text-white">
+              3
+            </span>
+          </motion.button>
+
+          {/* User avatar */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-xtube-red to-red-700 ring-2 ring-xtube-red/20"
+            aria-label="User profile"
+          >
+            <span className="text-xs font-bold text-white">A</span>
+          </motion.button>
+        </div>
+      </header>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          MAIN CONTENT - TWO COLUMN LAYOUT
+          ═══════════════════════════════════════════════════════════════════ */}
+      <div className={`mx-auto ${theaterMode ? 'max-w-full' : 'max-w-[1800px]'} px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6`}>
+        <div className={`flex flex-col ${theaterMode ? '' : 'lg:flex-row'} gap-5 lg:gap-6`}>
+
+          {/* ─── LEFT: Player + Video Info + Description + Comments ───────── */}
           <div className={`${theaterMode ? 'w-full' : 'lg:flex-1'} min-w-0`}>
-            {/* Video Player Container */}
+            {/* ─── Video Player Container ──────────────────────────────── */}
             <div
               ref={containerRef}
-              className="video-player-container group relative bg-black"
+              className="video-player-container group relative bg-black rounded-xl overflow-hidden"
               onMouseMove={handleMouseMove}
               onMouseLeave={() => {
                 if (isPlaying) setShowControls(false)
@@ -453,7 +532,7 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
               {/* Video Element */}
               <video
                 ref={videoRef}
-                className="h-full w-full cursor-pointer"
+                className="h-full w-full cursor-pointer aspect-video"
                 poster={video.thumbnail}
                 preload="metadata"
                 onClick={togglePlay}
@@ -461,7 +540,7 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                 playsInline
               />
 
-              {/* Center play/pause overlay */}
+              {/* Center play/pause overlay animation */}
               <AnimatePresence>
                 {showCenterPlay && (
                   <motion.div
@@ -471,7 +550,7 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                     transition={{ duration: 0.3 }}
                     className="pointer-events-none absolute inset-0 flex items-center justify-center"
                   >
-                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-black/50">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm">
                       {isPlaying ? (
                         <Play className="h-10 w-10 text-white ml-1" fill="currentColor" />
                       ) : (
@@ -495,7 +574,7 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={togglePlay}
-                      className="flex h-16 w-16 items-center justify-center rounded-full bg-xtube-red/90 text-white shadow-lg transition-colors hover:bg-xtube-red-hover sm:h-20 sm:w-20"
+                      className="flex h-16 w-16 items-center justify-center rounded-full bg-xtube-red/90 text-white shadow-[0_0_30px_rgba(229,9,20,0.4)] transition-colors hover:bg-xtube-red-hover sm:h-20 sm:w-20"
                       aria-label="Play video"
                     >
                       <Play className="h-8 w-8 ml-1 sm:h-10 sm:w-10" fill="currentColor" />
@@ -504,8 +583,8 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                 )}
               </AnimatePresence>
 
-              {/* Top gradient for controls */}
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/60 to-transparent" />
+              {/* Top gradient for back button area */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/70 to-transparent" />
 
               {/* Controls overlay */}
               <motion.div
@@ -515,13 +594,13 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                 style={{ pointerEvents: showControls ? 'auto' : 'none' }}
               >
                 {/* Bottom gradient */}
-                <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-none" />
+                <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/95 via-black/60 to-transparent pointer-events-none" />
 
                 <div className="relative px-3 pb-3 sm:px-4 sm:pb-4">
                   {/* Progress bar */}
                   <div
                     ref={progressRef}
-                    className="group/progress mb-2 h-1 cursor-pointer rounded-full bg-white/20 transition-all hover:h-1.5"
+                    className="group/progress mb-3 h-1 cursor-pointer rounded-full bg-white/20 transition-all hover:h-1.5 relative"
                     onClick={handleSeek}
                     role="slider"
                     aria-label="Video progress"
@@ -541,13 +620,13 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                     />
                     {/* Progress dot */}
                     <div
-                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3.5 w-3.5 rounded-full bg-xtube-red opacity-0 shadow-lg transition-opacity group-hover/progress:opacity-100"
+                      className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-3.5 w-3.5 rounded-full bg-xtube-red opacity-0 shadow-[0_0_10px_rgba(229,9,20,0.5)] transition-opacity group-hover/progress:opacity-100"
                       style={{ left: `${progress}%` }}
                     />
                   </div>
 
                   {/* Control buttons row */}
-                  <div className="flex items-center gap-1 sm:gap-2">
+                  <div className="flex items-center gap-0.5 sm:gap-1">
                     {/* Play/Pause */}
                     <motion.button
                       whileHover={{ scale: 1.1 }}
@@ -563,13 +642,35 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                       )}
                     </motion.button>
 
+                    {/* Skip Back */}
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => { if (videoRef.current) videoRef.current.currentTime -= 10 }}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                      aria-label="Skip back 10 seconds"
+                    >
+                      <SkipBack className="h-4 w-4" />
+                    </motion.button>
+
+                    {/* Skip Forward */}
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => { if (videoRef.current) videoRef.current.currentTime += 10 }}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                      aria-label="Skip forward 10 seconds"
+                    >
+                      <SkipForward className="h-4 w-4" />
+                    </motion.button>
+
                     {/* Volume */}
-                    <div className="group/vol flex items-center gap-1">
+                    <div className="group/vol flex items-center gap-0.5">
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={toggleMute}
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10"
+                        className="flex h-9 w-9 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white"
                         aria-label={isMuted ? 'Unmute' : 'Mute'}
                       >
                         <VolumeIcon className="h-5 w-5" />
@@ -589,7 +690,7 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                     </div>
 
                     {/* Time display */}
-                    <div className="ml-1 text-xs text-white/80 sm:text-sm">
+                    <div className="ml-2 text-xs text-white/80 sm:text-sm">
                       <span className="font-medium">{formatTime(currentTime)}</span>
                       <span className="text-white/40"> / </span>
                       <span className="text-white/60">{formatTime(duration)}</span>
@@ -597,6 +698,16 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
 
                     {/* Spacer */}
                     <div className="flex-1" />
+
+                    {/* Subtitles CC */}
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                      aria-label="Subtitles"
+                    >
+                      <Subtitles className="h-5 w-5" />
+                    </motion.button>
 
                     {/* Speed */}
                     <div className="relative">
@@ -608,11 +719,10 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                           setShowSpeedMenu((prev) => !prev)
                           setShowQualityMenu(false)
                         }}
-                        className="flex h-9 items-center gap-0.5 rounded-full px-2 text-xs font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white sm:text-sm"
+                        className="flex h-9 items-center gap-0.5 rounded-full px-2 text-xs font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                         aria-label="Playback speed"
                       >
                         <span>{speed === 1 ? '1x' : `${speed}x`}</span>
-                        <ChevronDown className="h-3 w-3" />
                       </motion.button>
                       <AnimatePresence>
                         {showSpeedMenu && (
@@ -621,7 +731,7 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
                             transition={{ duration: 0.15 }}
-                            className="absolute bottom-full right-0 mb-2 min-w-[140px] overflow-hidden rounded-lg bg-xtube-card/95 py-1 shadow-xl backdrop-blur-md"
+                            className="absolute bottom-full right-0 mb-2 min-w-[140px] overflow-hidden rounded-xl border border-white/5 bg-[#111111]/95 py-1 shadow-2xl backdrop-blur-xl"
                           >
                             {SPEED_OPTIONS.map((opt) => (
                               <button
@@ -631,7 +741,7 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                                   handleSpeedChange(opt.value)
                                 }}
                                 className={`flex w-full items-center px-4 py-2 text-left text-sm transition-colors hover:bg-white/10 ${
-                                  speed === opt.value ? 'text-xtube-red' : 'text-white/80'
+                                  speed === opt.value ? 'text-xtube-red' : 'text-white/70'
                                 }`}
                               >
                                 {opt.label}
@@ -642,24 +752,20 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                       </AnimatePresence>
                     </div>
 
-                    {/* Quality */}
+                    {/* Settings / Quality */}
                     <div className="relative">
                       <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
                         onClick={(e) => {
                           e.stopPropagation()
                           setShowQualityMenu((prev) => !prev)
                           setShowSpeedMenu(false)
                         }}
-                        className="flex h-9 items-center gap-0.5 rounded-full px-2 text-xs font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white sm:text-sm"
+                        className="flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                         aria-label="Video quality"
                       >
-                        <Settings className="h-4 w-4" />
-                        <span className="hidden sm:inline">
-                          {quality === 'auto' ? 'Auto' : `${quality}p`}
-                        </span>
-                        <ChevronDown className="h-3 w-3" />
+                        <Settings className="h-5 w-5" />
                       </motion.button>
                       <AnimatePresence>
                         {showQualityMenu && (
@@ -668,8 +774,9 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 10, scale: 0.95 }}
                             transition={{ duration: 0.15 }}
-                            className="absolute bottom-full right-0 mb-2 min-w-[130px] overflow-hidden rounded-lg bg-xtube-card/95 py-1 shadow-xl backdrop-blur-md"
+                            className="absolute bottom-full right-0 mb-2 min-w-[140px] overflow-hidden rounded-xl border border-white/5 bg-[#111111]/95 py-1 shadow-2xl backdrop-blur-xl"
                           >
+                            <div className="px-4 py-1.5 text-xs font-semibold text-white/40 uppercase">Quality</div>
                             {QUALITY_OPTIONS.map((opt) => (
                               <button
                                 key={opt.value}
@@ -679,7 +786,7 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                                   setShowQualityMenu(false)
                                 }}
                                 className={`flex w-full items-center px-4 py-2 text-left text-sm transition-colors hover:bg-white/10 ${
-                                  quality === opt.value ? 'text-xtube-red' : 'text-white/80'
+                                  quality === opt.value ? 'text-xtube-red' : 'text-white/70'
                                 }`}
                               >
                                 {opt.label}
@@ -695,7 +802,7 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={() => setTheaterMode(!theaterMode)}
-                      className="hidden sm:flex h-9 w-9 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                      className="hidden sm:flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                       aria-label={theaterMode ? 'Exit theater mode' : 'Theater mode'}
                     >
                       <MonitorPlay className="h-5 w-5" />
@@ -706,7 +813,7 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={toggleFullscreen}
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                       aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
                     >
                       {isFullscreen ? (
@@ -721,140 +828,222 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
             </div>
 
             {/* ─── Video Info Section ──────────────────────────────────── */}
-            <div className="mt-3 px-2 sm:px-4">
-              {/* Title */}
-              <h1 className="text-lg font-bold text-white sm:text-xl lg:text-2xl">
+            <div className="mt-4 px-1 sm:px-2">
+              {/* Video Title */}
+              <motion.h1
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-lg font-bold text-white sm:text-xl lg:text-2xl leading-tight"
+              >
                 {video.title}
-              </h1>
+              </motion.h1>
 
-              {/* Views + date */}
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-xtube-text-secondary">
-                <span className="flex items-center gap-1">
-                  <Eye className="h-3.5 w-3.5" />
-                  {formatViews(video.views)} views
-                </span>
-                <span>•</span>
-                <span>{formatRelativeDate(video.createdAt)}</span>
-                {video.isHd && (
-                  <>
-                    <span>•</span>
-                    <span className="rounded bg-xtube-red px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      HD
+              {/* Channel info + Action buttons row */}
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                {/* Channel Info */}
+                <div className="flex items-center gap-3">
+                  {/* Channel Avatar */}
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 ring-2 ring-white/10 flex-shrink-0">
+                    <span className="text-sm font-bold text-white">
+                      {video.category.charAt(0).toUpperCase()}
                     </span>
-                  </>
-                )}
-              </div>
-
-              {/* Action buttons row */}
-              <div className="mt-3 flex flex-wrap items-center gap-1 sm:gap-2">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    setLiked(!liked)
-                    if (disliked) setDisliked(false)
-                  }}
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-                    liked
-                      ? 'bg-xtube-red/20 text-xtube-red'
-                      : 'bg-xtube-card text-white/80 hover:bg-xtube-card-hover hover:text-white'
-                  }`}
-                  aria-label="Like"
-                >
-                  <ThumbsUp className="h-4 w-4" fill={liked ? 'currentColor' : 'none'} />
-                  <span className="hidden sm:inline">{liked ? 'Liked' : 'Like'}</span>
-                </motion.button>
-
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    setDisliked(!disliked)
-                    if (liked) setLiked(false)
-                  }}
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-                    disliked
-                      ? 'bg-xtube-red/20 text-xtube-red'
-                      : 'bg-xtube-card text-white/80 hover:bg-xtube-card-hover hover:text-white'
-                  }`}
-                  aria-label="Dislike"
-                >
-                  <ThumbsDown className="h-4 w-4" fill={disliked ? 'currentColor' : 'none'} />
-                  <span className="hidden sm:inline">Dislike</span>
-                </motion.button>
-
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center gap-1.5 rounded-full bg-xtube-card px-3 py-2 text-sm font-medium text-white/80 transition-colors hover:bg-xtube-card-hover hover:text-white"
-                  aria-label="Share"
-                >
-                  <Share2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Share</span>
-                </motion.button>
-
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setBookmarked(!bookmarked)}
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-                    bookmarked
-                      ? 'bg-xtube-red/20 text-xtube-red'
-                      : 'bg-xtube-card text-white/80 hover:bg-xtube-card-hover hover:text-white'
-                  }`}
-                  aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark'}
-                >
-                  <Bookmark className="h-4 w-4" fill={bookmarked ? 'currentColor' : 'none'} />
-                  <span className="hidden sm:inline">{bookmarked ? 'Saved' : 'Save'}</span>
-                </motion.button>
-
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center gap-1.5 rounded-full bg-xtube-card px-3 py-2 text-sm font-medium text-white/80 transition-colors hover:bg-xtube-card-hover hover:text-white"
-                  aria-label="Download"
-                >
-                  <Download className="h-4 w-4" />
-                  <span className="hidden sm:inline">Download</span>
-                </motion.button>
-              </div>
-
-              {/* Category tag */}
-              <div className="mt-4">
-                <span className="inline-block rounded bg-xtube-red/20 px-3 py-1 text-sm font-medium text-xtube-red">
-                  {video.category}
-                </span>
-              </div>
-
-              {/* Description */}
-              <div className="mt-4 rounded-xl bg-xtube-card p-4">
-                <div
-                  className={`text-sm leading-relaxed text-white/80 ${
-                    !showFullDescription ? 'line-clamp-3' : ''
-                  }`}
-                >
-                  {video.description}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-semibold text-white truncate">{video.category} Films</span>
+                      <CheckCircle2 className="h-3.5 w-3.5 text-white/40 flex-shrink-0" />
+                    </div>
+                    <span className="text-xs text-white/50">{formatViews(Math.floor(video.views * 0.8))} subscribers</span>
+                  </div>
+                  {/* Subscribe Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="ml-2 rounded-full bg-white px-4 py-2 text-xs font-bold text-black transition-colors hover:bg-white/90 sm:text-sm"
+                    aria-label="Subscribe"
+                  >
+                    Subscribe
+                  </motion.button>
                 </div>
-                <button
-                  onClick={() => setShowFullDescription(!showFullDescription)}
-                  className="mt-2 text-sm font-semibold text-white/60 transition-colors hover:text-xtube-red"
-                >
-                  {showFullDescription ? 'Show less' : 'Show more'}
-                </button>
+
+                {/* Engagement Buttons */}
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                  {/* Like/Dislike group */}
+                  <div className="flex items-center overflow-hidden rounded-full bg-[#1a1a1a]">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        setLiked(!liked)
+                        if (disliked) setDisliked(false)
+                      }}
+                      className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors ${
+                        liked ? 'text-xtube-red' : 'text-white/80 hover:text-white'
+                      }`}
+                      aria-label="Like"
+                    >
+                      <ThumbsUp className="h-4 w-4" fill={liked ? 'currentColor' : 'none'} />
+                      <span>{formatViews(128000)}</span>
+                    </motion.button>
+                    <div className="h-6 w-px bg-white/10" />
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        setDisliked(!disliked)
+                        if (liked) setLiked(false)
+                      }}
+                      className={`flex items-center px-3 py-2 transition-colors ${
+                        disliked ? 'text-xtube-red' : 'text-white/60 hover:text-white'
+                      }`}
+                      aria-label="Dislike"
+                    >
+                      <ThumbsDown className="h-4 w-4" fill={disliked ? 'currentColor' : 'none'} />
+                    </motion.button>
+                  </div>
+
+                  {/* Share */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex items-center gap-1.5 rounded-full bg-[#1a1a1a] px-4 py-2 text-sm font-medium text-white/80 transition-colors hover:bg-[#252525] hover:text-white"
+                    aria-label="Share"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    <span className="hidden sm:inline">Share</span>
+                  </motion.button>
+
+                  {/* Save */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setBookmarked(!bookmarked)}
+                    className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                      bookmarked
+                        ? 'bg-xtube-red/20 text-xtube-red'
+                        : 'bg-[#1a1a1a] text-white/80 hover:bg-[#252525] hover:text-white'
+                    }`}
+                    aria-label={bookmarked ? 'Remove bookmark' : 'Save'}
+                  >
+                    <Bookmark className="h-4 w-4" fill={bookmarked ? 'currentColor' : 'none'} />
+                    <span className="hidden sm:inline">{bookmarked ? 'Saved' : 'Save'}</span>
+                  </motion.button>
+
+                  {/* More */}
+                  <div className="relative">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setShowMoreMenu((prev) => !prev)
+                      }}
+                      className="flex items-center justify-center rounded-full bg-[#1a1a1a] p-2 text-white/80 transition-colors hover:bg-[#252525] hover:text-white"
+                      aria-label="More options"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </motion.button>
+                    <AnimatePresence>
+                      {showMoreMenu && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -5, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -5, scale: 0.95 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 top-full z-10 mt-1 min-w-[160px] overflow-hidden rounded-xl border border-white/5 bg-[#111111]/95 py-1 shadow-2xl backdrop-blur-xl"
+                        >
+                          <button className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white">
+                            <Share2 className="h-4 w-4" /> Embed
+                          </button>
+                          <button className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white">
+                            <Share2 className="h-4 w-4" /> Report
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── Description Box (Glassmorphism) ─────────────────── */}
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="mt-4 rounded-xl border border-white/5 bg-[#111111]/80 p-3 backdrop-blur-xl sm:p-4"
+              >
+                {/* Views + Date */}
+                <div className="flex items-center gap-2 text-sm font-medium text-white">
+                  <span className="flex items-center gap-1">
+                    <Eye className="h-3.5 w-3.5 text-white/50" />
+                    {formatViews(video.views)} views
+                  </span>
+                  <span className="text-white/30">•</span>
+                  <span className="text-white/60">{formatRelativeDate(video.createdAt)}</span>
+                  {video.isHd && (
+                    <>
+                      <span className="text-white/30">•</span>
+                      <span className="rounded bg-xtube-red px-1.5 py-0.5 text-[10px] font-bold text-white">
+                        HD
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Hashtags */}
+                {hashtags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {hashtags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-xs font-medium text-xtube-red hover:text-xtube-red-hover cursor-pointer transition-colors"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Description text */}
+                <div className="mt-2">
+                  <div
+                    className={`text-sm leading-relaxed text-white/70 ${
+                      !showFullDescription ? 'line-clamp-3' : ''
+                    }`}
+                  >
+                    {descriptionWithoutTags || video.description}
+                  </div>
+                  <button
+                    onClick={() => setShowFullDescription(!showFullDescription)}
+                    className="mt-2 text-xs font-semibold text-white/50 transition-colors hover:text-xtube-red sm:text-sm"
+                  >
+                    {showFullDescription ? 'Show less' : '...more'}
+                  </button>
+                </div>
+              </motion.div>
+
+              {/* ─── Comments Section ─────────────────────────────────── */}
+              <div className="mt-6">
+                <Comments
+                  videoId={video.id}
+                  comments={comments}
+                  onAddComment={onAddComment}
+                  loading={false}
+                />
               </div>
             </div>
           </div>
 
-          {/* ─── Right Sidebar: Recommended Videos ────────────────────── */}
-          <div className={`${theaterMode ? 'mt-6' : 'lg:w-[380px] xl:w-[420px]'} flex-shrink-0 px-2 sm:px-4 lg:px-0`}>
-            {/* Auto-play toggle */}
+          {/* ─── RIGHT SIDEBAR: Up Next ───────────────────────────────── */}
+          <div className={`${theaterMode ? 'mt-6' : 'lg:w-[360px] xl:w-[400px]'} flex-shrink-0 px-1 sm:px-2 lg:px-0`}>
+            {/* Up Next header + Autoplay toggle */}
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-base font-bold text-white sm:text-lg">Up Next</h2>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-xtube-text-secondary">Autoplay</span>
+                <span className="text-xs text-white/50">Autoplay</span>
                 <button
                   onClick={() => setAutoPlayNext(!autoPlayNext)}
-                  className={`relative h-5 w-9 rounded-full transition-colors ${
+                  className={`relative h-5 w-9 rounded-full transition-colors duration-200 ${
                     autoPlayNext ? 'bg-xtube-red' : 'bg-white/20'
                   }`}
                   aria-label={autoPlayNext ? 'Disable autoplay' : 'Enable autoplay'}
@@ -869,15 +1058,15 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
             </div>
 
             {/* Related videos list */}
-            <div className="max-h-[calc(100vh-200px)] space-y-3 overflow-y-auto pr-1 lg:max-h-none">
+            <div className="space-y-2 lg:max-h-[calc(100vh-200px)] lg:overflow-y-auto lg:pr-1 custom-scrollbar">
               {relatedVideos.map((rv, idx) => (
                 <motion.div
                   key={rv.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: idx * 0.05 }}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: idx * 0.04 }}
                   onClick={() => navigateToVideo(rv.id)}
-                  className="group flex cursor-pointer gap-3 rounded-lg p-1 transition-colors hover:bg-xtube-card-hover"
+                  className="group flex cursor-pointer gap-3 rounded-lg p-1.5 transition-all duration-200 hover:bg-white/5"
                   role="button"
                   tabIndex={0}
                   aria-label={`Watch ${rv.title}`}
@@ -889,7 +1078,7 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                   }}
                 >
                   {/* Thumbnail */}
-                  <div className="relative h-[68px] w-[120px] flex-shrink-0 overflow-hidden rounded-md bg-xtube-card sm:h-[78px] sm:w-[138px]">
+                  <div className="relative h-[68px] w-[120px] flex-shrink-0 overflow-hidden rounded-lg bg-[#111111] sm:h-[94px] sm:w-[168px]">
                     <img
                       src={rv.thumbnail}
                       alt={rv.title}
@@ -897,32 +1086,48 @@ export function VideoPlayer({ video, relatedVideos }: VideoPlayerProps) {
                       loading="lazy"
                     />
                     {/* Duration badge */}
-                    <div className="absolute bottom-1 right-1">
-                      <span className="flex items-center gap-0.5 rounded bg-black/75 px-1 py-0.5 text-[10px] font-medium text-white">
+                    <div className="absolute bottom-1.5 right-1.5">
+                      <span className="flex items-center gap-0.5 rounded bg-black/80 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
                         <Clock className="h-2.5 w-2.5" />
                         {rv.duration}
                       </span>
                     </div>
-                    {/* Play overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity group-hover:opacity-100">
-                      <Play className="h-6 w-6 text-white" fill="currentColor" />
+                    {/* Hover play overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-xtube-red/90 shadow-lg">
+                        <Play className="h-4 w-4 text-white ml-0.5" fill="currentColor" />
+                      </div>
+                    </div>
+                    {/* Cinematic hover glow */}
+                    <div className="absolute inset-0 rounded-lg opacity-0 transition-opacity duration-300 group-hover:opacity-100 shadow-[inset_0_0_20px_rgba(229,9,20,0.15)]" />
+                  </div>
+
+                  {/* Video info */}
+                  <div className="min-w-0 flex-1 py-0.5">
+                    <h3 className="line-clamp-2 text-sm font-medium leading-snug text-white transition-colors duration-200 group-hover:text-xtube-red">
+                      {rv.title}
+                    </h3>
+                    <div className="mt-1.5 space-y-0.5">
+                      <p className="text-xs text-white/40 truncate">{rv.category} Films</p>
+                      <div className="flex items-center gap-1.5 text-xs text-white/40">
+                        <span className="flex items-center gap-0.5">
+                          <Eye className="h-3 w-3" />
+                          {formatViews(rv.views)} views
+                        </span>
+                        <span>•</span>
+                        <span>3 days ago</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Info */}
-                  <div className="min-w-0 flex-1 py-0.5">
-                    <h3 className="line-clamp-2 text-sm font-medium text-white transition-colors group-hover:text-xtube-red">
-                      {rv.title}
-                    </h3>
-                    <div className="mt-1 flex items-center gap-1.5 text-xs text-xtube-text-secondary">
-                      <span className="flex items-center gap-0.5">
-                        <Eye className="h-3 w-3" />
-                        {formatViews(rv.views)}
-                      </span>
-                      <span>•</span>
-                      <span>{rv.category}</span>
-                    </div>
-                  </div>
+                  {/* More options */}
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex-shrink-0 self-start p-1 text-white/0 transition-colors group-hover:text-white/40 hover:text-white"
+                    aria-label="More options"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
                 </motion.div>
               ))}
             </div>
