@@ -1,6 +1,5 @@
 'use client'
 
-import { useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
 
@@ -124,29 +123,41 @@ export function XtubeLogo({
 }: XtubeLogoProps) {
   const adminClickCount = useAppStore((s) => s.adminClickCount)
   const incrementAdminClick = useAppStore((s) => s.incrementAdminClick)
-  const setView = useAppStore((s) => s.setView)
   const adminUnlocked = useAppStore((s) => s.adminUnlocked)
   const adminUnlocking = useAppStore((s) => s.adminUnlocking)
-  const setShowAdminModal = useAppStore((s) => s.setShowAdminModal)
 
   const s = sizeMap[size]
   const pulseGlow = adminClickCount > 0 && !adminUnlocked
 
   const handleClick = onClick || (() => {
     const isMobile = window.innerWidth < 768
-    incrementAdminClick(!isMobile)
 
-    // If admin is unlocking (7th click happened), open the modal instead of navigating
+    // If admin is already unlocked, just refresh
     const store = useAppStore.getState()
-    if (store.adminUnlocking) {
-      // Modal will be shown by store state
+    if (store.adminUnlocked) {
+      window.location.reload()
       return
     }
 
-    // For all clicks before 7: navigate to home (refresh)
-    if (!store.adminUnlocked && !store.adminUnlocking) {
-      setView('home')
+    // If modal is about to show, don't refresh
+    if (store.adminUnlocking || store.showAdminModal) {
+      incrementAdminClick(!isMobile)
+      return
     }
+
+    // Track click count for admin unlock
+    incrementAdminClick(!isMobile)
+
+    // After incrementing, check the NEW state
+    const newState = useAppStore.getState()
+
+    // If 7th click triggered unlock, modal will open — don't refresh
+    if (newState.adminUnlocking || newState.showAdminModal) {
+      return
+    }
+
+    // For clicks 1-6: refresh the page
+    window.location.reload()
   })
 
   return (
@@ -155,6 +166,7 @@ export function XtubeLogo({
       whileHover={{ scale: 1.03 }}
       whileTap={{ scale: 0.97 }}
       className={`flex items-center focus:outline-none ${className}`}
+      style={{ touchAction: 'manipulation' }}
       aria-label="Xtube Home"
     >
       {/* Red circle icon with X */}

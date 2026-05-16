@@ -623,36 +623,28 @@ export default function XtubeHome() {
           {/* Main Content Area */}
           <motion.main
             className={`min-h-screen transition-all duration-300 ${
-              sidebarCollapsed ? 'md:ml-[64px]' : 'md:ml-[220px]'
+              sidebarCollapsed ? 'md:ml-[64px]' : 'md:ml-[180px]'
             }`}
           >
             {/* Top Header Bar */}
             {currentView !== 'admin' && (
-              <header className="sticky top-0 z-30 flex h-12 items-center justify-between border-b border-xtube-border bg-[#050505]/90 px-3 backdrop-blur-md md:px-5">
-                <div className="flex items-center gap-3">
-                  {/* Mobile Logo — refresh to home, never unlock admin */}
+              <header className="sticky top-0 z-30 flex h-12 items-center justify-between border-b border-xtube-border bg-[#050505]/90 px-3 backdrop-blur-md md:px-4 lg:px-5">
+                <div className="flex items-center gap-2">
+                  {/* Mobile Logo — only shows on mobile (<768px), sidebar has logo on md+ */}
                   <div className="md:hidden">
                     <XtubeLogo
                       size="sm"
                       showText={true}
                       showLive={true}
                       onClick={() => {
-                        // Mobile: only refresh to home, NEVER unlock admin
+                        // Mobile: refresh page, NEVER unlock admin
                         useAppStore.getState().incrementAdminClick(false)
+                        window.location.reload()
                       }}
                     />
                   </div>
 
-                  {/* Desktop Logo in header */}
-                  <div className="hidden md:block">
-                    <XtubeLogo
-                      size="sm"
-                      showText={true}
-                      showLive={true}
-                    />
-                  </div>
-
-                  {/* View Title */}
+                  {/* View Title - only on md+ since sidebar has logo */}
                   <h2 className="hidden text-xs font-medium text-xtube-text-secondary md:block">
                     {currentView === 'home' && 'Home'}
                     {currentView === 'trending' && 'Trending'}

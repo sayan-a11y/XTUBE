@@ -127,7 +127,7 @@ export function SearchBar() {
             value={localValue}
             onChange={(e) => handleInputChange(e.target.value)}
             placeholder="Search videos..."
-            className="w-40 bg-transparent text-xs text-white placeholder:text-xtube-text-secondary focus:outline-none lg:w-56"
+            className="w-32 bg-transparent text-xs text-white placeholder:text-xtube-text-secondary focus:outline-none md:w-40 lg:w-56"
             aria-label="Search videos"
           />
           <AnimatePresence>

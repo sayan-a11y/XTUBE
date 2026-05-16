@@ -38,25 +38,47 @@ export function Sidebar() {
 
   const handleLogoClick = useCallback(() => {
     // Sidebar is only rendered on md+ (desktop/tablet), so always pass true
-    incrementAdminClick(true)
-    // First 6 clicks: navigate to home (refresh)
     const store = useAppStore.getState()
-    if (!store.adminUnlocked && !store.adminUnlocking) {
-      setView('home')
+
+    // If already unlocked, just refresh
+    if (store.adminUnlocked) {
+      window.location.reload()
+      return
     }
-  }, [incrementAdminClick, setView])
+
+    // If modal is showing, don't process more clicks
+    if (store.adminUnlocking || store.showAdminModal) {
+      incrementAdminClick(true)
+      return
+    }
+
+    // Track click for admin unlock
+    incrementAdminClick(true)
+
+    // Check if 7th click triggered unlock
+    const newState = useAppStore.getState()
+    if (newState.adminUnlocking || newState.showAdminModal) {
+      return // Modal will open, don't refresh
+    }
+
+    // Clicks 1-6: refresh the page
+    window.location.reload()
+  }, [incrementAdminClick])
+
+  // Responsive sidebar width: smaller on tablet (md), full on desktop (lg)
+  const expandedWidth = 180 // compact for tablet, works well on desktop too
 
   return (
     <motion.aside
       initial={false}
-      animate={{ width: sidebarCollapsed ? 64 : 220 }}
+      animate={{ width: sidebarCollapsed ? 64 : expandedWidth }}
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       className="fixed left-0 top-0 z-40 hidden h-screen flex-col border-r border-xtube-border bg-[#0a0a0a] md:flex"
     >
       {/* Logo */}
       <div className="flex h-14 items-center border-b border-xtube-border px-3">
         <XtubeLogo
-          size="md"
+          size="sm"
           showText={!sidebarCollapsed}
           showLive={!sidebarCollapsed}
           onClick={handleLogoClick}
@@ -110,7 +132,7 @@ export function Sidebar() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -10 }}
                     transition={{ duration: 0.2 }}
-                    className={`relative z-10 whitespace-nowrap text-[13px] font-medium ${
+                    className={`relative z-10 whitespace-nowrap text-xs font-medium ${
                       isActive ? 'text-white' : ''
                     }`}
                   >

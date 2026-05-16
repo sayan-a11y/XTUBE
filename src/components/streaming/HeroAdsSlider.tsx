@@ -284,7 +284,7 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
         role="region"
         aria-label="Hero advertisement space"
       >
-        <div className="relative h-[50vh] md:h-[65vh] lg:h-[80vh] flex items-center justify-center">
+        <div className="relative h-[40vh] sm:h-[45vh] md:h-[50vh] lg:h-[65vh] flex items-center justify-center">
           {/* Cinematic dark background with subtle gradients */}
           <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#050505] to-[#080810]" />
           
@@ -360,8 +360,8 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
       aria-label="Hero advertisement slider"
       aria-roledescription="carousel"
     >
-      {/* ── Slide area: 80vh desktop, 65vh tablet, 50vh mobile ── */}
-      <div className="relative h-[50vh] md:h-[65vh] lg:h-[80vh]">
+      {/* ── Slide area: responsive heights ── */}
+      <div className="relative h-[40vh] sm:h-[45vh] md:h-[50vh] lg:h-[65vh]">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentAd.id}
