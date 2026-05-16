@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  email     String   @unique
+  avatar    String?
+  role      String   @default("user") // user, admin
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  comments Comment[]
+  bookmarks Bookmark[]
+  history   History[]
+}
+
+model Video {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  thumbnail   String
+  videoUrl    String
+  category    String
+  duration    String   @default("0:00")
+  views       Int      @default(0)
+  isHd        Boolean  @default(false)
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  comments  Comment[]
+  bookmarks Bookmark[]
+  history   History[]
+  ads       VideoAd[]
+
+  @@index([category])
+  @@index([views])
+  @@index([createdAt])
+}
+
+model Category {
+  id    String @id @default(cuid())
+  name  String @unique
+  slug  String @unique
+  icon  String?
+  order Int    @default(0)
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  likes     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId  String
+  videoId String
+  parentId String?
+
+  user    User     @relation(fields: [userId], references: [id])
+  video   Video    @relation(fields: [videoId], references: [id])
+  parent  Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
+
+  @@index([videoId])
+  @@index([userId])
+}
+
+model Ad {
+  id          String   @id @default(cuid())
+  type        String   // banner, popup, overlay
+  position    String   // hero, sidebar, footer, entry, exit, timed
+  title       String
+  imageUrl    String
+  linkUrl     String?
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  revenue     Float    @default(0)
+  isActive    Boolean  @default(true)
+  startDate   DateTime?
+  endDate     DateTime?
+  frequency   Int      @default(1) // how often to show
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  videoAds VideoAd[]
+}
+
+model VideoAd {
+  id       String @id @default(cuid())
+  adId     String
+  videoId  String
+  position String // pre-roll, mid-roll, post-roll, overlay
+  timing   Int    @default(0) // seconds into video
+
+  ad    Ad    @relation(fields: [adId], references: [id])
+  video Video @relation(fields: [videoId], references: [id])
+}
+
+model Bookmark {
+  id     String @id @default(cuid())
+  userId String
+  videoId String
+
+  user  User  @relation(fields: [userId], references: [id])
+  video Video @relation(fields: [videoId], references: [id])
+
+  @@unique([userId, videoId])
+}
+
+model History {
+  id        String   @id @default(cuid())
+  userId    String
+  videoId   String
+  progress  Int      @default(0) // percentage watched
+  watchedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  video Video @relation(fields: [videoId], references: [id])
+
+  @@unique([userId, videoId])
+}
+
+model Analytics {
+  id         String   @id @default(cuid())
+  date       DateTime @default(now())
+  device     String
+  country    String   @default("unknown")
+  views      Int      @default(0)
+  watchTime  Int      @default(0) // total seconds
+  revenue    Float    @default(0)
+  adClicks   Int      @default(0)
+  newUsers   Int      @default(0)
+}

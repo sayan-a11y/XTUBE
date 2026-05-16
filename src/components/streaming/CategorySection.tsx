@@ -1,0 +1,131 @@
+'use client'
+
+import { useRef, useState } from 'react'
+import { motion } from 'framer-motion'
+import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
+import { useAppStore } from '@/lib/store'
+import { VideoCard } from './VideoCard'
+
+interface CategorySectionProps {
+  title: string
+  category: string
+  videos: Array<{
+    id: string
+    title: string
+    thumbnail: string
+    duration: string
+    views: number
+    category: string
+    isHd: boolean
+    createdAt: string
+  }>
+}
+
+export function CategorySection({ title, category, videos }: CategorySectionProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [showLeftArrow, setShowLeftArrow] = useState(false)
+  const [showRightArrow, setShowRightArrow] = useState(true)
+  const { setView, setSelectedCategory } = useAppStore()
+
+  const handleScroll = () => {
+    if (!scrollRef.current) return
+    const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current
+    setShowLeftArrow(scrollLeft > 10)
+    setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 10)
+  }
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (!scrollRef.current) return
+    const scrollAmount = scrollRef.current.clientWidth * 0.75
+    scrollRef.current.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth',
+    })
+  }
+
+  const handleSeeAll = () => {
+    setSelectedCategory(category)
+    setView('category')
+  }
+
+  if (!videos.length) return null
+
+  return (
+    <section className="group relative">
+      {/* Section header */}
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-bold text-white sm:text-xl md:text-2xl">
+          {title}
+        </h2>
+        <button
+          onClick={handleSeeAll}
+          className="flex items-center gap-1 text-sm font-medium text-xtube-red transition-colors hover:text-xtube-red-hover"
+        >
+          See All
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Scrollable area with arrows */}
+      <div className="relative">
+        {/* Left scroll arrow */}
+        {showLeftArrow && (
+          <motion.button
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 10 }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => scroll('left')}
+            className="absolute left-0 top-1/2 z-20 -translate-y-1/2 glass flex h-10 w-10 items-center justify-center rounded-full text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white/10"
+            aria-label="Scroll left"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </motion.button>
+        )}
+
+        {/* Right scroll arrow */}
+        {showRightArrow && (
+          <motion.button
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => scroll('right')}
+            className="absolute right-0 top-1/2 z-20 -translate-y-1/2 glass flex h-10 w-10 items-center justify-center rounded-full text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-white/10"
+            aria-label="Scroll right"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </motion.button>
+        )}
+
+        {/* Left fade */}
+        {showLeftArrow && (
+          <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-12 bg-gradient-to-r from-xtube-bg to-transparent" />
+        )}
+
+        {/* Right fade */}
+        {showRightArrow && (
+          <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-12 bg-gradient-to-l from-xtube-bg to-transparent" />
+        )}
+
+        {/* Scrollable container */}
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="no-scrollbar flex gap-4 overflow-x-auto scroll-smooth pb-2"
+        >
+          {videos.map((video) => (
+            <div
+              key={video.id}
+              className="w-[260px] flex-shrink-0 sm:w-[280px] md:w-[300px]"
+            >
+              <VideoCard {...video} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}

@@ -1,0 +1,106 @@
+import { create } from 'zustand'
+
+export type ViewMode = 'home' | 'trending' | 'category' | 'bookmarks' | 'history' | 'video' | 'admin' | 'search'
+
+interface AppState {
+  // Navigation
+  currentView: ViewMode
+  selectedCategory: string | null
+  selectedVideoId: string | null
+  searchQuery: string
+
+  // Sidebar
+  sidebarCollapsed: boolean
+  mobileMenuOpen: boolean
+
+  // Admin
+  adminUnlocked: boolean
+  adminClickCount: number
+  adminTab: string
+
+  // Video Player
+  theaterMode: boolean
+
+  // Actions
+  setView: (view: ViewMode) => void
+  setSelectedCategory: (category: string | null) => void
+  setSelectedVideoId: (id: string | null) => void
+  setSearchQuery: (query: string) => void
+  toggleSidebar: () => void
+  setMobileMenuOpen: (open: boolean) => void
+  incrementAdminClick: () => void
+  setAdminUnlocked: (unlocked: boolean) => void
+  setAdminTab: (tab: string) => void
+  setTheaterMode: (mode: boolean) => void
+  navigateToVideo: (videoId: string) => void
+  goBack: () => void
+}
+
+const viewHistory: ViewMode[] = ['home']
+
+export const useAppStore = create<AppState>((set, get) => ({
+  // Navigation
+  currentView: 'home',
+  selectedCategory: null,
+  selectedVideoId: null,
+  searchQuery: '',
+
+  // Sidebar
+  sidebarCollapsed: false,
+  mobileMenuOpen: false,
+
+  // Admin
+  adminUnlocked: false,
+  adminClickCount: 0,
+  adminTab: 'dashboard',
+
+  // Video Player
+  theaterMode: false,
+
+  // Actions
+  setView: (view) => {
+    viewHistory.push(get().currentView)
+    set({ currentView: view })
+  },
+
+  setSelectedCategory: (category) => set({ selectedCategory: category }),
+
+  setSelectedVideoId: (id) => set({ selectedVideoId: id }),
+
+  setSearchQuery: (query) => set({ searchQuery: query }),
+
+  toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+
+  setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
+
+  incrementAdminClick: () => {
+    const newCount = get().adminClickCount + 1
+    if (newCount >= 7) {
+      set({ adminClickCount: 0, adminUnlocked: true })
+    } else {
+      set({ adminClickCount: newCount })
+      // Reset after 2 seconds if not completed
+      setTimeout(() => {
+        if (get().adminClickCount < 7) {
+          set({ adminClickCount: 0 })
+        }
+      }, 2000)
+    }
+  },
+
+  setAdminUnlocked: (unlocked) => set({ adminUnlocked: unlocked }),
+
+  setAdminTab: (tab) => set({ adminTab: tab }),
+
+  setTheaterMode: (mode) => set({ theaterMode: mode }),
+
+  navigateToVideo: (videoId) => {
+    viewHistory.push(get().currentView)
+    set({ selectedVideoId: videoId, currentView: 'video' })
+  },
+
+  goBack: () => {
+    const lastView = viewHistory.pop() || 'home'
+    set({ currentView: lastView, selectedVideoId: lastView !== 'video' ? null : get().selectedVideoId })
+  },
+}))
