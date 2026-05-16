@@ -15,6 +15,7 @@ export type AdminSection =
   | 'mid-roll-ads'
   | 'post-roll-ads'
   | 'overlay-ads'
+  | 'video-ads-analytics'
   | 'analytics'
   | 'users'
   | 'settings'

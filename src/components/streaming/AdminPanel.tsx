@@ -36,6 +36,7 @@ import { AnalyticsPage } from '@/components/admin/AnalyticsPage'
 import { UsersPage } from '@/components/admin/UsersPage'
 import { SettingsPage } from '@/components/admin/SettingsPage'
 import { CatalogPage } from '@/components/admin/CatalogPage'
+import { VideoAdsAnalytics } from '@/components/admin/VideoAdsAnalytics'
 
 // ─── Custom Hook: Tablet Detection ────────────────────────────────────────────
 
@@ -95,6 +96,7 @@ const navigationItems: NavItem[] = [
           { id: 'mid-roll-ads', label: 'Mid-roll', icon: Play, section: 'mid-roll-ads' },
           { id: 'post-roll-ads', label: 'Post-roll', icon: Play, section: 'post-roll-ads' },
           { id: 'overlay-ads', label: 'Overlay', icon: Layers, section: 'overlay-ads' },
+          { id: 'video-ads-analytics', label: 'Ads Analytics', icon: BarChart3, section: 'video-ads-analytics' },
         ],
       },
     ],
@@ -119,6 +121,7 @@ const sectionTitles: Record<AdminSection, string> = {
   'mid-roll-ads': 'Mid-roll Ads',
   'post-roll-ads': 'Post-roll Ads',
   'overlay-ads': 'Overlay Ads',
+  'video-ads-analytics': 'Video Ads Analytics',
   analytics: 'Analytics',
   users: 'Users',
   settings: 'Settings',
@@ -566,6 +569,7 @@ export function AdminPanel() {
     'mid-roll-ads',
     'post-roll-ads',
     'overlay-ads',
+    'video-ads-analytics',
   ]
 
   const renderContent = () => {
@@ -600,6 +604,23 @@ export function AdminPanel() {
         return <UsersPage />
       case 'settings':
         return <SettingsPage />
+      case 'video-ads-analytics':
+        return (
+          <VideoAdsAnalytics
+            ads={adminAds.map((a) => ({
+              id: a.id,
+              type: a.type,
+              position: a.position,
+              title: a.title,
+              imageUrl: a.imageUrl,
+              impressions: a.impressions,
+              clicks: a.clicks,
+              revenue: a.revenue,
+              isActive: a.isActive,
+              createdAt: a.createdAt,
+            }))}
+          />
+        )
       default:
         if (adsSections.includes(adminSection)) {
           return (
