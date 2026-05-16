@@ -637,9 +637,10 @@ export default function XtubeHome() {
                       showText={true}
                       showLive={true}
                       onClick={() => {
-                        // Mobile: refresh page, NEVER unlock admin
-                        useAppStore.getState().incrementAdminClick(false)
-                        window.location.reload()
+                        // Mobile: navigate home, NEVER unlock admin
+                        const store = useAppStore.getState()
+                        store.setView('home')
+                        store.setSelectedVideoId(null)
                       }}
                     />
                   </div>

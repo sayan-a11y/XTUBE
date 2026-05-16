@@ -168,3 +168,25 @@ Stage Summary:
 - Hero section no longer oversized on tablets
 - Admin 7-click system still works (counter persists in sessionStorage if needed)
 - All existing layouts preserved
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Fix 7-click admin unlock — logo clicks 1-6 were calling window.location.reload() which reset the store counter, making it impossible to ever reach 7 clicks
+
+Work Log:
+- Diagnosed root cause: `window.location.reload()` on clicks 1-6 reset the Zustand store state, including `adminClickCount`, so the counter never accumulated to 7
+- Fixed XtubeLogo.tsx: Replaced `window.location.reload()` with `store.setView('home')` + `store.setSelectedVideoId(null)` for clicks 1-6 — counter now accumulates properly
+- Fixed Sidebar.tsx: Same fix — clicks 1-6 navigate to home view without reloading, allowing counter to reach 7
+- Fixed page.tsx: Mobile logo click now uses `store.setView('home')` + `store.setSelectedVideoId(null)` instead of reload
+- When already unlocked: navigates to home (no reload needed since admin panel is accessible)
+- Lint: 0 errors, 3 pre-existing warnings in unrelated file
+- Dev server: 200 OK
+
+Stage Summary:
+- 7-click admin unlock now WORKS — counter accumulates across clicks without page reload
+- Clicks 1-6: Navigate to home view (counter stays alive, resets after 5s inactivity)
+- Click 7: Triggers cinematic unlock animation → AdminLoginModal opens automatically
+- Mobile: Always navigates home, admin NEVER accessible on mobile
+- Already unlocked: Navigates to home view
+- 5-second inactivity timer properly resets counter if user stops clicking

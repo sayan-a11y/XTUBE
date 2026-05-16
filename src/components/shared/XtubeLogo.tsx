@@ -132,16 +132,16 @@ export function XtubeLogo({
   const handleClick = onClick || (() => {
     const isMobile = window.innerWidth < 768
 
-    // If admin is already unlocked, just refresh
+    // If admin is already unlocked, navigate home
     const store = useAppStore.getState()
     if (store.adminUnlocked) {
-      window.location.reload()
+      store.setView('home')
+      store.setSelectedVideoId(null)
       return
     }
 
-    // If modal is about to show, don't refresh
+    // If modal is about to show, don't do anything else
     if (store.adminUnlocking || store.showAdminModal) {
-      incrementAdminClick(!isMobile)
       return
     }
 
@@ -151,13 +151,14 @@ export function XtubeLogo({
     // After incrementing, check the NEW state
     const newState = useAppStore.getState()
 
-    // If 7th click triggered unlock, modal will open — don't refresh
+    // If 7th click triggered unlock, modal will open — don't navigate
     if (newState.adminUnlocking || newState.showAdminModal) {
       return
     }
 
-    // For clicks 1-6: refresh the page
-    window.location.reload()
+    // For clicks 1-6: navigate to home (DON'T reload — counter needs to accumulate to 7)
+    store.setView('home')
+    store.setSelectedVideoId(null)
   })
 
   return (

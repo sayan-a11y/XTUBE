@@ -40,15 +40,15 @@ export function Sidebar() {
     // Sidebar is only rendered on md+ (desktop/tablet), so always pass true
     const store = useAppStore.getState()
 
-    // If already unlocked, just refresh
+    // If already unlocked, navigate home
     if (store.adminUnlocked) {
-      window.location.reload()
+      store.setView('home')
+      store.setSelectedVideoId(null)
       return
     }
 
-    // If modal is showing, don't process more clicks
+    // If modal is showing or unlocking, don't process more clicks
     if (store.adminUnlocking || store.showAdminModal) {
-      incrementAdminClick(true)
       return
     }
 
@@ -58,11 +58,12 @@ export function Sidebar() {
     // Check if 7th click triggered unlock
     const newState = useAppStore.getState()
     if (newState.adminUnlocking || newState.showAdminModal) {
-      return // Modal will open, don't refresh
+      return // Modal will open, don't navigate
     }
 
-    // Clicks 1-6: refresh the page
-    window.location.reload()
+    // Clicks 1-6: navigate to home (DON'T reload — counter needs to accumulate to 7)
+    store.setView('home')
+    store.setSelectedVideoId(null)
   }, [incrementAdminClick])
 
   // Responsive sidebar width: smaller on tablet (md), full on desktop (lg)
