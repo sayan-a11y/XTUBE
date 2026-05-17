@@ -279,6 +279,7 @@ export function HeroFooterAdsPage() {
   }, [])
 
   const processSelectedFile = useCallback((file: File) => {
+    // Generate object URL for immediate local preview and thumbnail extraction
     const objectUrl = URL.createObjectURL(file)
     setMediaUrl(objectUrl)
 
@@ -301,28 +302,63 @@ export function HeroFooterAdsPage() {
         })
         if (!adTitle) setAdTitle(file.name.replace(/\.[^/.]+$/, ""))
 
-        // Start upload progress simulation before extracting
+        // Start REAL upload using XMLHttpRequest
         setUploadStage('uploading')
         setUploadProgress(0)
-        let progress = 0
-        const totalSize = parseFloat((file.size / (1024 * 1024 * 1024)).toFixed(2))
 
-        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-        progressIntervalRef.current = setInterval(() => {
-          const increment = Math.random() * 8 + 4
-          progress = Math.min(progress + increment, 100)
-          setUploadProgress(progress)
-          setUploadedSize(`${((progress / 100) * totalSize).toFixed(2)} GB`)
-          setUploadSpeed(`${(Math.random() * 15 + 25).toFixed(1)} MB/s`)
-          const timeRemaining = ((100 - progress) / increment) * 0.15
-          setUploadRemaining(timeRemaining > 60 ? `${Math.ceil(timeRemaining / 60)} mins` : `${Math.ceil(timeRemaining)} secs`)
+        const xhr = new XMLHttpRequest()
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('category', 'ad')
 
-          if (progress >= 100) {
-            if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-            setUploadStage('processing')
-            extractCanvasThumbnails(file, tempVid.duration)
+        const startTime = Date.now()
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = (event.loaded / event.total) * 100
+            setUploadProgress(percent)
+
+            const uploadedSizeStr = (event.loaded / (1024 * 1024)).toFixed(1) + ' MB'
+            const totalSizeStr = (event.total / (1024 * 1024)).toFixed(1) + ' MB'
+            setUploadedSize(`${uploadedSizeStr} / ${totalSizeStr}`)
+
+            // Calculate actual upload speed and time remaining
+            const elapsedSeconds = (Date.now() - startTime) / 1000
+            const speedBytesPerSec = elapsedSeconds > 0 ? event.loaded / elapsedSeconds : 0
+            const speedMbPerSec = (speedBytesPerSec / (1024 * 1024)).toFixed(1)
+            setUploadSpeed(`${speedMbPerSec} MB/s`)
+
+            const remainingBytes = event.total - event.loaded
+            const timeRemainingSecs = speedBytesPerSec > 0 ? Math.ceil(remainingBytes / speedBytesPerSec) : 0
+            setUploadRemaining(timeRemainingSecs > 60 ? `${Math.ceil(timeRemainingSecs / 60)} mins` : `${timeRemainingSecs} secs`)
           }
-        }, 120)
+        }
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const response = JSON.parse(xhr.responseText)
+              // Set the permanent server URL so it gets saved to DB
+              setMediaUrl(response.url)
+              setUploadStage('processing')
+              extractCanvasThumbnails(file, tempVid.duration)
+            } catch (e) {
+              alert('Failed to parse upload response')
+              setUploadStage('idle')
+            }
+          } else {
+            alert(`Upload failed: ${xhr.statusText}`)
+            setUploadStage('idle')
+          }
+        }
+
+        xhr.onerror = () => {
+          alert('Network upload error')
+          setUploadStage('idle')
+        }
+
+        xhr.open('POST', '/api/upload-ad')
+        xhr.send(formData)
       }
     } else {
       // Image file
@@ -337,21 +373,51 @@ export function HeroFooterAdsPage() {
 
       setUploadStage('uploading')
       setUploadProgress(0)
-      let progress = 0
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-      progressIntervalRef.current = setInterval(() => {
-        progress = Math.min(progress + 15, 100)
-        setUploadProgress(progress)
-        setUploadedSize(`${progress}%`)
-        setUploadSpeed('45.2 MB/s')
-        setUploadRemaining('1 sec')
 
-        if (progress >= 100) {
-          if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-          setUploadStage('success')
-          setExtractedThumbnails(premiumPlaceholderImages)
+      const xhr = new XMLHttpRequest()
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('category', 'ad')
+
+      const startTime = Date.now()
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = (event.loaded / event.total) * 100
+          setUploadProgress(percent)
+          setUploadedSize(`${percent.toFixed(0)}%`)
+
+          const elapsedSeconds = (Date.now() - startTime) / 1000
+          const speedBytesPerSec = elapsedSeconds > 0 ? event.loaded / elapsedSeconds : 0
+          setUploadSpeed(`${(speedBytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`)
+          setUploadRemaining('Calculating...')
         }
-      }, 80)
+      }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const response = JSON.parse(xhr.responseText)
+            setMediaUrl(response.url)
+            setExtractedThumbnails([response.url])
+            setUploadStage('success')
+          } catch (e) {
+            alert('Failed to parse upload response')
+            setUploadStage('idle')
+          }
+        } else {
+          alert(`Upload failed: ${xhr.statusText}`)
+          setUploadStage('idle')
+        }
+      }
+
+      xhr.onerror = () => {
+        alert('Network upload error')
+        setUploadStage('idle')
+      }
+
+      xhr.open('POST', '/api/upload-ad')
+      xhr.send(formData)
     }
   }, [adTitle, extractCanvasThumbnails])
 

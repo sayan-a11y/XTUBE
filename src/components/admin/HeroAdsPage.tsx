@@ -258,24 +258,54 @@ export function HeroAdsPage() {
     })
     if (!adTitle) setAdTitle(file.name.replace(/\.[^/.]+$/, ""))
 
+    // Start REAL upload using XMLHttpRequest
     setUploadStage('uploading')
     setUploadProgress(0)
-    let progress = 0
 
-    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-    progressIntervalRef.current = setInterval(() => {
-      progress = Math.min(progress + 15, 100)
-      setUploadProgress(progress)
-      setUploadedSize(`${((progress / 100) * parseFloat((file.size / (1024 * 1024)).toFixed(2))).toFixed(2)} MB`)
-      setUploadSpeed('45.2 MB/s')
-      setUploadRemaining('1 sec')
+    const xhr = new XMLHttpRequest()
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('category', 'ad')
 
-      if (progress >= 100) {
-        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-        setUploadStage('success')
-        setExtractedThumbnails(premiumPlaceholderImages)
+    const startTime = Date.now()
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = (event.loaded / event.total) * 100
+        setUploadProgress(percent)
+        setUploadedSize(`${((event.loaded / (1024 * 1024))).toFixed(2)} MB`)
+
+        const elapsedSeconds = (Date.now() - startTime) / 1000
+        const speedBytesPerSec = elapsedSeconds > 0 ? event.loaded / elapsedSeconds : 0
+        setUploadSpeed(`${(speedBytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`)
+        setUploadRemaining('Uploading...')
       }
-    }, 80)
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const response = JSON.parse(xhr.responseText)
+          setMediaUrl(response.url)
+          setExtractedThumbnails([response.url])
+          setUploadStage('success')
+        } catch (e) {
+          alert('Failed to parse upload response')
+          setUploadStage('idle')
+        }
+      } else {
+        alert(`Upload failed: ${xhr.statusText}`)
+        setUploadStage('idle')
+      }
+    }
+
+    xhr.onerror = () => {
+      alert('Network upload error')
+      setUploadStage('idle')
+    }
+
+    xhr.open('POST', '/api/upload-ad')
+    xhr.send(formData)
   }, [adTitle])
 
   const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true) }, [])

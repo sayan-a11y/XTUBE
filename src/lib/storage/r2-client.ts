@@ -951,3 +951,33 @@ async function listObjectsLocal(
   walkDir(dir, prefix)
   return objects
 }
+
+/**
+ * Upload a complete file to storage.
+ */
+export async function uploadObject(
+  key: string,
+  data: Buffer,
+  contentType: string
+): Promise<string> {
+  const provider = getProvider()
+
+  if (provider === 'r2') {
+    const response = await r2Fetch('PUT', key, data, {
+      'Content-Type': contentType,
+      'Content-Length': data.length.toString(),
+    })
+
+    if (!response.ok) {
+      throw new Error(`R2 uploadObject failed: ${response.status} ${await response.text()}`)
+    }
+
+    const url_result = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : `/${key}`
+    return url_result
+  }
+
+  // Local storage
+  const fullPath = ensureLocalDir(key)
+  writeFileSync(fullPath, data)
+  return getLocalUrl(key)
+}
