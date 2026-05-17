@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useCallback, memo } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
@@ -21,32 +21,32 @@ interface CategorySectionProps {
   }>
 }
 
-export function CategorySection({ title, category, videos }: CategorySectionProps) {
+export const CategorySection = memo(function CategorySection({ title, category, videos }: CategorySectionProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showLeftArrow, setShowLeftArrow] = useState(false)
   const [showRightArrow, setShowRightArrow] = useState(true)
   const { setView, setSelectedCategory } = useAppStore()
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     if (!scrollRef.current) return
     const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current
     setShowLeftArrow(scrollLeft > 10)
     setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 10)
-  }
+  }, [])
 
-  const scroll = (direction: 'left' | 'right') => {
+  const scroll = useCallback((direction: 'left' | 'right') => {
     if (!scrollRef.current) return
     const scrollAmount = scrollRef.current.clientWidth * 0.75
     scrollRef.current.scrollBy({
       left: direction === 'left' ? -scrollAmount : scrollAmount,
       behavior: 'smooth',
     })
-  }
+  }, [])
 
-  const handleSeeAll = () => {
+  const handleSeeAll = useCallback(() => {
     setSelectedCategory(category)
     setView('category')
-  }
+  }, [category, setSelectedCategory, setView])
 
   if (!videos.length) return null
 
@@ -128,4 +128,4 @@ export function CategorySection({ title, category, videos }: CategorySectionProp
       </div>
     </section>
   )
-}
+})

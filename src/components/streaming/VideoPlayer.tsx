@@ -611,8 +611,13 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
     const onTimeUpdate = () => {
       // Don't let timeupdate overwrite our manual drag position
       if (isDraggingRef.current) return
+      // Throttle: Only update state every 250ms to reduce re-renders on long videos
+      const now = Date.now()
+      if (onTimeUpdate._lastUpdate && now - onTimeUpdate._lastUpdate < 250) return
+      onTimeUpdate._lastUpdate = now
       setCurrentTime(vid.currentTime)
     }
+    onTimeUpdate._lastUpdate = 0 as number
     const onLoadedMetadata = () => setDuration(vid.duration)
     const onPlay = () => setIsPlaying(true)
     const onPause = () => setIsPlaying(false)
@@ -664,15 +669,19 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
       if (Hls.isSupported()) {
         hls = new Hls({
           enableWorker: true,
-          lowLatencyMode: true,
-          maxBufferLength: 30,
-          maxMaxBufferLength: 60,
-          backBufferLength: 90,
-          maxBufferSize: 60 * 1000000,
+          lowLatencyMode: false,      // VOD content: disable LL for stability
+          maxBufferLength: 60,         // 60s forward buffer for long videos
+          maxMaxBufferLength: 300,      // Allow up to 5 min buffer for 5hr videos
+          backBufferLength: 60,         // 60s back buffer (reduced from 90 for memory)
+          maxBufferSize: 120 * 1000000, // 120MB max buffer size for 4K
           maxBufferHole: 0.5,
-          startLevel: -1, // auto
-          capLevelToPlayerSize: true,
-          abrEwmaDefaultEstimate: 500000,
+          startLevel: -1,              // auto quality
+          capLevelToPlayerSize: true,   // Don't load 4K on 720p screen
+          abrEwmaDefaultEstimate: 1000000, // Start with 1Mbps estimate (higher = better init quality)
+          abrBandWidthFactor: 0.95,     // Use 95% of estimated bandwidth
+          abrBandWidthUpFactor: 0.7,    // Be conservative when stepping up quality
+          startFragPrefetch: true,      // Prefetch first fragment for faster start
+          progressive: true,            // Progressive loading for long VOD
         })
         hls.loadSource(url)
         hls.attachMedia(vid)

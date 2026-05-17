@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
 import { Sidebar } from '@/components/streaming/Sidebar'
@@ -294,9 +294,9 @@ export default function XtubeHome() {
     [selectedVideoId]
   )
 
-  // ─── Group videos by category ──────────────────────────────────────────────
+  // ─── Group videos by category (memoized to prevent re-computing) ──────────
 
-  const videosByCategory = useCallback(() => {
+  const videosByCategory = useMemo(() => {
     const grouped: Record<string, VideoData[]> = {}
     videos.forEach((v) => {
       if (!grouped[v.category]) grouped[v.category] = []
@@ -305,9 +305,12 @@ export default function XtubeHome() {
     return grouped
   }, [videos])
 
-  // ─── Get trending videos ───────────────────────────────────────────────────
+  // ─── Get trending videos (memoized) ────────────────────────────────────
 
-  const trendingVideos = [...videos].sort((a, b) => b.views - a.views).slice(0, 20)
+  const trendingVideos = useMemo(() =>
+    [...videos].sort((a, b) => b.views - a.views).slice(0, 20),
+    [videos]
+  )
 
   // ─── Get filtered videos for search ────────────────────────────────────────
 
@@ -411,7 +414,7 @@ export default function XtubeHome() {
           }))}
         />
       </section>
-      {Object.entries(videosByCategory()).map(([category, categoryVids]) => (
+      {Object.entries(videosByCategory).map(([category, categoryVids]) => (
         <section key={category} className="px-4 md:px-6">
           <CategorySection
             title={category}

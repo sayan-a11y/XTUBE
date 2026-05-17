@@ -3,7 +3,7 @@
 import { useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
-import { processAdminClick, getAdminClickCount } from '@/lib/admin-click'
+import { processAdminClick, getAdminClickCount, isPhone } from '@/lib/admin-click'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -157,11 +157,11 @@ export function XtubeLogo({
     if (now - lastClickTimeRef.current < 150) return
     lastClickTimeRef.current = now
 
-    // Determine device type
-    const isMobile = window.innerWidth < 768
+    // Determine device type: only true phones are blocked, tablets work like desktop
+    const isPhoneDevice = isPhone()
 
     // Process the click using sessionStorage-based counter
-    const result = processAdminClick(isMobile)
+    const result = processAdminClick(isPhoneDevice)
 
     if (result === 'admin') {
       // ★ 7th continuous click! Open admin login modal
@@ -172,7 +172,7 @@ export function XtubeLogo({
       store.setView('home')
       store.setSelectedVideoId(null)
     } else {
-      // Clicks 1-6 or mobile: refresh the page
+      // Clicks 1-6 or phone: refresh the page
       window.location.reload()
     }
   }, [onClick, disableAdminClick])

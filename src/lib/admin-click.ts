@@ -1,7 +1,8 @@
 // ─── Admin Logo Click System ─────────────────────────────────────────────────
 // Tracks click count in sessionStorage so it survives page reloads.
 // Flow: Clicks 1-6 = page refresh, 7th click = open admin login modal.
-// Mobile: Every click = refresh only, admin NEVER accessible.
+// Mobile (phones only): Every click = refresh only, admin NEVER accessible.
+// Tablet/Desktop/Laptop: Clicks 1-6 = refresh, 7th = admin panel opens.
 
 const ADMIN_CLICK_KEY = 'xtube_admin_clicks'
 const ADMIN_TOKEN_KEY = 'admin_token'
@@ -35,21 +36,41 @@ export function getAdminClickCount(): number {
 }
 
 /**
+ * Determine if the current device is a phone (NOT tablet/laptop/desktop).
+ * Uses screen.width which doesn't change on rotation/resize.
+ * Phones typically have screen.width < 768.
+ * Tablets (iPad etc.) have screen.width >= 768.
+ */
+export function isPhone(): boolean {
+  if (typeof window === 'undefined') return false
+  // screen.width is physical screen width in CSS pixels (doesn't change with rotation on most devices)
+  // Phones: typically < 768 (iPhone 430, Galaxy S 412, etc.)
+  // Tablets: typically >= 768 (iPad 810, Galaxy Tab 800, etc.)
+  const screenWidth = window.screen.width
+  // Also check maxTouchPoints to distinguish touch laptops from tablets
+  const hasSmallScreen = screenWidth < 768
+  // Additional check: if device has fine pointer (mouse) it's likely laptop/desktop, not phone
+  const hasFinePointer = window.matchMedia('(pointer: fine)').matches
+  return hasSmallScreen && !hasFinePointer
+}
+
+/**
  * Process a logo click for the secret admin unlock system.
  *
  * Returns:
- * - 'reload'   → clicks 1-6 or mobile: page should refresh
- * - 'admin'    → 7th continuous click: admin login modal should open
+ * - 'reload'   → clicks 1-6 or phone: page should refresh
+ * - 'admin'    → 7th continuous click: admin login modal should open (tablet/desktop/laptop)
  * - 'navigate' → admin already logged in: navigate home
  */
-export function processAdminClick(isMobile: boolean): 'reload' | 'admin' | 'navigate' {
+export function processAdminClick(isPhoneDevice: boolean): 'reload' | 'admin' | 'navigate' {
   // If admin session already exists, just navigate home
   if (typeof window !== 'undefined' && sessionStorage.getItem(ADMIN_TOKEN_KEY)) {
     return 'navigate'
   }
 
-  // Mobile: ALWAYS just reload, never track clicks
-  if (isMobile) {
+  // Phone ONLY: always just reload, never track clicks
+  // Tablet/Desktop/Laptop: track clicks for admin unlock
+  if (isPhoneDevice) {
     sessionStorage.removeItem(ADMIN_CLICK_KEY)
     return 'reload'
   }

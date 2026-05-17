@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Clock, Eye } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
@@ -46,7 +47,7 @@ function formatRelativeDate(dateStr: string): string {
   return 'Just now'
 }
 
-export function VideoCard({
+export const VideoCard = memo(function VideoCard({
   id,
   title,
   thumbnail,
@@ -146,4 +147,4 @@ export function VideoCard({
       </div>
     </motion.div>
   )
-}
+})

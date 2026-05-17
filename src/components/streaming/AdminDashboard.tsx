@@ -1,5 +1,6 @@
 'use client'
 
+import { lazy, Suspense, useMemo, memo } from 'react'
 import { motion } from 'framer-motion'
 import {
   Film,
@@ -335,7 +336,7 @@ function StatusBadge({ status }: { status: 'Published' | 'Processing' | 'Draft' 
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export function AdminDashboard({ data, loading }: AdminDashboardProps) {
+export const AdminDashboard = memo(function AdminDashboard({ data, loading }: AdminDashboardProps) {
   if (loading || !data) {
     return <LoadingSkeleton />
   }
@@ -914,4 +915,4 @@ export function AdminDashboard({ data, loading }: AdminDashboardProps) {
       </SectionCard>
     </div>
   )
-}
+})
