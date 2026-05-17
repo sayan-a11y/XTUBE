@@ -101,15 +101,23 @@ export async function POST(request: NextRequest) {
     if (action === 'init') {
       const { fileName, fileSize, mimeType, chunkSize: customChunkSize } = body
 
-      if (!fileName || !fileSize) {
+      if (!fileName || fileSize === undefined || fileSize === null) {
         return NextResponse.json(
           { error: 'fileName and fileSize are required' },
           { status: 400 }
         )
       }
 
+      const parsedFileSize = Math.round(Number(fileSize))
+      if (isNaN(parsedFileSize) || parsedFileSize <= 0) {
+        return NextResponse.json(
+          { error: 'Invalid fileSize. Must be a positive integer.' },
+          { status: 400 }
+        )
+      }
+
       const chunkSize = customChunkSize || DEFAULT_CHUNK_SIZE
-      const totalChunks = Math.ceil(fileSize / chunkSize)
+      const totalChunks = Math.ceil(parsedFileSize / chunkSize)
 
       const useR2 = isR2Configured()
       let r2Key = ''
@@ -121,7 +129,7 @@ export async function POST(request: NextRequest) {
       const session = await db.uploadSession.create({
         data: {
           fileName,
-          fileSize: BigInt(fileSize),
+          fileSize: BigInt(parsedFileSize),
           mimeType: mimeType || 'video/mp4',
           chunkSize,
           totalChunks,
