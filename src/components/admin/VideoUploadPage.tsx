@@ -65,6 +65,20 @@ const thumbnailTimecodes = [
   '00:42', '00:55', '01:05', '01:18', '01:25',
 ]
 
+const premiumPlaceholderImages = [
+  'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=400&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?w=400&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=400&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1500627869374-13cd993b1115?w=400&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400&auto=format&fit=crop&q=60',
+  'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&auto=format&fit=crop&q=60',
+]
+
+
 // ─── Quality Options ─────────────────────────────────────────────────────────
 
 const qualityOptions = [
@@ -843,10 +857,13 @@ export function VideoUploadPage() {
                               : 'border-transparent hover:border-white/20'
                           }`}
                         >
-                          <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <Film className="h-3 w-3 text-white/15" />
-                          </div>
+                          <img
+                            src={premiumPlaceholderImages[i]}
+                            alt={`Thumbnail ${i}`}
+                            className="h-full w-full object-cover"
+                          />
+                          {/* Fallback gradient underlay */}
+                          <div className={`absolute inset-0 bg-gradient-to-br ${gradient} -z-10`} />
                           {/* Timecode */}
                           <div className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 py-0.5 text-[7px] font-semibold text-white">
                             {thumbnailTimecodes[i]}
