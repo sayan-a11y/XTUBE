@@ -54,7 +54,7 @@ const contentVariants = {
   },
 }
 
-const contentItem = {
+const contentItem: any = {
   hidden: { opacity: 0, y: 28, filter: 'blur(6px)' },
   visible: {
     opacity: 1,

@@ -519,7 +519,7 @@ async function uploadPartR2(
   const response = await fetch(url, {
     method: 'PUT',
     headers: signedHeaders,
-    body: bodyBuffer,
+    body: bodyBuffer as any,
   })
 
   if (!response.ok) {

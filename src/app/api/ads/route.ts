@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { broadcastRealtimeEvent } from '@/lib/realtime'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -102,6 +103,9 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Broadcast ad creation in real-time
+    broadcastRealtimeEvent('ad:created', ad)
+
     return NextResponse.json({ ad }, { status: 201 })
   } catch (error) {
     console.error('Error creating ad:', error)
@@ -133,6 +137,9 @@ export async function PUT(request: NextRequest) {
       data: updateData,
     })
 
+    // Broadcast ad update in real-time
+    broadcastRealtimeEvent('ad:updated', ad)
+
     return NextResponse.json({ ad })
   } catch (error) {
     console.error('Error updating ad:', error)
@@ -147,9 +154,14 @@ export async function DELETE(request: NextRequest) {
     if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 })
 
     await db.ad.delete({ where: { id } })
+
+    // Broadcast ad deletion in real-time
+    broadcastRealtimeEvent('ad:deleted', { id })
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error deleting ad:', error)
     return NextResponse.json({ error: 'Failed to delete ad' }, { status: 500 })
   }
 }
+

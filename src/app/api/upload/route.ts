@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { mkdirSync, existsSync, writeFileSync, readdirSync, readFileSync, unlinkSync, rmdirSync } from 'fs'
 import { join } from 'path'
+import { broadcastRealtimeEvent } from '@/lib/realtime'
 
 // Constants
 const CHUNKS_BASE_DIR = join(process.cwd(), 'upload', 'video-chunks')
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'complete') {
-      const { sessionId } = body
+      const { sessionId, title, description, category, duration, isHd } = body
 
       if (!sessionId) {
         return NextResponse.json(
@@ -214,14 +215,14 @@ export async function POST(request: NextRequest) {
         // Create Video record
         const video = await db.video.create({
           data: {
-            title: session.fileName.replace(/\.[^/.]+$/, ''), // Remove extension
-            description: `Uploaded video: ${session.fileName}`,
+            title: title || session.fileName.replace(/\.[^/.]+$/, ''), // Remove extension
+            description: description || `Uploaded video: ${session.fileName}`,
             thumbnail: '/placeholder.jpg',
             videoUrl: `/videos/${videoId}.mp4`,
-            category: 'New Videos',
-            duration: formatDuration(estimatedDuration),
+            category: category || 'New Videos',
+            duration: duration || formatDuration(estimatedDuration),
             durationSeconds: estimatedDuration,
-            isHd: qualityLevels.includes('1080p') || qualityLevels.includes('2K') || qualityLevels.includes('4K'),
+            isHd: isHd !== undefined ? isHd : (qualityLevels.includes('1080p') || qualityLevels.includes('2K') || qualityLevels.includes('4K')),
             qualityLevels: JSON.stringify(qualityLevels),
             midrollTimings: JSON.stringify(midrollTimings),
             thumbnailUrls: JSON.stringify([]),
@@ -241,6 +242,9 @@ export async function POST(request: NextRequest) {
             storageKey: `videos/${videoId}.mp4`,
           },
         })
+
+        // Broadcast the new video in real-time
+        broadcastRealtimeEvent('video:created', video)
 
         return NextResponse.json({
           video,

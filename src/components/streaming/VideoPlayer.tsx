@@ -32,6 +32,7 @@ import {
   RotateCcw,
   RotateCw,
   ChevronRight,
+  History,
 
   Gauge,
   Captions,
@@ -47,6 +48,7 @@ import {
 import { useAppStore } from '@/lib/store'
 import { Comments } from '@/components/streaming/Comments'
 import { XtubeLogo } from '@/components/shared/XtubeLogo'
+import { VideoAdsPlayer } from '@/components/streaming/VideoAdsPlayer'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -220,7 +222,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
   const [subtitleEnabled, setSubtitleEnabled] = useState(false)
 
   // Available HLS quality levels
-  const [availableLevels, setAvailableLevels] = useState<Hls.Level[]>([])
+  const [availableLevels, setAvailableLevels] = useState<any[]>([])
 
   // Current auto quality level (for display, avoids ref access in render)
   const [currentAutoQuality, setCurrentAutoQuality] = useState<string>('Auto')
@@ -248,6 +250,101 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
 
   // Seeking loader
   const [isSeeking, setIsSeeking] = useState(false)
+
+  // ─── Ad-serving Integration States & Effects ─────────────────────────────
+  const [preRollAds, setPreRollAds] = useState<any[]>([])
+  const [midRollAds, setMidRollAds] = useState<any[]>([])
+  const [postRollAds, setPostRollAds] = useState<any[]>([])
+  const [overlayAds, setOverlayAds] = useState<any[]>([])
+  const [adsPlaying, setAdsPlaying] = useState(false)
+
+  // Fetch Video Ads
+  useEffect(() => {
+    async function fetchVideoAds() {
+      try {
+        const res = await fetch(`/api/video-ads?videoId=${video.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          setPreRollAds(data.preRollAds || [])
+          setMidRollAds(data.midRollAds || [])
+          setPostRollAds(data.postRollAds || [])
+          setOverlayAds(data.overlayAds || [])
+
+          // Extract unique mid-roll timings
+          const timings = (data.midRollAds || []).map((ad: any) => ad.timing || 30).filter(Boolean)
+          setMidrollTimings(timings)
+        }
+      } catch (err) {
+        console.error('Error fetching video ads:', err)
+      }
+    }
+    fetchVideoAds()
+  }, [video.id])
+
+  // Fetch Watch Progress
+  useEffect(() => {
+    async function fetchProgress() {
+      try {
+        const res = await fetch(`/api/watch-progress?videoId=${video.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.progress && data.progress.progress > 5 && data.progress.progress < (data.progress.duration || 99999) - 10) {
+            setResumePosition(data.progress.progress)
+            setShowResumePrompt(true)
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching watch progress:', err)
+      }
+    }
+    fetchProgress()
+  }, [video.id])
+
+  const handleResume = () => {
+    if (videoRef.current && resumePosition !== null) {
+      videoRef.current.currentTime = resumePosition
+      setIsPlaying(true)
+      videoRef.current.play().catch(() => {})
+    }
+    setShowResumePrompt(false)
+  }
+
+  const handleStartOver = () => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0
+      setIsPlaying(true)
+      videoRef.current.play().catch(() => {})
+    }
+    setShowResumePrompt(false)
+  }
+
+  // Auto-save Watch Progress
+  useEffect(() => {
+    if (!isPlaying || adsPlaying || !videoRef.current) return
+
+    const saveProgress = async () => {
+      const vid = videoRef.current
+      if (!vid || vid.duration <= 0) return
+
+      try {
+        await fetch('/api/watch-progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            videoId: video.id,
+            progress: vid.currentTime,
+            duration: vid.duration,
+          }),
+        })
+      } catch (err) {
+        // Silent catch
+      }
+    }
+
+    const interval = setInterval(saveProgress, 5000)
+    return () => clearInterval(interval)
+  }, [isPlaying, adsPlaying, video.id])
+
 
   // ─── Double-tap gesture handler ────────────────────────────────────────────
 
@@ -958,7 +1055,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
 
               {/* Large center play button when paused */}
               <AnimatePresence>
-                {!isPlaying && !showCenterPlay && (
+                {!isPlaying && !showCenterPlay && !adsPlaying && (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -977,6 +1074,111 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* VideoAdsPlayer Overlay */}
+              <VideoAdsPlayer
+                isPlaying={isPlaying}
+                currentTime={currentTime}
+                duration={duration}
+                preRollAds={preRollAds}
+                midRollAds={midRollAds}
+                postRollAds={postRollAds}
+                overlayAds={overlayAds}
+                midrollTimings={midrollTimings}
+                onAdStart={(adId) => {
+                  setAdsPlaying(true)
+                  if (videoRef.current) {
+                    videoRef.current.pause()
+                    setIsPlaying(false)
+                  }
+                }}
+                onAdEnd={(adId) => {
+                  setAdsPlaying(false)
+                  if (videoRef.current) {
+                    videoRef.current.play().catch(() => {})
+                    setIsPlaying(true)
+                  }
+                }}
+                onAdSkip={(adId) => {
+                  setAdsPlaying(false)
+                  if (videoRef.current) {
+                    videoRef.current.play().catch(() => {})
+                    setIsPlaying(true)
+                  }
+                }}
+                onAdComplete={(adId) => {
+                  setAdsPlaying(false)
+                  if (videoRef.current) {
+                    videoRef.current.play().catch(() => {})
+                    setIsPlaying(true)
+                  }
+                }}
+                onAdClick={(adId) => {
+                  console.log('Ad clicked:', adId)
+                }}
+                onRequestPause={() => {
+                  if (videoRef.current) {
+                    videoRef.current.pause()
+                    setIsPlaying(false)
+                  }
+                }}
+                onRequestPlay={() => {
+                  if (videoRef.current) {
+                    videoRef.current.play().catch(() => {})
+                    setIsPlaying(true)
+                  }
+                }}
+                onRequestSeek={(time) => {
+                  if (videoRef.current) {
+                    videoRef.current.currentTime = time
+                    setCurrentTime(time)
+                  }
+                }}
+              />
+
+              {/* Glassmorphic Continue Watching Prompt */}
+              <AnimatePresence>
+                {showResumePrompt && resumePosition !== null && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 z-40 flex items-center justify-center bg-black/85 backdrop-blur-md p-4"
+                  >
+                    <motion.div
+                      initial={{ scale: 0.9, y: 20 }}
+                      animate={{ scale: 1, y: 0 }}
+                      exit={{ scale: 0.9, y: 20 }}
+                      className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6 shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-xl text-center"
+                    >
+                      <div className="flex justify-center mb-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-xtube-red/20 text-xtube-red">
+                          <History className="h-6 w-6" />
+                        </div>
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-2">Continue Watching?</h3>
+                      <p className="text-sm text-white/60 mb-6 font-medium">
+                        You stopped watching at <span className="text-white font-bold">{formatTime(resumePosition)}</span>. Would you like to resume where you left off?
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <button
+                          onClick={handleStartOver}
+                          className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-white/10 hover:border-white/20 active:scale-95 animate-pulse"
+                        >
+                          Start Over
+                        </button>
+                        <button
+                          onClick={handleResume}
+                          className="rounded-xl bg-xtube-red px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-xtube-red/25 transition-all hover:bg-xtube-red-hover hover:shadow-xtube-red/35 active:scale-95"
+                        >
+                          Resume Playback
+                        </button>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
 
               {/* Top gradient */}
               <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/70 to-transparent" />

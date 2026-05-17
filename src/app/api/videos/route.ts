@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { broadcastRealtimeEvent } from '@/lib/realtime'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -65,9 +66,13 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Broadcast in real-time
+    broadcastRealtimeEvent('video:created', video)
+
     return NextResponse.json({ video }, { status: 201 })
   } catch (error) {
     console.error('Error creating video:', error)
     return NextResponse.json({ error: 'Failed to create video' }, { status: 500 })
   }
 }
+

@@ -175,7 +175,7 @@ export async function POST() {
     // Seed analytics
     const existingAnalytics = await db.analytics.count()
     if (existingAnalytics === 0) {
-      const analyticsData = []
+      const analyticsData: any[] = []
       for (let i = 29; i >= 0; i--) {
         const date = new Date()
         date.setDate(date.getDate() - i)

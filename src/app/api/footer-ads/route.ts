@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { broadcastRealtimeEvent } from '@/lib/realtime';
 
 // GET - Fetch footer ads
 export async function GET(request: NextRequest) {
@@ -94,6 +95,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Broadcast footer ad creation in real-time
+    broadcastRealtimeEvent('footer_ad:created', footerAd);
+
     return NextResponse.json({ footerAd }, { status: 201 });
   } catch (error) {
     console.error('Error creating footer ad:', error);
@@ -157,6 +161,9 @@ export async function PUT(request: NextRequest) {
       data,
     });
 
+    // Broadcast footer ad update in real-time
+    broadcastRealtimeEvent('footer_ad:updated', footerAd);
+
     return NextResponse.json({ footerAd });
   } catch (error) {
     console.error('Error updating footer ad:', error);
@@ -190,6 +197,9 @@ export async function DELETE(request: NextRequest) {
 
     await db.footerAd.delete({ where: { id } });
 
+    // Broadcast footer ad deletion in real-time
+    broadcastRealtimeEvent('footer_ad:deleted', { id });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting footer ad:', error);
@@ -199,3 +209,4 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+

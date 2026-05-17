@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { broadcastRealtimeEvent } from '@/lib/realtime'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET() {
@@ -52,6 +53,9 @@ export async function PUT(request: NextRequest) {
       )
     )
 
+    // Broadcast update in real-time
+    broadcastRealtimeEvent('settings:updated', results)
+
     return NextResponse.json({
       items: results,
       updated: results.length,
@@ -61,3 +65,4 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 })
   }
 }
+

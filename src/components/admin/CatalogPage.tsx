@@ -1,6 +1,4 @@
-'use client'
-
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Grid3X3,
@@ -78,21 +76,6 @@ const iconMap: Record<string, React.ElementType> = {
 
 const iconOptions = Object.keys(iconMap)
 
-const initialCategories: CategoryItem[] = [
-  { id: '1', name: 'Trending', slug: 'trending', icon: 'flame', order: 1, videoCount: 48, viewCount: 284500 },
-  { id: '2', name: 'Popular', slug: 'popular', icon: 'sparkles', order: 2, videoCount: 36, viewCount: 198200 },
-  { id: '3', name: 'New Releases', slug: 'new-releases', icon: 'star', order: 3, videoCount: 22, viewCount: 45600 },
-  { id: '4', name: 'Gaming', slug: 'gaming', icon: 'gamepad', order: 4, videoCount: 31, viewCount: 156800 },
-  { id: '5', name: 'Music', slug: 'music', icon: 'music', order: 5, videoCount: 19, viewCount: 89300 },
-  { id: '6', name: 'Education', slug: 'education', icon: 'graduation', order: 6, videoCount: 27, viewCount: 67800 },
-  { id: '7', name: 'Fitness', slug: 'fitness', icon: 'dumbbell', order: 7, videoCount: 14, viewCount: 34500 },
-  { id: '8', name: 'Travel', slug: 'travel', icon: 'plane', order: 8, videoCount: 18, viewCount: 51200 },
-  { id: '9', name: 'Cooking', slug: 'cooking', icon: 'utensils', order: 9, videoCount: 12, viewCount: 29800 },
-  { id: '10', name: 'Art & Design', slug: 'art-design', icon: 'palette', order: 10, videoCount: 9, viewCount: 18600 },
-  { id: '11', name: 'News', slug: 'news', icon: 'newspaper', order: 11, videoCount: 24, viewCount: 72100 },
-  { id: '12', name: 'Podcasts', slug: 'podcasts', icon: 'mic', order: 12, videoCount: 16, viewCount: 41200 },
-]
-
 function formatViewCount(num: number): string {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
@@ -115,7 +98,8 @@ const categoryColors = [
 ]
 
 export function CatalogPage() {
-  const [categories, setCategories] = useState<CategoryItem[]>(initialCategories)
+  const [categories, setCategories] = useState<CategoryItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -126,6 +110,25 @@ export function CatalogPage() {
   const [formSlug, setFormSlug] = useState('')
   const [formIcon, setFormIcon] = useState('flame')
   const [formOrder, setFormOrder] = useState('1')
+
+  const fetchCategories = async () => {
+    try {
+      setLoading(true)
+      const res = await fetch('/api/categories')
+      if (res.ok) {
+        const data = await res.json()
+        setCategories(data.categories || [])
+      }
+    } catch (err) {
+      console.error('Failed to fetch categories:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchCategories()
+  }, [])
 
   const resetForm = () => {
     setFormName('')
@@ -150,37 +153,60 @@ export function CatalogPage() {
     setDialogOpen(true)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formName.trim() || !formSlug.trim()) return
 
-    if (editingCategory) {
-      setCategories((prev) =>
-        prev.map((c) =>
-          c.id === editingCategory.id
-            ? { ...c, name: formName, slug: formSlug, icon: formIcon, order: parseInt(formOrder) }
-            : c
-        )
-      )
-    } else {
-      const newCategory: CategoryItem = {
-        id: Date.now().toString(),
-        name: formName,
-        slug: formSlug,
-        icon: formIcon,
-        order: parseInt(formOrder),
-        videoCount: 0,
-        viewCount: 0,
+    try {
+      if (editingCategory) {
+        const res = await fetch('/api/categories', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingCategory.id,
+            name: formName,
+            slug: formSlug,
+            icon: formIcon,
+            order: parseInt(formOrder, 10),
+          }),
+        })
+        if (res.ok) {
+          fetchCategories()
+        }
+      } else {
+        const res = await fetch('/api/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: formName,
+            slug: formSlug,
+            icon: formIcon,
+            order: parseInt(formOrder, 10),
+          }),
+        })
+        if (res.ok) {
+          fetchCategories()
+        }
       }
-      setCategories((prev) => [...prev, newCategory])
+    } catch (err) {
+      console.error('Error saving category:', err)
     }
 
     setDialogOpen(false)
     resetForm()
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingCategory) return
-    setCategories((prev) => prev.filter((c) => c.id !== deletingCategory.id))
+    try {
+      const res = await fetch(`/api/categories?id=${deletingCategory.id}`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
+        fetchCategories()
+      }
+    } catch (err) {
+      console.error('Error deleting category:', err)
+    }
     setDeleteDialogOpen(false)
     setDeletingCategory(null)
   }
@@ -191,6 +217,7 @@ export function CatalogPage() {
   }
 
   const sortedCategories = [...categories].sort((a, b) => a.order - b.order)
+
 
   return (
     <div className="space-y-4 p-3 lg:p-5">
@@ -305,85 +332,101 @@ export function CatalogPage() {
       </motion.div>
 
       {/* Category Grid */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <AnimatePresence>
-          {sortedCategories.map((category, idx) => {
-            const IconComp = iconMap[category.icon] || Film
-            const gradientColor = categoryColors[idx % categoryColors.length]
+      {loading ? (
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-xtube-red border-t-transparent" />
+        </div>
+      ) : sortedCategories.length === 0 ? (
+        <div className="flex min-h-[45vh] flex-col items-center justify-center rounded-2xl border border-white/5 bg-[#0f0f0f]/80 p-8 text-center backdrop-blur-xl">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-xtube-red/10 text-xtube-red mb-3">
+            <Grid3X3 className="h-6 w-6" />
+          </div>
+          <h3 className="text-lg font-bold text-white mb-1">No Categories Found</h3>
+          <p className="text-sm text-xtube-text-secondary max-w-sm mb-4">
+            Create categories to organize your video catalog and show them on the home page.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <AnimatePresence>
+            {sortedCategories.map((category, idx) => {
+              const IconComp = iconMap[category.icon] || Film
+              const gradientColor = categoryColors[idx % categoryColors.length]
 
-            return (
-              <motion.div
-                key={category.id}
-                layout
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ delay: 0.05 + idx * 0.03, duration: 0.3 }}
-                className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-3 lg:p-4 transition-all hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)]"
-              >
-                {/* Background gradient */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${gradientColor} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+              return (
+                <motion.div
+                  key={category.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ delay: 0.05 + idx * 0.03, duration: 0.3 }}
+                  className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#0f0f0f]/80 backdrop-blur-xl p-3 lg:p-4 transition-all hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)]"
+                >
+                  {/* Background gradient */}
+                  <div className={`absolute inset-0 bg-gradient-to-br ${gradientColor} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
 
-                <div className="relative z-10">
-                  {/* Top: Icon + Order + Actions */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-3 w-3 items-center justify-center text-xtube-text-secondary/40">
-                        <GripVertical className="h-3 w-3" />
+                  <div className="relative z-10">
+                    {/* Top: Icon + Order + Actions */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-3 w-3 items-center justify-center text-xtube-text-secondary/40">
+                          <GripVertical className="h-3 w-3" />
+                        </div>
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-xtube-red/10">
+                          <IconComp className="h-5 w-5 text-xtube-red" />
+                        </div>
                       </div>
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-xtube-red/10">
-                        <IconComp className="h-5 w-5 text-xtube-red" />
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => openEditDialog(category)}
+                          className="rounded-md p-1.5 text-xtube-text-secondary hover:text-white hover:bg-white/10 transition-colors"
+                          aria-label={`Edit ${category.name}`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => openDeleteDialog(category)}
+                          className="rounded-md p-1.5 text-xtube-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          aria-label={`Delete ${category.name}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => openEditDialog(category)}
-                        className="rounded-md p-1.5 text-xtube-text-secondary hover:text-white hover:bg-white/10 transition-colors"
-                        aria-label={`Edit ${category.name}`}
+
+                    {/* Category Name */}
+                    <h4 className="text-base font-semibold text-white mb-1">{category.name}</h4>
+                    <p className="text-xs text-xtube-text-secondary font-mono mb-3">/{category.slug}</p>
+
+                    {/* Stats */}
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5">
+                        <Film className="h-3.5 w-3.5 text-xtube-text-secondary" />
+                        <span className="text-sm text-xtube-text-secondary">{category.videoCount} videos</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Eye className="h-3.5 w-3.5 text-xtube-text-secondary" />
+                        <span className="text-sm text-xtube-text-secondary">{formatViewCount(category.viewCount)} views</span>
+                      </div>
+                    </div>
+
+                    {/* Order badge */}
+                    <div className="absolute top-3 right-3 group-hover:top-auto group-hover:right-auto group-hover:bottom-3 group-hover:left-3">
+                      <Badge
+                        variant="outline"
+                        className="border-xtube-border bg-xtube-bg/50 text-xtube-text-secondary text-[10px] h-5 px-1.5"
                       >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={() => openDeleteDialog(category)}
-                        className="rounded-md p-1.5 text-xtube-text-secondary hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                        aria-label={`Delete ${category.name}`}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                        #{category.order}
+                      </Badge>
                     </div>
                   </div>
-
-                  {/* Category Name */}
-                  <h4 className="text-base font-semibold text-white mb-1">{category.name}</h4>
-                  <p className="text-xs text-xtube-text-secondary font-mono mb-3">/{category.slug}</p>
-
-                  {/* Stats */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5">
-                      <Film className="h-3.5 w-3.5 text-xtube-text-secondary" />
-                      <span className="text-sm text-xtube-text-secondary">{category.videoCount} videos</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Eye className="h-3.5 w-3.5 text-xtube-text-secondary" />
-                      <span className="text-sm text-xtube-text-secondary">{formatViewCount(category.viewCount)} views</span>
-                    </div>
-                  </div>
-
-                  {/* Order badge */}
-                  <div className="absolute top-3 right-3 group-hover:top-auto group-hover:right-auto group-hover:bottom-3 group-hover:left-3">
-                    <Badge
-                      variant="outline"
-                      className="border-xtube-border bg-xtube-bg/50 text-xtube-text-secondary text-[10px] h-5 px-1.5"
-                    >
-                      #{category.order}
-                    </Badge>
-                  </div>
-                </div>
-              </motion.div>
-            )
-          })}
-        </AnimatePresence>
-      </div>
+                </motion.div>
+              )
+            })}
+          </AnimatePresence>
+        </div>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

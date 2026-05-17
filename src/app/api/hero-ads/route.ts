@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { broadcastRealtimeEvent } from '@/lib/realtime'
 import { NextRequest, NextResponse } from 'next/server'
 
 // GET /api/hero-ads?active=true
@@ -89,6 +90,9 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Broadcast in real-time
+    broadcastRealtimeEvent('hero_ad:created', heroAd)
+
     return NextResponse.json({ heroAd }, { status: 201 })
   } catch (error) {
     console.error('Error creating hero ad:', error)
@@ -158,6 +162,9 @@ export async function PUT(request: NextRequest) {
       data,
     })
 
+    // Broadcast update in real-time
+    broadcastRealtimeEvent('hero_ad:updated', heroAd)
+
     return NextResponse.json({ heroAd })
   } catch (error) {
     console.error('Error updating hero ad:', error)
@@ -182,6 +189,9 @@ export async function DELETE(request: NextRequest) {
     }
 
     await db.heroAd.delete({ where: { id } })
+
+    // Broadcast deletion in real-time
+    broadcastRealtimeEvent('hero_ad:deleted', { id })
 
     return NextResponse.json({ success: true })
   } catch (error) {
@@ -216,6 +226,9 @@ export async function PATCH(request: NextRequest) {
       )
     )
 
+    // Broadcast reorder in real-time
+    broadcastRealtimeEvent('hero_ad:reordered', { success: true })
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error reordering hero ads:', error)
@@ -225,3 +238,4 @@ export async function PATCH(request: NextRequest) {
     )
   }
 }
+

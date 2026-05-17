@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { broadcastRealtimeEvent } from '@/lib/realtime'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -53,6 +54,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       data: body,
     })
 
+    // Broadcast the update in real-time
+    broadcastRealtimeEvent('video:updated', video)
+
     return NextResponse.json({ video })
   } catch (error) {
     console.error('Error updating video:', error)
@@ -64,9 +68,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     const { id } = await params
     await db.video.delete({ where: { id } })
+
+    // Broadcast the deletion in real-time
+    broadcastRealtimeEvent('video:deleted', { id })
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error deleting video:', error)
     return NextResponse.json({ error: 'Failed to delete video' }, { status: 500 })
   }
 }
+
