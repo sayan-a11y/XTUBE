@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useRealtimeAds, formatAdNumber, formatAdRevenue } from '@/hooks/useRealtimeAds'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Play,
@@ -100,85 +101,7 @@ const thumbnailGradients = [
   'from-pink-900/60 via-rose-800/40 to-fuchsia-900/30',
 ]
 
-const mockAds: PopupAd[] = [
-  {
-    id: '1',
-    name: 'Summer Sale Popup',
-    type: 'Image',
-    trigger: 'Time Delay (5s)',
-    displayOn: 'Homepage',
-    impressions: '842.5K',
-    ctr: '5.24%',
-    revenue: '$3,450.80',
-    status: 'Active',
-    gradient: 'from-orange-900/60 via-red-800/40 to-amber-900/30',
-  },
-  {
-    id: '2',
-    name: 'Premium Subscription Offer',
-    type: 'HTML5',
-    trigger: 'Exit Intent',
-    displayOn: 'All Pages',
-    impressions: '624.3K',
-    ctr: '4.87%',
-    revenue: '$2,845.60',
-    status: 'Active',
-    gradient: 'from-blue-900/60 via-indigo-800/40 to-violet-900/30',
-  },
-  {
-    id: '3',
-    name: 'Free Trial Popup Ad',
-    type: 'Text',
-    trigger: 'Scroll (50%)',
-    displayOn: 'Video Pages',
-    impressions: '512.8K',
-    ctr: '3.92%',
-    revenue: '$1,545.40',
-    status: 'Active',
-    gradient: 'from-cyan-900/60 via-sky-800/40 to-blue-900/30',
-  },
-  {
-    id: '4',
-    name: 'Holiday Discount Banner',
-    type: 'Image',
-    trigger: 'Time Delay (10s)',
-    displayOn: 'Homepage',
-    impressions: '389.4K',
-    ctr: '6.14%',
-    revenue: '$2,104.50',
-    status: 'Paused',
-    gradient: 'from-emerald-900/60 via-teal-800/40 to-cyan-900/30',
-  },
-  {
-    id: '5',
-    name: 'Newsletter Signup Popup',
-    type: 'HTML5',
-    trigger: 'Exit Intent',
-    displayOn: 'All Pages',
-    impressions: '278.6K',
-    ctr: '4.36%',
-    revenue: '$924.00',
-    status: 'Active',
-    gradient: 'from-rose-900/60 via-pink-800/40 to-red-900/30',
-  },
-  {
-    id: '6',
-    name: 'New Release Alert',
-    type: 'Text',
-    trigger: 'Time Delay (3s)',
-    displayOn: 'Video Pages',
-    impressions: '156.2K',
-    ctr: '5.72%',
-    revenue: '$780.00',
-    status: 'Draft',
-    gradient: 'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30',
-  },
-]
-
-const donutData = [
-  { name: 'Image Ads', value: 1231900 },
-  { name: 'HTML5 Ads', value: 902900 },
-]
+// Demo data removed — all popup ads now fetched from Supabase in realtime
 
 // ─── Mini Sparkline SVG ──────────────────────────────────────────────────────
 
@@ -278,6 +201,49 @@ export function PopupAdsPage() {
   const [deviceDesktop, setDeviceDesktop] = useState(true)
   const [deviceTablet, setDeviceTablet] = useState(true)
   const [deviceMobile, setDeviceMobile] = useState(false)
+  const [popupName, setPopupName] = useState('')
+  const [popupLink, setPopupLink] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const handleSaveAd = async () => {
+    if (!popupName) {
+      alert('Please enter a popup name')
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch('/api/ads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'popup',
+          position: popupPosition,
+          title: popupName,
+          imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop',
+          linkUrl: popupLink || null,
+          isActive: true,
+          startDate: null,
+          endDate: null,
+        }),
+      })
+
+      if (res.ok) {
+        setPopupName('')
+        setPopupLink('')
+        alert('Popup ad saved successfully!')
+      } else {
+        const err = await res.json()
+        alert(`Error: ${err.error || 'Failed to save popup'}`)
+      }
+    } catch (e) {
+      console.error(e)
+      alert('Failed to save popup ad')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   // Table state
   const [searchQuery, setSearchQuery] = useState('')
@@ -346,7 +312,39 @@ export function PopupAdsPage() {
 
   // ─── Filtered Ads ──────────────────────────────────────────────────────
 
-  const filteredAds = mockAds.filter((ad) => {
+  // ─── Realtime Supabase Ads ────────────────────────────────────────────
+  const { ads: allAds, stats, deleteAd, toggleAdStatus } = useRealtimeAds({ type: 'popup' })
+
+  const popupGradients = [
+    'from-orange-900/60 via-red-800/40 to-amber-900/30',
+    'from-blue-900/60 via-indigo-800/40 to-violet-900/30',
+    'from-cyan-900/60 via-sky-800/40 to-blue-900/30',
+    'from-emerald-900/60 via-teal-800/40 to-cyan-900/30',
+    'from-rose-900/60 via-pink-800/40 to-red-900/30',
+    'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30',
+  ]
+
+  const mappedAds: PopupAd[] = useMemo(() => allAds.map((ad, i) => ({
+    id: ad.id,
+    name: ad.title,
+    type: (ad.mediaFormat === 'html5' ? 'HTML5' : ad.mediaFormat === 'txt' ? 'Text' : 'Image') as PopupAd['type'],
+    trigger: 'Time Delay (5s)',
+    displayOn: ad.position === 'entry' ? 'Homepage' : 'All Pages',
+    impressions: formatAdNumber(ad.impressions),
+    ctr: ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) + '%' : '0%',
+    revenue: formatAdRevenue(ad.revenue),
+    status: (ad.isActive ? 'Active' : 'Paused') as PopupAd['status'],
+    gradient: popupGradients[i % popupGradients.length],
+  })), [allAds])
+
+  const donutData = useMemo(() => [
+    { name: 'Image Ads', value: allAds.filter(a => !['html5', 'txt'].includes(a.mediaFormat)).reduce((s, a) => s + a.impressions, 0) },
+    { name: 'HTML5 Ads', value: allAds.filter(a => ['html5', 'txt'].includes(a.mediaFormat)).reduce((s, a) => s + a.impressions, 0) },
+  ], [allAds])
+
+  // ─── Filtered Ads ──────────────────────────────────────────────────────
+
+  const filteredAds = mappedAds.filter((ad) => {
     if (statusFilter !== 'all' && ad.status.toLowerCase() !== statusFilter) return false
     if (searchQuery && !ad.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
@@ -436,11 +434,11 @@ export function PopupAdsPage() {
             TOP ANALYTICS CARDS (5 cards)
             ═══════════════════════════════════════════════════════════════════ */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <StatCard title="Total Popup Ads" value="29" change="+14.2%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
-          <StatCard title="Active Ads" value="24" change="+11.8%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
-          <StatCard title="Impressions" value="3.78M" change="+22.4%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
-          <StatCard title="CTR" value="4.92%" change="+9.6%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
-          <StatCard title="Revenue" value="$11,245.30" change="+18.3%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
+          <StatCard title="Total Popup Ads" value={String(stats.totalAds)} change="+14.2%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
+          <StatCard title="Active Ads" value={String(stats.activeAds)} change="+11.8%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
+          <StatCard title="Impressions" value={formatAdNumber(stats.totalImpressions)} change="+22.4%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
+          <StatCard title="CTR" value={stats.avgCTR.toFixed(2) + '%'} change="+9.6%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
+          <StatCard title="Revenue" value={formatAdRevenue(stats.totalRevenue)} change="+18.3%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════════
@@ -679,6 +677,30 @@ export function PopupAdsPage() {
               <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
                 <h3 className="text-xs font-semibold text-white/60 uppercase tracking-wider">Popup Settings</h3>
 
+                {/* Ad Name & Link */}
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-white/50">Popup Name *</label>
+                    <input
+                      type="text"
+                      value={popupName}
+                      onChange={(e) => setPopupName(e.target.value)}
+                      className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white/70 outline-none focus:border-[#ff1e1e]/40"
+                      placeholder="e.g. Summer Mega Discount"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-medium text-white/50">Destination URL</label>
+                    <input
+                      type="text"
+                      value={popupLink}
+                      onChange={(e) => setPopupLink(e.target.value)}
+                      className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white/70 outline-none focus:border-[#ff1e1e]/40"
+                      placeholder="e.g. https://xtube.com/sale"
+                    />
+                  </div>
+                </div>
+
                 {/* Trigger Type */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
@@ -806,12 +828,18 @@ export function PopupAdsPage() {
 
                 {/* Save button */}
                 <motion.button
+                  onClick={handleSaveAd}
+                  disabled={saving}
                   whileHover={{ scale: 1.02, boxShadow: '0 0 25px rgba(255,30,30,0.4)' }}
                   whileTap={{ scale: 0.98 }}
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#ff1e1e] to-[#cc181e] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,30,30,0.3)] transition-all hover:from-[#ff2e2e] hover:to-[#dd282e]"
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#ff1e1e] to-[#cc181e] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,30,30,0.3)] transition-all hover:from-[#ff2e2e] hover:to-[#dd282e] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <CloudUpload className="h-4 w-4" />
-                  Save Popup Ad
+                  {saving ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <CloudUpload className="h-4 w-4" />
+                  )}
+                  {saving ? 'Saving...' : 'Save Popup Ad'}
                 </motion.button>
               </div>
             </div>
@@ -1184,12 +1212,15 @@ export function PopupAdsPage() {
                       </td>
                       {/* Status */}
                       <td className="py-2 pr-3">
-                        <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium ${statusStyles[ad.status]}`}>
+                        <button
+                          onClick={() => toggleAdStatus(ad.id, ad.status !== 'Active')}
+                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium transition-all hover:scale-105 active:scale-95 ${statusStyles[ad.status]}`}
+                        >
                           {ad.status === 'Active' && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
                           {ad.status === 'Paused' && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
                           {ad.status === 'Draft' && <span className="h-1.5 w-1.5 rounded-full bg-white/30" />}
                           {ad.status}
-                        </span>
+                        </button>
                       </td>
                       {/* Actions */}
                       <td className="py-2">
@@ -1200,7 +1231,15 @@ export function PopupAdsPage() {
                           <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-white/10 hover:text-white" title="Analytics">
                             <BarChart3 className="h-3.5 w-3.5" />
                           </button>
-                          <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-red-500/10 hover:text-red-400" title="Delete">
+                          <button
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this popup ad?')) {
+                                deleteAd(ad.id)
+                              }
+                            }}
+                            className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                            title="Delete"
+                          >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>

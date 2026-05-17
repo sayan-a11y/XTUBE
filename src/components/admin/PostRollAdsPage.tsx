@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useRealtimeAds, formatAdNumber, formatAdRevenue } from '@/hooks/useRealtimeAds'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Play,
@@ -85,85 +86,7 @@ const thumbnailTimecodes = [
   '00:02', '00:04', '00:06', '00:08', '00:10',
 ]
 
-const mockAds: PostRollAd[] = [
-  {
-    id: '1',
-    name: 'Nike Sneakers Post-Roll Ad',
-    type: 'Video',
-    placement: 'Post-Roll (After Video)',
-    duration: '00:12',
-    impressions: '645.2K',
-    ctr: '7.24%',
-    revenue: '$2,845.30',
-    status: 'Active',
-    gradient: 'from-orange-900/60 via-red-800/40 to-amber-900/30',
-  },
-  {
-    id: '2',
-    name: 'Samsung Galaxy Post-Roll',
-    type: 'Video',
-    placement: 'Post-Roll (After Video)',
-    duration: '00:15',
-    impressions: '512.8K',
-    ctr: '6.58%',
-    revenue: '$2,350.40',
-    status: 'Active',
-    gradient: 'from-blue-900/60 via-indigo-800/40 to-violet-900/30',
-  },
-  {
-    id: '3',
-    name: 'BMW Car Post-Roll Ad',
-    type: 'Video',
-    placement: 'Post-Roll (After Video)',
-    duration: '00:20',
-    impressions: '428.6K',
-    ctr: '5.92%',
-    revenue: '$1,845.60',
-    status: 'Active',
-    gradient: 'from-cyan-900/60 via-sky-800/40 to-blue-900/30',
-  },
-  {
-    id: '4',
-    name: 'Summer Collection Banner',
-    type: 'Image',
-    placement: 'Post-Roll (After Video)',
-    duration: '—',
-    impressions: '861.4K',
-    ctr: '8.12%',
-    revenue: '$2,604.00',
-    status: 'Active',
-    gradient: 'from-emerald-900/60 via-teal-800/40 to-cyan-900/30',
-  },
-  {
-    id: '5',
-    name: 'Adidas Sport Post-Roll',
-    type: 'Video',
-    placement: 'Post-Roll (After Video)',
-    duration: '00:10',
-    impressions: '298.5K',
-    ctr: '6.34%',
-    revenue: '$1,124.50',
-    status: 'Paused',
-    gradient: 'from-rose-900/60 via-pink-800/40 to-red-900/30',
-  },
-  {
-    id: '6',
-    name: 'Apple iPhone Post-Roll',
-    type: 'Video',
-    placement: 'Post-Roll (After Video)',
-    duration: '00:08',
-    impressions: '124.5K',
-    ctr: '5.68%',
-    revenue: '$875.40',
-    status: 'Draft',
-    gradient: 'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30',
-  },
-]
-
-const donutData = [
-  { name: 'Video Ads', value: 2009000 },
-  { name: 'Image Ads', value: 861000 },
-]
+// Demo data removed — all post-roll ads now fetched from Supabase in realtime
 
 // ─── Mini Sparkline SVG ──────────────────────────────────────────────────────
 
@@ -246,6 +169,50 @@ export function PostRollAdsPage() {
   const [selectedThumbnail, setSelectedThumbnail] = useState(0)
   const [adTab, setAdTab] = useState<AdTab>('video')
   const [isPlaying, setIsPlaying] = useState(false)
+  const [adName, setAdName] = useState('')
+  const [adLink, setAdLink] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const handleSaveAd = async () => {
+    if (!adName) {
+      alert('Please enter an ad name')
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch('/api/ads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'video',
+          position: 'post-roll',
+          title: adName,
+          imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop',
+          linkUrl: adLink || null,
+          isActive: true,
+          startDate: null,
+          endDate: null,
+          adDuration: 12,
+        }),
+      })
+
+      if (res.ok) {
+        setAdName('')
+        setAdLink('')
+        alert('Post-roll ad saved successfully!')
+      } else {
+        const err = await res.json()
+        alert(`Error: ${err.error || 'Failed to save post-roll'}`)
+      }
+    } catch (e) {
+      console.error(e)
+      alert('Failed to save post-roll ad')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   // Table state
   const [searchQuery, setSearchQuery] = useState('')
@@ -313,7 +280,12 @@ export function PostRollAdsPage() {
 
   // ─── Filtered Ads ──────────────────────────────────────────────────────
 
-  const filteredAds = mockAds.filter((ad) => {
+  const { ads: allAds, stats, deleteAd, toggleAdStatus } = useRealtimeAds({ position: 'post-roll' })
+  const adGradients = ['from-orange-900/60 via-red-800/40 to-amber-900/30','from-blue-900/60 via-indigo-800/40 to-violet-900/30','from-cyan-900/60 via-sky-800/40 to-blue-900/30','from-emerald-900/60 via-teal-800/40 to-cyan-900/30','from-rose-900/60 via-pink-800/40 to-red-900/30','from-violet-900/60 via-purple-800/40 to-fuchsia-900/30']
+  const mappedAds: PostRollAd[] = useMemo(() => allAds.map((ad, i) => ({ id: ad.id, name: ad.title, type: (['mp4','webm','mov'].includes(ad.mediaFormat)?'Video':'Image') as PostRollAd['type'], placement: 'Post-Roll (After Video)', duration: ad.adDuration>0?`00:${String(ad.adDuration).padStart(2,'0')}`:'—', impressions: formatAdNumber(ad.impressions), ctr: ad.impressions>0?((ad.clicks/ad.impressions)*100).toFixed(2)+'%':'0%', revenue: formatAdRevenue(ad.revenue), status: (ad.isActive?'Active':'Paused') as PostRollAd['status'], gradient: adGradients[i%adGradients.length] })), [allAds])
+  const donutData = useMemo(() => [{ name: 'Video Ads', value: allAds.filter(a=>['mp4','webm','mov'].includes(a.mediaFormat)).reduce((s,a)=>s+a.impressions,0) },{ name: 'Image Ads', value: allAds.filter(a=>!['mp4','webm','mov'].includes(a.mediaFormat)).reduce((s,a)=>s+a.impressions,0) }], [allAds])
+
+  const filteredAds = mappedAds.filter((ad) => {
     if (statusFilter !== 'all' && ad.status.toLowerCase() !== statusFilter) return false
     if (searchQuery && !ad.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
@@ -379,11 +351,11 @@ export function PostRollAdsPage() {
             TOP ANALYTICS CARDS (5 cards)
             ═══════════════════════════════════════════════════════════════════ */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <StatCard title="Total Post-Roll Ads" value="32" change="+14.8%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
-          <StatCard title="Active Ads" value="25" change="+11.5%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
-          <StatCard title="Impressions" value="2.87M" change="+17.6%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
-          <StatCard title="CTR" value="6.82%" change="+8.9%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
-          <StatCard title="Revenue" value="$9,645.20" change="+15.2%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
+          <StatCard title="Total Post-Roll Ads" value={String(stats.totalAds)} change="+14.8%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
+          <StatCard title="Active Ads" value={String(stats.activeAds)} change="+11.5%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
+          <StatCard title="Impressions" value={formatAdNumber(stats.totalImpressions)} change="+17.6%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
+          <StatCard title="CTR" value={stats.avgCTR.toFixed(2) + '%'} change="+8.9%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
+          <StatCard title="Revenue" value={formatAdRevenue(stats.totalRevenue)} change="+15.2%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════════
@@ -610,6 +582,46 @@ export function PostRollAdsPage() {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Ad Name & Link */}
+              <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium text-white/50">Ad Name *</label>
+                  <input
+                    type="text"
+                    value={adName}
+                    onChange={(e) => setAdName(e.target.value)}
+                    className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white/70 outline-none focus:border-[#ff1e1e]/40"
+                    placeholder="e.g. Nike Unstoppable post-roll"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium text-white/50">Destination URL</label>
+                  <input
+                    type="text"
+                    value={adLink}
+                    onChange={(e) => setAdLink(e.target.value)}
+                    className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white/70 outline-none focus:border-[#ff1e1e]/40"
+                    placeholder="e.g. https://nike.com/shoes"
+                  />
+                </div>
+
+                {/* Save button */}
+                <motion.button
+                  onClick={handleSaveAd}
+                  disabled={saving}
+                  whileHover={{ scale: 1.02, boxShadow: '0 0 25px rgba(255,0,0,0.4)' }}
+                  whileTap={{ scale: 0.98 }}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF0000] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,0,0,0.3)] transition-all hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <CloudUpload className="h-4 w-4" />
+                  )}
+                  {saving ? 'Saving...' : 'Save Post-Roll Ad'}
+                </motion.button>
+              </div>
             </div>
           </motion.div>
 
@@ -908,12 +920,15 @@ export function PostRollAdsPage() {
 
                       {/* Status */}
                       <td className="py-2 pr-3">
-                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${statusStyles[ad.status]}`}>
+                        <button
+                          onClick={() => toggleAdStatus(ad.id, ad.status !== 'Active')}
+                          className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold transition-all hover:scale-105 active:scale-95 ${statusStyles[ad.status]}`}
+                        >
                           <span className={`mr-1 h-1.5 w-1.5 rounded-full ${
                             ad.status === 'Active' ? 'bg-[#00FF85]' : ad.status === 'Paused' ? 'bg-[#F59E0B]' : 'bg-white/30'
                           }`} />
                           {ad.status}
-                        </span>
+                        </button>
                       </td>
 
                       {/* Actions */}
@@ -925,7 +940,15 @@ export function PostRollAdsPage() {
                           <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-white/5 hover:text-[#3B82F6]" title="Analytics">
                             <BarChart3 className="h-3.5 w-3.5" />
                           </button>
-                          <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-[#FF0000]/10 hover:text-[#FF0000]" title="Delete">
+                          <button
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this post-roll ad?')) {
+                                deleteAd(ad.id)
+                              }
+                            }}
+                            className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-[#FF0000]/10 hover:text-[#FF0000]"
+                            title="Delete"
+                          >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>

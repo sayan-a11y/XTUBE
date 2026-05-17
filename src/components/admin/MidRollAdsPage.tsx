@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useRealtimeAds, formatAdNumber, formatAdRevenue } from '@/hooks/useRealtimeAds'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Play,
@@ -87,91 +88,7 @@ const thumbnailTimecodes = [
   '00:02', '00:04', '00:06', '00:08', '00:10',
 ]
 
-const mockAds: MidRollAd[] = [
-  {
-    id: '1',
-    name: 'Nike Sneakers Mid-Roll Ad',
-    type: 'Video',
-    placement: 'Mid-Roll (During Video)',
-    duration: '00:15',
-    impressions: '785.4K',
-    ctr: '7.12%',
-    revenue: '$3,245.20',
-    status: 'Active',
-    date: 'May 10, 2025',
-    gradient: 'from-orange-900/60 via-red-800/40 to-amber-900/30',
-  },
-  {
-    id: '2',
-    name: 'Samsung Galaxy Mid-Roll',
-    type: 'Video',
-    placement: 'Mid-Roll (During Video)',
-    duration: '00:20',
-    impressions: '642.7K',
-    ctr: '6.38%',
-    revenue: '$2,950.30',
-    status: 'Active',
-    date: 'May 09, 2025',
-    gradient: 'from-blue-900/60 via-indigo-800/40 to-violet-900/30',
-  },
-  {
-    id: '3',
-    name: 'BMW Car Mid-Roll Ad',
-    type: 'Video',
-    placement: 'Mid-Roll (During Video)',
-    duration: '00:15',
-    impressions: '521.6K',
-    ctr: '6.91%',
-    revenue: '$2,150.10',
-    status: 'Active',
-    date: 'May 08, 2025',
-    gradient: 'from-cyan-900/60 via-sky-800/40 to-blue-900/30',
-  },
-  {
-    id: '4',
-    name: 'Summer Collection Banner',
-    type: 'Image',
-    placement: 'Mid-Roll (During Video)',
-    duration: '—',
-    impressions: '398.2K',
-    ctr: '4.82%',
-    revenue: '$1,650.15',
-    status: 'Active',
-    date: 'May 07, 2025',
-    gradient: 'from-emerald-900/60 via-teal-800/40 to-cyan-900/30',
-  },
-  {
-    id: '5',
-    name: 'Adidas Running Mid-Roll',
-    type: 'Video',
-    placement: 'Mid-Roll (During Video)',
-    duration: '00:12',
-    impressions: '312.8K',
-    ctr: '5.94%',
-    revenue: '$1,284.50',
-    status: 'Paused',
-    date: 'May 06, 2025',
-    gradient: 'from-rose-900/60 via-pink-800/40 to-red-900/30',
-  },
-  {
-    id: '6',
-    name: 'Apple Watch Mid-Roll Ad',
-    type: 'Video',
-    placement: 'Mid-Roll (During Video)',
-    duration: '00:10',
-    impressions: '245.1K',
-    ctr: '7.45%',
-    revenue: '$1,565.50',
-    status: 'Active',
-    date: 'May 05, 2025',
-    gradient: 'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30',
-  },
-]
-
-const donutData = [
-  { name: 'Video Ads', value: 2200000 },
-  { name: 'Image Ads', value: 1040000 },
-]
+// Demo data removed — all mid-roll ads now fetched from Supabase in realtime
 
 // ─── Mini Sparkline SVG ──────────────────────────────────────────────────────
 
@@ -254,6 +171,50 @@ export function MidRollAdsPage() {
   const [selectedThumbnail, setSelectedThumbnail] = useState(0)
   const [adTab, setAdTab] = useState<AdTab>('video')
   const [isPlaying, setIsPlaying] = useState(false)
+  const [adName, setAdName] = useState('')
+  const [adLink, setAdLink] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const handleSaveAd = async () => {
+    if (!adName) {
+      alert('Please enter an ad name')
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch('/api/ads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'video',
+          position: 'mid-roll',
+          title: adName,
+          imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop',
+          linkUrl: adLink || null,
+          isActive: true,
+          startDate: null,
+          endDate: null,
+          adDuration: 15,
+        }),
+      })
+
+      if (res.ok) {
+        setAdName('')
+        setAdLink('')
+        alert('Mid-roll ad saved successfully!')
+      } else {
+        const err = await res.json()
+        alert(`Error: ${err.error || 'Failed to save mid-roll'}`)
+      }
+    } catch (e) {
+      console.error(e)
+      alert('Failed to save mid-roll ad')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   // Table state
   const [searchQuery, setSearchQuery] = useState('')
@@ -321,7 +282,13 @@ export function MidRollAdsPage() {
 
   // ─── Filtered Ads ──────────────────────────────────────────────────────
 
-  const filteredAds = mockAds.filter((ad) => {
+  // ─── Realtime Supabase Ads ────────────────────────────────────────────
+  const { ads: allAds, stats, deleteAd, toggleAdStatus } = useRealtimeAds({ position: 'mid-roll' })
+  const adGradients = ['from-orange-900/60 via-red-800/40 to-amber-900/30','from-blue-900/60 via-indigo-800/40 to-violet-900/30','from-cyan-900/60 via-sky-800/40 to-blue-900/30','from-emerald-900/60 via-teal-800/40 to-cyan-900/30','from-rose-900/60 via-pink-800/40 to-red-900/30','from-violet-900/60 via-purple-800/40 to-fuchsia-900/30']
+  const mappedAds: MidRollAd[] = useMemo(() => allAds.map((ad, i) => ({ id: ad.id, name: ad.title, type: (['mp4','webm','mov'].includes(ad.mediaFormat) ? 'Video' : 'Image') as MidRollAd['type'], placement: 'Mid-Roll (During Video)', duration: ad.adDuration > 0 ? `00:${String(ad.adDuration).padStart(2,'0')}` : '—', impressions: formatAdNumber(ad.impressions), ctr: ad.impressions > 0 ? ((ad.clicks/ad.impressions)*100).toFixed(2)+'%' : '0%', revenue: formatAdRevenue(ad.revenue), status: (ad.isActive ? 'Active' : 'Paused') as MidRollAd['status'], date: new Date(ad.createdAt).toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'}), gradient: adGradients[i%adGradients.length] })), [allAds])
+  const donutData = useMemo(() => [{ name: 'Video Ads', value: allAds.filter(a=>['mp4','webm','mov'].includes(a.mediaFormat)).reduce((s,a)=>s+a.impressions,0) },{ name: 'Image Ads', value: allAds.filter(a=>!['mp4','webm','mov'].includes(a.mediaFormat)).reduce((s,a)=>s+a.impressions,0) }], [allAds])
+
+  const filteredAds = mappedAds.filter((ad) => {
     if (statusFilter !== 'all' && ad.status.toLowerCase() !== statusFilter) return false
     if (searchQuery && !ad.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
@@ -382,11 +349,11 @@ export function MidRollAdsPage() {
             TOP ANALYTICS CARDS (5 cards)
             ═══════════════════════════════════════════════════════════════════ */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <StatCard title="Total Mid-Roll Ads" value="36" change="+15.3%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
-          <StatCard title="Active Ads" value="28" change="+12.6%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
-          <StatCard title="Impressions" value="3.24M" change="+18.7%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
-          <StatCard title="CTR" value="7.12%" change="+9.4%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
-          <StatCard title="Revenue" value="$12,845.75" change="+16.9%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
+          <StatCard title="Total Mid-Roll Ads" value={String(stats.totalAds)} change="+15.3%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
+          <StatCard title="Active Ads" value={String(stats.activeAds)} change="+12.6%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
+          <StatCard title="Impressions" value={formatAdNumber(stats.totalImpressions)} change="+18.7%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
+          <StatCard title="CTR" value={stats.avgCTR.toFixed(2) + '%'} change="+9.4%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
+          <StatCard title="Revenue" value={formatAdRevenue(stats.totalRevenue)} change="+16.9%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════════
@@ -613,6 +580,46 @@ export function MidRollAdsPage() {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Ad Name & Link */}
+              <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium text-white/50">Ad Name *</label>
+                  <input
+                    type="text"
+                    value={adName}
+                    onChange={(e) => setAdName(e.target.value)}
+                    className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white/70 outline-none focus:border-[#ff1e1e]/40"
+                    placeholder="e.g. Nike Unstoppable mid-roll"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium text-white/50">Destination URL</label>
+                  <input
+                    type="text"
+                    value={adLink}
+                    onChange={(e) => setAdLink(e.target.value)}
+                    className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white/70 outline-none focus:border-[#ff1e1e]/40"
+                    placeholder="e.g. https://nike.com/shoes"
+                  />
+                </div>
+
+                {/* Save button */}
+                <motion.button
+                  onClick={handleSaveAd}
+                  disabled={saving}
+                  whileHover={{ scale: 1.02, boxShadow: '0 0 25px rgba(255,0,0,0.4)' }}
+                  whileTap={{ scale: 0.98 }}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF0000] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,0,0,0.3)] transition-all hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <CloudUpload className="h-4 w-4" />
+                  )}
+                  {saving ? 'Saving...' : 'Save Mid-Roll Ad'}
+                </motion.button>
+              </div>
             </div>
           </motion.div>
 
@@ -895,12 +902,15 @@ export function MidRollAdsPage() {
                       </td>
                       {/* Status */}
                       <td className="py-2.5 pr-3">
-                        <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold ${statusStyles[ad.status]}`}>
+                        <button
+                          onClick={() => toggleAdStatus(ad.id, ad.status !== 'Active')}
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-semibold transition-all hover:scale-105 active:scale-95 ${statusStyles[ad.status]}`}
+                        >
                           <span className={`h-1.5 w-1.5 rounded-full ${
                             ad.status === 'Active' ? 'bg-[#00FF85]' : ad.status === 'Paused' ? 'bg-[#F59E0B]' : 'bg-white/30'
                           }`} />
                           {ad.status}
-                        </span>
+                        </button>
                       </td>
                       {/* Actions */}
                       <td className="py-2.5">
@@ -911,7 +921,15 @@ export function MidRollAdsPage() {
                           <button className="rounded-md p-1 text-white/30 transition-colors hover:bg-white/10 hover:text-[#3B82F6]" aria-label="Analytics">
                             <BarChart3 className="h-3 w-3" />
                           </button>
-                          <button className="rounded-md p-1 text-white/30 transition-colors hover:bg-[#FF0000]/10 hover:text-[#FF0000]" aria-label="Delete">
+                          <button
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this mid-roll ad?')) {
+                                deleteAd(ad.id)
+                              }
+                            }}
+                            className="rounded-md p-1 text-white/30 transition-colors hover:bg-[#FF0000]/10 hover:text-[#FF0000]"
+                            aria-label="Delete"
+                          >
                             <Trash2 className="h-3 w-3" />
                           </button>
                         </div>

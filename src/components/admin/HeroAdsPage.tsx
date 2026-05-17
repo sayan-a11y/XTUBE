@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   CloudUpload,
@@ -232,6 +233,36 @@ export function HeroAdsPage() {
 
   useEffect(() => {
     fetchHeroAds()
+  }, [fetchHeroAds])
+
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !supabase) return
+
+    const channel = supabase
+      .channel('admin-hero-ads-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'HeroAd' },
+        () => {
+          fetchHeroAds()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase?.removeChannel(channel)
+    }
+  }, [fetchHeroAds])
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.type?.startsWith('hero_ad:')) {
+        fetchHeroAds()
+      }
+    }
+    window.addEventListener('realtime-sync', handler)
+    return () => window.removeEventListener('realtime-sync', handler)
   }, [fetchHeroAds])
 
   // ─── Computed KPI Values ───────────────────────────────────────────────

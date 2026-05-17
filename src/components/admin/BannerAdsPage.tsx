@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useRealtimeAds, formatAdNumber, formatAdRevenue } from '@/hooks/useRealtimeAds'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Play,
@@ -102,85 +103,7 @@ const thumbnailGradients = [
   'from-pink-900/60 via-rose-800/40 to-fuchsia-900/30',
 ]
 
-const mockAds: BannerAd[] = [
-  {
-    id: '1',
-    name: 'Summer Sale Banner',
-    type: 'Image',
-    size: '970×250',
-    position: 'Top Header',
-    impressions: '1.42M',
-    ctr: '4.24%',
-    revenue: '$5,450.80',
-    status: 'Active',
-    gradient: 'from-orange-900/60 via-red-800/40 to-amber-900/30',
-  },
-  {
-    id: '2',
-    name: 'Premium Subscription Offer',
-    type: 'HTML5',
-    size: '728×90',
-    position: 'Middle Content',
-    impressions: '1.24M',
-    ctr: '3.87%',
-    revenue: '$4,245.60',
-    status: 'Active',
-    gradient: 'from-blue-900/60 via-indigo-800/40 to-violet-900/30',
-  },
-  {
-    id: '3',
-    name: 'New Release Promo',
-    type: 'Animated',
-    size: '300×250',
-    position: 'Middle Content',
-    impressions: '998.5K',
-    ctr: '3.52%',
-    revenue: '$3,145.40',
-    status: 'Active',
-    gradient: 'from-cyan-900/60 via-sky-800/40 to-blue-900/30',
-  },
-  {
-    id: '4',
-    name: 'Holiday Discount Banner',
-    type: 'Image',
-    size: '970×250',
-    position: 'Top Header',
-    impressions: '789.4K',
-    ctr: '5.14%',
-    revenue: '$2,704.50',
-    status: 'Paused',
-    gradient: 'from-emerald-900/60 via-teal-800/40 to-cyan-900/30',
-  },
-  {
-    id: '5',
-    name: 'Fashion Week Banner',
-    type: 'Animated',
-    size: '320×50',
-    position: 'Bottom Footer',
-    impressions: '654.2K',
-    ctr: '2.96%',
-    revenue: '$1,424.00',
-    status: 'Active',
-    gradient: 'from-rose-900/60 via-pink-800/40 to-red-900/30',
-  },
-  {
-    id: '6',
-    name: 'Electronics Sale Ad',
-    type: 'HTML5',
-    size: '728×90',
-    position: 'Middle Content',
-    impressions: '423.6K',
-    ctr: '3.42%',
-    revenue: '$1,075.45',
-    status: 'Draft',
-    gradient: 'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30',
-  },
-]
-
-const donutData = [
-  { name: 'Image Banners', value: 2210000 },
-  { name: 'HTML5 Banners', value: 1663500 },
-]
+// Demo data removed — all ads now fetched from Supabase in realtime
 
 // ─── Mini Sparkline SVG ──────────────────────────────────────────────────────
 
@@ -259,6 +182,40 @@ function StatCard({
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export function BannerAdsPage() {
+  // ─── Realtime Supabase Ads ────────────────────────────────────────────
+  const { ads: allAds, loading: adsLoading, stats, deleteAd, toggleAdStatus } = useRealtimeAds({ type: 'banner' })
+
+  // Map real data to display format
+  const bannerGradients = [
+    'from-orange-900/60 via-red-800/40 to-amber-900/30',
+    'from-blue-900/60 via-indigo-800/40 to-violet-900/30',
+    'from-cyan-900/60 via-sky-800/40 to-blue-900/30',
+    'from-emerald-900/60 via-teal-800/40 to-cyan-900/30',
+    'from-rose-900/60 via-pink-800/40 to-red-900/30',
+    'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30',
+  ]
+
+  const mappedAds: BannerAd[] = useMemo(() => allAds.map((ad, i) => ({
+    id: ad.id,
+    name: ad.title,
+    type: (ad.mediaFormat === 'html5' ? 'HTML5' : ad.mediaFormat === 'gif' || ad.mediaFormat === 'webm' ? 'Animated' : 'Image') as BannerAd['type'],
+    size: '970×250',
+    position: ad.position === 'hero' ? 'Top Header' : ad.position === 'footer' ? 'Bottom Footer' : 'Middle Content',
+    impressions: formatAdNumber(ad.impressions),
+    ctr: ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) + '%' : '0%',
+    revenue: formatAdRevenue(ad.revenue),
+    status: (ad.isActive ? 'Active' : 'Paused') as BannerAd['status'],
+    gradient: bannerGradients[i % bannerGradients.length],
+  })), [allAds])
+
+  const donutData = useMemo(() => {
+    const imageCount = allAds.filter(a => !['html5', 'gif', 'webm'].includes(a.mediaFormat)).reduce((s, a) => s + a.impressions, 0)
+    const html5Count = allAds.filter(a => ['html5', 'gif', 'webm'].includes(a.mediaFormat)).reduce((s, a) => s + a.impressions, 0)
+    return [
+      { name: 'Image Banners', value: imageCount || 0 },
+      { name: 'HTML5 Banners', value: html5Count || 0 },
+    ]
+  }, [allAds])
   // Upload state
   const [uploadStage, setUploadStage] = useState<UploadStage>('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -280,6 +237,49 @@ export function BannerAdsPage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [statusActive, setStatusActive] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const handleSaveAd = async () => {
+    if (!bannerName) {
+      alert('Please enter a banner name')
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch('/api/ads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'banner',
+          position: bannerPosition,
+          title: bannerName,
+          imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop',
+          linkUrl: bannerLink || null,
+          isActive: statusActive,
+          startDate: startDate || null,
+          endDate: endDate || null,
+        }),
+      })
+
+      if (res.ok) {
+        setBannerName('')
+        setBannerLink('')
+        setStartDate('')
+        setEndDate('')
+        alert('Banner ad saved successfully!')
+      } else {
+        const err = await res.json()
+        alert(`Error: ${err.error || 'Failed to save banner'}`)
+      }
+    } catch (e) {
+      console.error(e)
+      alert('Failed to save banner ad')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   // Preview state
   const [previewMode, setPreviewMode] = useState<PreviewMode>('desktop')
@@ -350,7 +350,7 @@ export function BannerAdsPage() {
 
   // ─── Filtered Ads ──────────────────────────────────────────────────────
 
-  const filteredAds = mockAds.filter((ad) => {
+  const filteredAds = mappedAds.filter((ad) => {
     if (statusFilter !== 'all' && ad.status.toLowerCase() !== statusFilter) return false
     if (searchQuery && !ad.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
@@ -454,11 +454,11 @@ export function BannerAdsPage() {
             TOP ANALYTICS CARDS (5 cards)
             ═══════════════════════════════════════════════════════════════════ */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <StatCard title="Total Banner Ads" value="42" change="+16.5%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
-          <StatCard title="Active Ads" value="35" change="+13.2%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
-          <StatCard title="Impressions" value="6.42M" change="+24.7%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
-          <StatCard title="CTR" value="3.89%" change="+7.4%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
-          <StatCard title="Revenue" value="$18,245.75" change="+21.6%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
+          <StatCard title="Total Banner Ads" value={String(stats.totalAds)} change="+16.5%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
+          <StatCard title="Active Ads" value={String(stats.activeAds)} change="+13.2%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
+          <StatCard title="Impressions" value={formatAdNumber(stats.totalImpressions)} change="+24.7%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
+          <StatCard title="CTR" value={stats.avgCTR.toFixed(2) + '%'} change="+7.4%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
+          <StatCard title="Revenue" value={formatAdRevenue(stats.totalRevenue)} change="+21.6%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════════
@@ -841,12 +841,18 @@ export function BannerAdsPage() {
 
                 {/* Save button */}
                 <motion.button
+                  onClick={handleSaveAd}
+                  disabled={saving}
                   whileHover={{ scale: 1.02, boxShadow: '0 0 25px rgba(255,30,30,0.4)' }}
                   whileTap={{ scale: 0.98 }}
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#ff1e1e] to-[#cc181e] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,30,30,0.3)] transition-all hover:from-[#ff2e2e] hover:to-[#dd282e]"
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#ff1e1e] to-[#cc181e] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,30,30,0.3)] transition-all hover:from-[#ff2e2e] hover:to-[#dd282e] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <CloudUpload className="h-4 w-4" />
-                  Save Banner Ad
+                  {saving ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <CloudUpload className="h-4 w-4" />
+                  )}
+                  {saving ? 'Saving...' : 'Save Banner Ad'}
                 </motion.button>
               </div>
             </div>
@@ -1242,12 +1248,15 @@ export function BannerAdsPage() {
                       </td>
                       {/* Status */}
                       <td className="py-2 pr-3">
-                        <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium ${statusStyles[ad.status]}`}>
+                        <button
+                          onClick={() => toggleAdStatus(ad.id, ad.status !== 'Active')}
+                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium transition-all hover:scale-105 active:scale-95 ${statusStyles[ad.status]}`}
+                        >
                           {ad.status === 'Active' && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
                           {ad.status === 'Paused' && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
                           {ad.status === 'Draft' && <span className="h-1.5 w-1.5 rounded-full bg-white/30" />}
                           {ad.status}
-                        </span>
+                        </button>
                       </td>
                       {/* Actions */}
                       <td className="py-2">
@@ -1258,7 +1267,15 @@ export function BannerAdsPage() {
                           <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-white/10 hover:text-white" title="Analytics">
                             <BarChart3 className="h-3.5 w-3.5" />
                           </button>
-                          <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-red-500/10 hover:text-red-400" title="Delete">
+                          <button
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this banner ad?')) {
+                                deleteAd(ad.id)
+                              }
+                            }}
+                            className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                            title="Delete"
+                          >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>

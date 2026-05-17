@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
+import { useRealtimeAds, formatAdNumber, formatAdRevenue, type AdRecord } from '@/hooks/useRealtimeAds'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   CloudUpload,
@@ -102,67 +103,7 @@ const AD_TYPE_STYLES: Record<AdType, string> = {
   'Image Banner': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
 }
 
-const donutData = [
-  { name: 'Banner Ads', value: 36, color: '#3b82f6' },
-  { name: 'Popup Ads', value: 24, color: '#ec4899' },
-  { name: 'Hero/Footer Ads', value: 16, color: '#8b5cf6' },
-  { name: 'Pre-Roll Ads', value: 20, color: '#f97316' },
-  { name: 'Mid-Roll Ads', value: 18, color: '#06b6d4' },
-  { name: 'Post-Roll Ads', value: 12, color: '#a855f7' },
-  { name: 'Overlay Ads', value: 8, color: '#eab308' },
-  { name: 'Image Banner Ads', value: 4, color: '#10b981' },
-]
-
-const impressionsData = [
-  { date: 'May 10', value: 420000 },
-  { date: 'May 12', value: 580000 },
-  { date: 'May 14', value: 720000 },
-  { date: 'May 16', value: 650000 },
-  { date: 'May 18', value: 890000 },
-  { date: 'May 20', value: 760000 },
-  { date: 'May 22', value: 920000 },
-  { date: 'May 24', value: 840000 },
-  { date: 'May 26', value: 980000 },
-  { date: 'May 28', value: 750000 },
-  { date: 'May 30', value: 860000 },
-  { date: 'Jun 01', value: 910000 },
-  { date: 'Jun 03', value: 780000 },
-  { date: 'Jun 05', value: 950000 },
-  { date: 'Jun 07', value: 820000 },
-  { date: 'Jun 09', value: 890000 },
-]
-
-const revenueData = [
-  { date: 'May 10', value: 1200 },
-  { date: 'May 12', value: 1800 },
-  { date: 'May 14', value: 2400 },
-  { date: 'May 16', value: 2100 },
-  { date: 'May 18', value: 3200 },
-  { date: 'May 20', value: 2800 },
-  { date: 'May 22', value: 3600 },
-  { date: 'May 24', value: 2900 },
-  { date: 'May 26', value: 4100 },
-  { date: 'May 28', value: 3400 },
-  { date: 'May 30', value: 3800 },
-  { date: 'Jun 01', value: 3200 },
-  { date: 'Jun 03', value: 4500 },
-  { date: 'Jun 05', value: 3900 },
-  { date: 'Jun 07', value: 4800 },
-  { date: 'Jun 09', value: 4200 },
-]
-
-const mockAds: AllAd[] = [
-  { id: '1', name: 'Summer Sale Banner', type: 'Banner', placement: 'Top Header', sizeDuration: '970×250', impressions: '1.42M', ctr: '4.24%', revenue: '$5,450.80', status: 'Active', gradient: 'from-blue-900/60 via-indigo-800/40 to-violet-900/30', date: 'May 15, 2025' },
-  { id: '2', name: 'Hero Brand Ad', type: 'Hero/Footer', placement: 'Hero Section - Top', sizeDuration: '1920×600', impressions: '1.85M', ctr: '5.24%', revenue: '$6,120.00', status: 'Active', gradient: 'from-purple-900/60 via-violet-800/40 to-fuchsia-900/30', date: 'May 12, 2025' },
-  { id: '3', name: 'XTUBE Popup', type: 'Popup', placement: 'Center Popup', sizeDuration: '600×400', impressions: '842.5K', ctr: '5.24%', revenue: '$3,450.80', status: 'Active', gradient: 'from-pink-900/60 via-rose-800/40 to-red-900/30', date: 'May 18, 2025' },
-  { id: '4', name: 'Nike Pre-Roll', type: 'Pre-Roll', placement: 'Pre-Roll (Before Video)', sizeDuration: '00:05 sec', impressions: '558.4K', ctr: '6.45%', revenue: '$2,450.30', status: 'Active', gradient: 'from-orange-900/60 via-amber-800/40 to-yellow-900/30', date: 'May 20, 2025' },
-  { id: '5', name: 'Samsung Mid-Roll', type: 'Mid-Roll', placement: 'Mid-Roll (During Video)', sizeDuration: '00:10 sec', impressions: '425.2K', ctr: '4.82%', revenue: '$1,845.60', status: 'Paused', gradient: 'from-cyan-900/60 via-sky-800/40 to-blue-900/30', date: 'May 22, 2025' },
-  { id: '6', name: 'Coca-Cola Overlay', type: 'Overlay', placement: 'Bottom Overlay', sizeDuration: 'Persistent', impressions: '689.0K', ctr: '3.24%', revenue: '$2,104.50', status: 'Active', gradient: 'from-yellow-900/60 via-amber-800/40 to-orange-900/30', date: 'May 25, 2025' },
-  { id: '7', name: 'Gaming Footer Banner', type: 'Hero/Footer', placement: 'Footer Bottom', sizeDuration: '728×90', impressions: '312.8K', ctr: '3.92%', revenue: '$1,245.40', status: 'Active', gradient: 'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30', date: 'May 28, 2025' },
-  { id: '8', name: 'Movie Promo Post-Roll', type: 'Post-Roll', placement: 'Post-Roll (After Video)', sizeDuration: '00:08 sec', impressions: '245.6K', ctr: '5.36%', revenue: '$924.00', status: 'Paused', gradient: 'from-fuchsia-900/60 via-pink-800/40 to-rose-900/30', date: 'Jun 01, 2025' },
-  { id: '9', name: 'Fashion Week Banner', type: 'Image Banner', placement: 'Middle Content', sizeDuration: '300×250', impressions: '189.2K', ctr: '4.12%', revenue: '$780.00', status: 'Active', gradient: 'from-emerald-900/60 via-green-800/40 to-teal-900/30', date: 'Jun 03, 2025' },
-  { id: '10', name: 'Premium Subscription Ad', type: 'Popup', placement: 'Exit Intent Popup', sizeDuration: '500×350', impressions: '456.8K', ctr: '4.87%', revenue: '$2,845.60', status: 'Active', gradient: 'from-rose-900/60 via-pink-800/40 to-red-900/30', date: 'Jun 05, 2025' },
-]
+// Demo data removed — all ads now fetched from Supabase in realtime
 
 // ─── Mini Sparkline SVG ──────────────────────────────────────────────────────
 
@@ -223,10 +164,55 @@ export function AllAdsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [activeTypeFilter, setActiveTypeFilter] = useState<string>('all')
 
+  // ─── Realtime Supabase Ads ────────────────────────────────────────────
+  const { ads: allAds, stats, deleteAd, toggleAdStatus } = useRealtimeAds()
+
+  const typeColorMap: Record<string, string> = { 'banner': '#3b82f6', 'popup': '#ec4899', 'hero': '#8b5cf6', 'footer': '#8b5cf6', 'sidebar': '#8b5cf6', 'overlay': '#eab308', 'video': '#f97316' }
+  const typeGradientMap: Record<string, string> = { 'banner': 'from-blue-900/60 via-indigo-800/40 to-violet-900/30', 'popup': 'from-pink-900/60 via-rose-800/40 to-red-900/30', 'hero': 'from-purple-900/60 via-violet-800/40 to-fuchsia-900/30', 'footer': 'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30', 'overlay': 'from-yellow-900/60 via-amber-800/40 to-orange-900/30', 'sidebar': 'from-emerald-900/60 via-green-800/40 to-teal-900/30' }
+  const getAdDisplayType = (ad: AdRecord): AdType => {
+    if (ad.type === 'banner') return 'Banner'
+    if (ad.type === 'popup') return 'Popup'
+    if (ad.type === 'overlay') return 'Overlay'
+    if (ad.position === 'hero' || ad.position === 'footer') return 'Hero/Footer'
+    return 'Banner'
+  }
+
+  const mappedAds: AllAd[] = useMemo(() => allAds.map((ad) => ({
+    id: ad.id,
+    name: ad.title,
+    type: getAdDisplayType(ad),
+    placement: ad.position === 'hero' ? 'Hero Section' : ad.position === 'footer' ? 'Footer' : ad.position,
+    sizeDuration: ad.adDuration > 0 ? `00:${String(ad.adDuration).padStart(2, '0')} sec` : '970×250',
+    impressions: formatAdNumber(ad.impressions),
+    ctr: ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) + '%' : '0%',
+    revenue: formatAdRevenue(ad.revenue),
+    status: (ad.isActive ? 'Active' : 'Paused') as AllAd['status'],
+    gradient: typeGradientMap[ad.type] || typeGradientMap[ad.position] || 'from-blue-900/60 via-indigo-800/40 to-violet-900/30',
+    date: new Date(ad.createdAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+  })), [allAds])
+
+  const donutData = useMemo(() => {
+    const counts: Record<string, number> = {}
+    allAds.forEach(ad => {
+      const typeName = getAdDisplayType(ad) + ' Ads'
+      counts[typeName] = (counts[typeName] || 0) + 1
+    })
+    const typeColors: Record<string, string> = { 'Banner Ads': '#3b82f6', 'Popup Ads': '#ec4899', 'Hero/Footer Ads': '#8b5cf6', 'Overlay Ads': '#eab308', 'Pre-Roll Ads': '#f97316', 'Mid-Roll Ads': '#06b6d4', 'Post-Roll Ads': '#a855f7' }
+    return Object.entries(counts).map(([name, value]) => ({ name, value, color: typeColors[name] || '#10b981' }))
+  }, [allAds])
+
+  const impressionsData = useMemo(() => {
+    return allAds.slice(0, 16).map((ad, i) => ({ date: new Date(ad.createdAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }), value: ad.impressions }))
+  }, [allAds])
+
+  const revenueData = useMemo(() => {
+    return allAds.slice(0, 16).map((ad) => ({ date: new Date(ad.createdAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }), value: ad.revenue }))
+  }, [allAds])
+
   // ─── Filtered Ads ──────────────────────────────────────────────────────
 
   const filteredAds = useMemo(() => {
-    return mockAds.filter((ad) => {
+    return mappedAds.filter((ad) => {
       if (statusFilter !== 'all' && ad.status.toLowerCase() !== statusFilter) return false
       if (activeTypeFilter !== 'all') {
         const typeMap: Record<string, string> = {
@@ -239,7 +225,7 @@ export function AllAdsPage() {
       if (searchQuery && !ad.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
       return true
     })
-  }, [statusFilter, activeTypeFilter, searchQuery])
+  }, [mappedAds, statusFilter, activeTypeFilter, searchQuery])
 
   const statusStyles: Record<string, string> = {
     Active: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
@@ -311,11 +297,11 @@ export function AllAdsPage() {
             TOP ANALYTICS CARDS (5 cards)
             ═══════════════════════════════════════════════════════════════════ */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <StatCard title="Total Ads" value="156" change="+18.5%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
-          <StatCard title="Active Ads" value="124" change="+14.2%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
-          <StatCard title="Impressions" value="8.42M" change="+26.7%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
-          <StatCard title="CTR" value="4.59%" change="+9.4%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
-          <StatCard title="Revenue" value="$24,425.80" change="+22.6%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
+          <StatCard title="Total Ads" value={String(stats.totalAds)} change="+18.5%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
+          <StatCard title="Active Ads" value={String(stats.activeAds)} change="+14.2%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
+          <StatCard title="Impressions" value={formatAdNumber(stats.totalImpressions)} change="+26.7%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
+          <StatCard title="CTR" value={stats.avgCTR.toFixed(2) + '%'} change="+9.4%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
+          <StatCard title="Revenue" value={formatAdRevenue(stats.totalRevenue)} change="+22.6%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════════
@@ -332,7 +318,7 @@ export function AllAdsPage() {
             <div className="p-3 lg:p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-bold text-white">Ads Distribution</h2>
-                <span className="text-[10px] text-white/30">156 Total Ads</span>
+                <span className="text-[10px] text-white/30">{stats.totalAds} Total Ads</span>
               </div>
               <div className="h-48">
                 <ResponsiveContainer width="99%" height="100%">
@@ -342,7 +328,7 @@ export function AllAdsPage() {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-lg font-bold">156</text>
+                    <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-lg font-bold">{stats.totalAds}</text>
                     <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" className="fill-white/30 text-[8px]">Total Ads</text>
                     <Tooltip
                       content={({ active, payload }) => {
@@ -632,10 +618,13 @@ export function AllAdsPage() {
                       </td>
                       {/* Status */}
                       <td className="py-2 pr-3">
-                        <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium ${statusStyles[ad.status]}`}>
+                        <button
+                          onClick={() => toggleAdStatus(ad.id, ad.status !== 'Active')}
+                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium transition-all hover:scale-105 active:scale-95 ${statusStyles[ad.status]}`}
+                        >
                           <span className={`h-1.5 w-1.5 rounded-full ${ad.status === 'Active' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                           {ad.status}
-                        </span>
+                        </button>
                       </td>
                       {/* Actions */}
                       <td className="py-2">
@@ -649,7 +638,15 @@ export function AllAdsPage() {
                           <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-white/10 hover:text-white" title="Edit">
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
-                          <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-red-500/10 hover:text-red-400" title="Delete">
+                          <button
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this ad?')) {
+                                deleteAd(ad.id)
+                              }
+                            }}
+                            className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                            title="Delete"
+                          >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>

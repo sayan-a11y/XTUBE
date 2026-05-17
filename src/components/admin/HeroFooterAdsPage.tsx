@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { formatAdNumber, formatAdRevenue } from '@/hooks/useRealtimeAds'
+import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   CloudUpload,
@@ -59,11 +61,15 @@ type PreviewMode = 'desktop' | 'tablet' | 'mobile'
 
 interface HeroFooterAd {
   id: string
+  isHero: boolean
   title: string
   type: 'Image' | 'HTML5'
   placement: string
   size: string
   impressions: string
+  clicks?: number
+  rawImpressions?: number
+  rawRevenue?: number
   ctr: string
   revenue: string
   status: 'Active' | 'Paused' | 'Draft'
@@ -88,85 +94,7 @@ const thumbnailGradients = [
   'from-pink-900/60 via-rose-800/40 to-fuchsia-900/30',
 ]
 
-const mockAds: HeroFooterAd[] = [
-  {
-    id: '1',
-    title: 'Summer Mega Sale',
-    type: 'Image',
-    placement: 'Hero Section - Top',
-    size: '1920×600',
-    impressions: '1.85M',
-    ctr: '5.24%',
-    revenue: '$5,450.80',
-    status: 'Active',
-    gradient: 'from-red-900/60 via-rose-800/40 to-pink-900/30',
-  },
-  {
-    id: '2',
-    title: 'Premium Plan Promo',
-    type: 'HTML5',
-    placement: 'Hero Section - Bottom',
-    size: '1600×300',
-    impressions: '1.12M',
-    ctr: '4.87%',
-    revenue: '$3,845.60',
-    status: 'Active',
-    gradient: 'from-blue-900/60 via-indigo-800/40 to-violet-900/30',
-  },
-  {
-    id: '3',
-    title: 'New Releases Banner',
-    type: 'Image',
-    placement: 'Footer Top',
-    size: '970×250',
-    impressions: '898.5K',
-    ctr: '3.92%',
-    revenue: '$2,145.40',
-    status: 'Active',
-    gradient: 'from-cyan-900/60 via-sky-800/40 to-blue-900/30',
-  },
-  {
-    id: '4',
-    title: 'Holiday Special Offer',
-    type: 'Image',
-    placement: 'Hero Section - Top',
-    size: '1920×600',
-    impressions: '689.4K',
-    ctr: '4.14%',
-    revenue: '$2,104.50',
-    status: 'Paused',
-    gradient: 'from-emerald-900/60 via-teal-800/40 to-cyan-900/30',
-  },
-  {
-    id: '5',
-    title: 'Footer Subscribe CTA',
-    type: 'HTML5',
-    placement: 'Footer Bottom',
-    size: '728×90',
-    impressions: '454.2K',
-    ctr: '3.56%',
-    revenue: '$1,424.00',
-    status: 'Active',
-    gradient: 'from-rose-900/60 via-pink-800/40 to-red-900/30',
-  },
-  {
-    id: '6',
-    title: 'Weekend Binge Fest',
-    type: 'Image',
-    placement: 'Footer Top',
-    size: '1600×300',
-    impressions: '323.6K',
-    ctr: '3.82%',
-    revenue: '$1,075.45',
-    status: 'Draft',
-    gradient: 'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30',
-  },
-]
-
-const donutData = [
-  { name: 'Hero Section', value: 3904000 },
-  { name: 'Footer Section', value: 1516000 },
-]
+// Demo data removed — all hero/footer ads now fetched from Supabase in realtime
 
 // ─── Mini Sparkline SVG ──────────────────────────────────────────────────────
 
@@ -332,9 +260,252 @@ export function HeroFooterAdsPage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
 
-  // ─── Filtered Ads ──────────────────────────────────────────────────────
+  // ─── Live State & Fetching ──────────────────────────────────────────────
 
-  const filteredAds = mockAds.filter((ad) => {
+  const [heroAds, setHeroAds] = useState<any[]>([])
+  const [footerAds, setFooterAds] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [heroRes, footerRes] = await Promise.all([
+        fetch('/api/hero-ads'),
+        fetch('/api/footer-ads')
+      ])
+      if (heroRes.ok && footerRes.ok) {
+        const heroData = await heroRes.json()
+        const footerData = await footerRes.json()
+        setHeroAds(heroData.heroAds || [])
+        setFooterAds(footerData.footerAds || [])
+      }
+    } catch (e) {
+      console.error('Error fetching ads data:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  // Realtime Subscriptions
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !supabase) return
+
+    const channelHero = supabase
+      .channel('admin-hero-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'HeroAd' }, () => {
+        fetchData()
+      })
+      .subscribe()
+
+    const channelFooter = supabase
+      .channel('admin-footer-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'FooterAd' }, () => {
+        fetchData()
+      })
+      .subscribe()
+
+    return () => {
+      supabase?.removeChannel(channelHero)
+      supabase?.removeChannel(channelFooter)
+    }
+  }, [fetchData])
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.type?.startsWith('hero_ad:') || detail?.type?.startsWith('footer_ad:')) {
+        fetchData()
+      }
+    }
+    window.addEventListener('realtime-sync', handler)
+    return () => window.removeEventListener('realtime-sync', handler)
+  }, [fetchData])
+
+  // Delete Ad Handler
+  const deleteAd = useCallback(async (id: string, isHero: boolean) => {
+    try {
+      const endpoint = isHero ? '/api/hero-ads' : '/api/footer-ads'
+      const res = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      if (res.ok) {
+        if (isHero) {
+          setHeroAds(prev => prev.filter(a => a.id !== id))
+        } else {
+          setFooterAds(prev => prev.filter(a => a.id !== id))
+        }
+      } else {
+        alert('Failed to delete ad')
+      }
+    } catch (e) {
+      console.error(e)
+      alert('Error deleting ad')
+    }
+  }, [])
+
+  // Toggle Ad Status Handler
+  const toggleAdStatus = useCallback(async (id: string, isHero: boolean, isActive: boolean) => {
+    try {
+      const endpoint = isHero ? '/api/hero-ads' : '/api/footer-ads'
+      const res = await fetch(endpoint, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, isActive }),
+      })
+      if (res.ok) {
+        if (isHero) {
+          setHeroAds(prev => prev.map(a => a.id === id ? { ...a, isActive } : a))
+        } else {
+          setFooterAds(prev => prev.map(a => a.id === id ? { ...a, isActive } : a))
+        }
+      } else {
+        alert('Failed to update status')
+      }
+    } catch (e) {
+      console.error(e)
+      alert('Error updating status')
+    }
+  }, [])
+
+  // Create/Save Ad Handler
+  const [saving, setSaving] = useState(false)
+  const handleSaveAd = useCallback(async () => {
+    if (!adTitle) {
+      alert('Please enter an ad title')
+      return
+    }
+    setSaving(true)
+    try {
+      const isHero = sectionTab === 'hero'
+      const endpoint = isHero ? '/api/hero-ads' : '/api/footer-ads'
+      
+      const payload: Record<string, any> = {
+        title: adTitle,
+        mediaUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop',
+        adType: 'image',
+        mediaFormat: 'jpg',
+        isActive: statusActive,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
+      }
+
+      if (isHero) {
+        payload.description = 'Premium hero banner promotion'
+        payload.category = 'Electronics'
+        payload.displayOrder = 0
+      } else {
+        payload.linkUrl = adLink || null
+      }
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        if (isHero) {
+          setHeroAds(prev => [data.heroAd, ...prev])
+        } else {
+          setFooterAds(prev => [data.footerAd, ...prev])
+        }
+        setAdTitle('')
+        setAdLink('')
+        handleResetUpload()
+        alert(`${isHero ? 'Hero' : 'Footer'} ad saved successfully!`)
+      } else {
+        const err = await res.json()
+        alert(`Error: ${err.error || 'Failed to save'}`)
+      }
+    } catch (e) {
+      console.error(e)
+      alert('Failed to save ad')
+    } finally {
+      setSaving(false)
+    }
+  }, [adTitle, sectionTab, statusActive, startDate, endDate, adLink, handleResetUpload])
+
+  // Stats KPI Computation
+  const stats = useMemo(() => {
+    const totalHero = heroAds.length
+    const totalFooter = footerAds.length
+    const activeHero = heroAds.filter(a => a.isActive).length
+    const activeFooter = footerAds.filter(a => a.isActive).length
+
+    const totalImpressions = [...heroAds, ...footerAds].reduce((s, a) => s + (a.impressions || 0), 0)
+    const totalClicks = [...heroAds, ...footerAds].reduce((s, a) => s + (a.clicks || 0), 0)
+    const totalRevenue = [...heroAds, ...footerAds].reduce((s, s_ad) => s + (s_ad.revenue || 0), 0)
+    const avgCTR = [...heroAds, ...footerAds].length > 0
+      ? ([...heroAds, ...footerAds].reduce((s, a) => s + (a.impressions > 0 ? (a.clicks / a.impressions) * 100 : 0), 0) / [...heroAds, ...footerAds].length)
+      : 0
+
+    return {
+      totalAds: totalHero + totalFooter,
+      activeAds: activeHero + activeFooter,
+      totalImpressions,
+      avgCTR,
+      totalRevenue
+    }
+  }, [heroAds, footerAds])
+
+  const adGradients = ['from-red-900/60 via-rose-800/40 to-pink-900/30','from-blue-900/60 via-indigo-800/40 to-violet-900/30','from-cyan-900/60 via-sky-800/40 to-blue-900/30','from-emerald-900/60 via-teal-800/40 to-cyan-900/30','from-rose-900/60 via-pink-800/40 to-red-900/30','from-violet-900/60 via-purple-800/40 to-fuchsia-900/30']
+  
+  const mappedAds: HeroFooterAd[] = useMemo(() => {
+    const list: HeroFooterAd[] = []
+    heroAds.forEach((ad, i) => {
+      list.push({
+        id: ad.id,
+        isHero: true,
+        title: ad.title,
+        type: (ad.mediaFormat === 'html5' ? 'HTML5' : 'Image'),
+        placement: 'Hero Section - Top',
+        size: '1920×600',
+        impressions: formatAdNumber(ad.impressions || 0),
+        clicks: ad.clicks || 0,
+        rawImpressions: ad.impressions || 0,
+        rawRevenue: ad.revenue || 0,
+        ctr: (ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) + '%' : '0%'),
+        revenue: formatAdRevenue(ad.revenue || 0),
+        status: ad.isActive ? 'Active' : 'Paused',
+        gradient: adGradients[i % adGradients.length]
+      })
+    })
+    footerAds.forEach((ad, i) => {
+      list.push({
+        id: ad.id,
+        isHero: false,
+        title: ad.title,
+        type: (ad.mediaFormat === 'html5' ? 'HTML5' : 'Image'),
+        placement: 'Footer Bottom',
+        size: '970×250',
+        impressions: formatAdNumber(ad.impressions || 0),
+        clicks: ad.clicks || 0,
+        rawImpressions: ad.impressions || 0,
+        rawRevenue: ad.revenue || 0,
+        ctr: (ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) + '%' : '0%'),
+        revenue: formatAdRevenue(ad.revenue || 0),
+        status: ad.isActive ? 'Active' : 'Paused',
+        gradient: adGradients[(i + heroAds.length) % adGradients.length]
+      })
+    })
+    return list
+  }, [heroAds, footerAds])
+
+  const donutData = useMemo(() => [
+    { name: 'Hero Section', value: heroAds.reduce((s, a) => s + (a.impressions || 0), 0) },
+    { name: 'Footer Section', value: footerAds.reduce((s, a) => s + (a.impressions || 0), 0) }
+  ], [heroAds, footerAds])
+
+  const filteredAds = mappedAds.filter((ad) => {
     if (statusFilter !== 'all' && ad.status.toLowerCase() !== statusFilter) return false
     if (searchQuery && !ad.title.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
@@ -417,15 +588,12 @@ export function HeroFooterAdsPage() {
           </div>
         </div>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            TOP ANALYTICS CARDS (5 cards)
-            ═══════════════════════════════════════════════════════════════════ */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <StatCard title="Total Ads" value="28" change="+14.5%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
-          <StatCard title="Active Ads" value="21" change="+11.2%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
-          <StatCard title="Impressions" value="5.42M" change="+22.7%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
-          <StatCard title="CTR" value="4.59%" change="+8.4%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
-          <StatCard title="Revenue" value="$15,425.80" change="+19.6%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
+          <StatCard title="Total Ads" value={stats.totalAds.toString()} change="+14.5%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
+          <StatCard title="Active Ads" value={stats.activeAds.toString()} change="+11.2%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
+          <StatCard title="Impressions" value={formatAdNumber(stats.totalImpressions)} change="+22.7%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
+          <StatCard title="CTR" value={stats.avgCTR.toFixed(2) + '%'} change="+8.4%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
+          <StatCard title="Revenue" value={formatAdRevenue(stats.totalRevenue)} change="+19.6%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════════
@@ -779,12 +947,14 @@ export function HeroFooterAdsPage() {
 
                 {/* Save button */}
                 <motion.button
+                  onClick={handleSaveAd}
+                  disabled={saving}
                   whileHover={{ scale: 1.02, boxShadow: '0 0 25px rgba(255,30,30,0.4)' }}
                   whileTap={{ scale: 0.98 }}
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#ff1e1e] to-[#cc181e] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,30,30,0.3)] transition-all hover:from-[#ff2e2e] hover:to-[#dd282e]"
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#ff1e1e] to-[#cc181e] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,30,30,0.3)] transition-all hover:from-[#ff2e2e] hover:to-[#dd282e] disabled:opacity-50"
                 >
                   <CloudUpload className="h-4 w-4" />
-                  Save {sectionLabel} Ad
+                  {saving ? 'Saving...' : `Save ${sectionLabel} Ad`}
                 </motion.button>
               </div>
             </div>
@@ -1155,7 +1325,7 @@ export function HeroFooterAdsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {filteredAds.map((ad, i) => (
+                  {filteredAds.slice((currentPage - 1) * 10, currentPage * 10).map((ad, i) => (
                     <motion.tr
                       key={ad.id}
                       initial={{ opacity: 0, x: -8 }}
@@ -1215,12 +1385,15 @@ export function HeroFooterAdsPage() {
                       </td>
                       {/* Status */}
                       <td className="py-2 pr-3">
-                        <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium ${statusStyles[ad.status]}`}>
+                        <button
+                          onClick={() => toggleAdStatus(ad.id, ad.isHero, ad.status !== 'Active')}
+                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium ${statusStyles[ad.status]} transition-colors hover:bg-white/5`}
+                        >
                           {ad.status === 'Active' && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
                           {ad.status === 'Paused' && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
                           {ad.status === 'Draft' && <span className="h-1.5 w-1.5 rounded-full bg-white/30" />}
                           {ad.status}
-                        </span>
+                        </button>
                       </td>
                       {/* Actions */}
                       <td className="py-2">
@@ -1231,7 +1404,15 @@ export function HeroFooterAdsPage() {
                           <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-white/10 hover:text-white" title="Analytics">
                             <BarChart3 className="h-3.5 w-3.5" />
                           </button>
-                          <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-red-500/10 hover:text-red-400" title="Delete">
+                          <button
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this ad?')) {
+                                deleteAd(ad.id, ad.isHero)
+                              }
+                            }}
+                            className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                            title="Delete"
+                          >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -1256,31 +1437,35 @@ export function HeroFooterAdsPage() {
                     <SelectItem value="50" className="text-[10px] text-white focus:bg-white/5">50</SelectItem>
                   </SelectContent>
                 </Select>
-                <span className="text-[10px] text-white/30">1–6 of 28</span>
+                <span className="text-[10px] text-white/30">
+                  {filteredAds.length > 0 ? (currentPage - 1) * 10 + 1 : 0}–{Math.min(currentPage * 10, filteredAds.length)} of {filteredAds.length}
+                </span>
               </div>
               <div className="flex items-center gap-1">
                 <button
+                  disabled={currentPage === 1}
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
+                  className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 text-white/40 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </button>
-                {[1, 2, 3].map((page) => (
+                {Array.from({ length: Math.ceil(filteredAds.length / 10) }).map((_, i) => (
                   <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
+                    key={i}
+                    onClick={() => setCurrentPage(i + 1)}
                     className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-medium transition-colors ${
-                      currentPage === page
+                      currentPage === i + 1
                         ? 'bg-[#ff1e1e] text-white'
                         : 'border border-white/10 text-white/40 hover:bg-white/5 hover:text-white'
                     }`}
                   >
-                    {page}
+                    {i + 1}
                   </button>
                 ))}
                 <button
-                  onClick={() => setCurrentPage(Math.min(3, currentPage + 1))}
-                  className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
+                  disabled={currentPage === Math.ceil(filteredAds.length / 10) || filteredAds.length === 0}
+                  onClick={() => setCurrentPage(Math.min(Math.ceil(filteredAds.length / 10), currentPage + 1))}
+                  className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 text-white/40 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40"
                 >
                   <ChevronRight className="h-3.5 w-3.5" />
                 </button>

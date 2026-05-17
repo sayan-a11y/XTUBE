@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useRealtimeAds, formatAdNumber, formatAdRevenue } from '@/hooks/useRealtimeAds'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Play,
@@ -114,79 +115,7 @@ const positionLabels: Record<OverlayPosition, string> = {
   'bottom-right': 'Bottom Right',
 }
 
-const mockAds: OverlayAd[] = [
-  {
-    id: '1',
-    name: 'Nike Air Max Overlay Ad',
-    type: 'Image',
-    placement: 'Overlay (Bottom Center)',
-    impressions: '1.24M',
-    ctr: '5.82%',
-    revenue: '$3,845.20',
-    status: 'Active',
-    gradient: 'from-orange-900/60 via-red-800/40 to-amber-900/30',
-  },
-  {
-    id: '2',
-    name: 'Samsung Galaxy Overlay',
-    type: 'HTML5',
-    placement: 'Overlay (Bottom Right)',
-    impressions: '986.5K',
-    ctr: '4.92%',
-    revenue: '$2,950.30',
-    status: 'Active',
-    gradient: 'from-blue-900/60 via-indigo-800/40 to-violet-900/30',
-  },
-  {
-    id: '3',
-    name: 'BMW Car Overlay Ad',
-    type: 'Image',
-    placement: 'Overlay (Top Right)',
-    impressions: '845.2K',
-    ctr: '5.14%',
-    revenue: '$2,650.10',
-    status: 'Active',
-    gradient: 'from-cyan-900/60 via-sky-800/40 to-blue-900/30',
-  },
-  {
-    id: '4',
-    name: 'Summer Sale Overlay',
-    type: 'Image',
-    placement: 'Overlay (Center)',
-    impressions: '1.12M',
-    ctr: '6.24%',
-    revenue: '$3,800.00',
-    status: 'Active',
-    gradient: 'from-emerald-900/60 via-teal-800/40 to-cyan-900/30',
-  },
-  {
-    id: '5',
-    name: 'Adidas Sport Overlay',
-    type: 'HTML5',
-    placement: 'Overlay (Bottom Left)',
-    impressions: '424.8K',
-    ctr: '4.36%',
-    revenue: '$1,424.50',
-    status: 'Paused',
-    gradient: 'from-rose-900/60 via-pink-800/40 to-red-900/30',
-  },
-  {
-    id: '6',
-    name: 'Apple iPhone Overlay Ad',
-    type: 'Image',
-    placement: 'Overlay (Top Left)',
-    impressions: '299.5K',
-    ctr: '5.68%',
-    revenue: '$1,575.50',
-    status: 'Draft',
-    gradient: 'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30',
-  },
-]
-
-const donutData = [
-  { name: 'Image Ads', value: 3440000 },
-  { name: 'HTML5 Ads', value: 1480000 },
-]
+// Demo data removed — all overlay ads now fetched from Supabase in realtime
 
 // ─── Mini Sparkline SVG ──────────────────────────────────────────────────────
 
@@ -317,6 +246,49 @@ export function OverlayAdsPage() {
   const [displayDesktop, setDisplayDesktop] = useState(true)
   const [displayTablet, setDisplayTablet] = useState(true)
   const [displayMobile, setDisplayMobile] = useState(false)
+  const [overlayName, setOverlayName] = useState('')
+  const [overlayLink, setOverlayLink] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const handleSaveAd = async () => {
+    if (!overlayName) {
+      alert('Please enter an overlay name')
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch('/api/ads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'overlay',
+          position: selectedPosition,
+          title: overlayName,
+          imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop',
+          linkUrl: overlayLink || null,
+          isActive: true,
+          startDate: null,
+          endDate: null,
+        }),
+      })
+
+      if (res.ok) {
+        setOverlayName('')
+        setOverlayLink('')
+        alert('Overlay ad saved successfully!')
+      } else {
+        const err = await res.json()
+        alert(`Error: ${err.error || 'Failed to save overlay'}`)
+      }
+    } catch (e) {
+      console.error(e)
+      alert('Failed to save overlay ad')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   // Table state
   const [searchQuery, setSearchQuery] = useState('')
@@ -384,7 +356,12 @@ export function OverlayAdsPage() {
 
   // ─── Filtered Ads ──────────────────────────────────────────────────────
 
-  const filteredAds = mockAds.filter((ad) => {
+  const { ads: allAds, stats, deleteAd, toggleAdStatus } = useRealtimeAds({ type: 'overlay' })
+  const adGradients = ['from-orange-900/60 via-red-800/40 to-amber-900/30','from-blue-900/60 via-indigo-800/40 to-violet-900/30','from-cyan-900/60 via-sky-800/40 to-blue-900/30','from-emerald-900/60 via-teal-800/40 to-cyan-900/30','from-rose-900/60 via-pink-800/40 to-red-900/30','from-violet-900/60 via-purple-800/40 to-fuchsia-900/30']
+  const mappedAds: OverlayAd[] = useMemo(() => allAds.map((ad, i) => ({ id: ad.id, name: ad.title, type: (ad.mediaFormat === 'html5' ? 'HTML5' : 'Image') as OverlayAd['type'], placement: `Overlay (${ad.position || 'Bottom Center'})`, impressions: formatAdNumber(ad.impressions), ctr: ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) + '%' : '0%', revenue: formatAdRevenue(ad.revenue), status: (ad.isActive ? 'Active' : 'Paused') as OverlayAd['status'], gradient: adGradients[i % adGradients.length] })), [allAds])
+  const donutData = useMemo(() => [{ name: 'Image Ads', value: allAds.filter(a => a.mediaFormat !== 'html5').reduce((s, a) => s + a.impressions, 0) }, { name: 'HTML5 Ads', value: allAds.filter(a => a.mediaFormat === 'html5').reduce((s, a) => s + a.impressions, 0) }], [allAds])
+
+  const filteredAds = mappedAds.filter((ad) => {
     if (statusFilter !== 'all' && ad.status.toLowerCase() !== statusFilter) return false
     if (searchQuery && !ad.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
@@ -463,11 +440,11 @@ export function OverlayAdsPage() {
             TOP ANALYTICS CARDS (5 cards)
             ═══════════════════════════════════════════════════════════════════ */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <StatCard title="Total Overlay Ads" value="41" change="+13.6%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
-          <StatCard title="Active Ads" value="33" change="+12.3%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
-          <StatCard title="Impressions" value="4.92M" change="+19.4%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
-          <StatCard title="CTR" value="5.23%" change="+7.8%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
-          <StatCard title="Revenue" value="$13,245.60" change="+16.1%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
+          <StatCard title="Total Overlay Ads" value={String(stats.totalAds)} change="+13.6%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
+          <StatCard title="Active Ads" value={String(stats.activeAds)} change="+12.3%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
+          <StatCard title="Impressions" value={formatAdNumber(stats.totalImpressions)} change="+19.4%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
+          <StatCard title="CTR" value={stats.avgCTR.toFixed(2) + '%'} change="+7.8%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
+          <StatCard title="Revenue" value={formatAdRevenue(stats.totalRevenue)} change="+16.1%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════════
@@ -752,6 +729,46 @@ export function OverlayAdsPage() {
                     <span className="text-[10px] text-white/50 group-hover:text-white/70">Mobile</span>
                   </label>
                 </div>
+              </div>
+
+              {/* Ad Name & Link */}
+              <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium text-white/50">Overlay Name *</label>
+                  <input
+                    type="text"
+                    value={overlayName}
+                    onChange={(e) => setOverlayName(e.target.value)}
+                    className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white/70 outline-none focus:border-[#ff1e1e]/40"
+                    placeholder="e.g. Nike Banner Overlay"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-medium text-white/50">Destination URL</label>
+                  <input
+                    type="text"
+                    value={overlayLink}
+                    onChange={(e) => setOverlayLink(e.target.value)}
+                    className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white/70 outline-none focus:border-[#ff1e1e]/40"
+                    placeholder="e.g. https://nike.com/promo"
+                  />
+                </div>
+
+                {/* Save button */}
+                <motion.button
+                  onClick={handleSaveAd}
+                  disabled={saving}
+                  whileHover={{ scale: 1.02, boxShadow: '0 0 25px rgba(255,0,0,0.4)' }}
+                  whileTap={{ scale: 0.98 }}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF0000] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,0,0,0.3)] transition-all hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <CloudUpload className="h-4 w-4" />
+                  )}
+                  {saving ? 'Saving...' : 'Save Overlay Ad'}
+                </motion.button>
               </div>
             </div>
           </motion.div>
@@ -1061,12 +1078,15 @@ export function OverlayAdsPage() {
 
                       {/* Status */}
                       <td className="py-2 pr-3">
-                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${statusStyles[ad.status]}`}>
+                        <button
+                          onClick={() => toggleAdStatus(ad.id, ad.status !== 'Active')}
+                          className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold transition-all hover:scale-105 active:scale-95 ${statusStyles[ad.status]}`}
+                        >
                           <span className={`mr-1 h-1.5 w-1.5 rounded-full ${
                             ad.status === 'Active' ? 'bg-[#00FF85]' : ad.status === 'Paused' ? 'bg-[#F59E0B]' : 'bg-white/30'
                           }`} />
                           {ad.status}
-                        </span>
+                        </button>
                       </td>
 
                       {/* Actions */}
@@ -1078,7 +1098,15 @@ export function OverlayAdsPage() {
                           <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-white/5 hover:text-[#3B82F6]" title="Analytics">
                             <BarChart3 className="h-3.5 w-3.5" />
                           </button>
-                          <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-[#FF0000]/10 hover:text-[#FF0000]" title="Delete">
+                          <button
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this overlay ad?')) {
+                                deleteAd(ad.id)
+                              }
+                            }}
+                            className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-[#FF0000]/10 hover:text-[#FF0000]"
+                            title="Delete"
+                          >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
