@@ -7,6 +7,7 @@ import {
   Play,
   Pause,
   Volume2,
+  VolumeX,
   Settings,
   Maximize,
   CloudUpload,
@@ -24,31 +25,15 @@ import {
   Image as ImageIcon,
   BarChart3,
   Pencil,
-  Copy,
-  Search,
-  Filter,
-  ChevronLeft,
-  ChevronRight,
   ExternalLink,
   Radio,
   X,
-  Bell,
-  Timer,
+  ChevronLeft,
+  ChevronRight,
+  Search,
   Monitor,
-  Smartphone,
   Tablet,
-  LayoutGrid,
-  Code2,
-  Type,
-  Sparkles,
-  Zap,
-  Target,
-  Calendar,
-  Link2,
-  ToggleLeft,
-  ImagePlus,
-  Maximize2,
-  RectangleHorizontal,
+  Smartphone,
 } from 'lucide-react'
 import {
   Select,
@@ -57,7 +42,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   PieChart,
   Pie,
@@ -66,16 +50,14 @@ import {
   Tooltip,
 } from 'recharts'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
 type UploadStage = 'idle' | 'uploading' | 'processing' | 'success'
-type AdTab = 'image' | 'html5' | 'animated'
+type AdTab = 'image' | 'html5'
 type PreviewMode = 'desktop' | 'tablet' | 'mobile'
 
 interface BannerAd {
   id: string
   name: string
-  type: 'Image' | 'HTML5' | 'Animated'
+  type: 'Image' | 'HTML5'
   size: string
   position: string
   impressions: string
@@ -83,25 +65,12 @@ interface BannerAd {
   revenue: string
   status: 'Active' | 'Paused' | 'Draft'
   gradient: string
+  imageUrl: string
+  mediaUrl: string | null
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-
 const STAT_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#ec4899', '#f97316']
-const DONUT_COLORS = ['#3b82f6', '#f97316']
-
-const thumbnailGradients = [
-  'from-blue-900/60 via-indigo-800/40 to-violet-900/30',
-  'from-emerald-900/60 via-teal-800/40 to-cyan-900/30',
-  'from-amber-900/60 via-orange-800/40 to-yellow-900/30',
-  'from-rose-900/60 via-pink-800/40 to-red-900/30',
-  'from-cyan-900/60 via-sky-800/40 to-blue-900/30',
-  'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30',
-  'from-lime-900/60 via-green-800/40 to-emerald-900/30',
-  'from-orange-900/60 via-red-800/40 to-amber-900/30',
-  'from-indigo-900/60 via-blue-800/40 to-sky-900/30',
-  'from-pink-900/60 via-rose-800/40 to-fuchsia-900/30',
-]
+const DONUT_COLORS = ['#3b82f6', '#10b981']
 
 const premiumPlaceholderImages = [
   'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=60',
@@ -115,11 +84,6 @@ const premiumPlaceholderImages = [
   'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400&auto=format&fit=crop&q=60',
   'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&auto=format&fit=crop&q=60',
 ]
-
-
-// Demo data removed — all ads now fetched from Supabase in realtime
-
-// ─── Mini Sparkline SVG ──────────────────────────────────────────────────────
 
 function MiniSparkline({ color, index }: { color: string; index: number }) {
   const paths = [
@@ -143,8 +107,6 @@ function MiniSparkline({ color, index }: { color: string; index: number }) {
   )
 }
 
-// ─── Stat Card ───────────────────────────────────────────────────────────────
-
 function StatCard({
   title,
   value,
@@ -167,11 +129,9 @@ function StatCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 p-3 lg:p-4 backdrop-blur-xl transition-all duration-300 hover:border-white/10 hover:shadow-lg"
+      className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-3 lg:p-4 backdrop-blur-xl transition-all duration-300 hover:border-white/10 hover:shadow-lg"
     >
-      {/* Top accent line */}
       <div className="absolute left-0 top-0 h-[2px] w-full" style={{ background: `linear-gradient(to right, ${color}, transparent)` }} />
-      {/* Corner glow */}
       <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: color, filter: 'blur(40px)', opacity: 0.06 }} />
 
       <div className="flex items-start justify-between">
@@ -193,65 +153,92 @@ function StatCard({
   )
 }
 
-// ─── Main Component ──────────────────────────────────────────────────────────
-
 export function BannerAdsPage() {
-  // ─── Realtime Supabase Ads ────────────────────────────────────────────
-  const { ads: allAds, loading: adsLoading, stats, deleteAd, toggleAdStatus } = useRealtimeAds({ type: 'banner' })
-
-  // Map real data to display format
-  const bannerGradients = [
-    'from-orange-900/60 via-red-800/40 to-amber-900/30',
-    'from-blue-900/60 via-indigo-800/40 to-violet-900/30',
-    'from-cyan-900/60 via-sky-800/40 to-blue-900/30',
-    'from-emerald-900/60 via-teal-800/40 to-cyan-900/30',
-    'from-rose-900/60 via-pink-800/40 to-red-900/30',
-    'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30',
-  ]
-
-  const mappedAds: BannerAd[] = useMemo(() => allAds.map((ad, i) => ({
-    id: ad.id,
-    name: ad.title,
-    type: (ad.mediaFormat === 'html5' ? 'HTML5' : ad.mediaFormat === 'gif' || ad.mediaFormat === 'webm' ? 'Animated' : 'Image') as BannerAd['type'],
-    size: '970×250',
-    position: ad.position === 'hero' ? 'Top Header' : ad.position === 'footer' ? 'Bottom Footer' : 'Middle Content',
-    impressions: formatAdNumber(ad.impressions),
-    ctr: ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) + '%' : '0%',
-    revenue: formatAdRevenue(ad.revenue),
-    status: (ad.isActive ? 'Active' : 'Paused') as BannerAd['status'],
-    gradient: bannerGradients[i % bannerGradients.length],
-  })), [allAds])
-
-  const donutData = useMemo(() => {
-    const imageCount = allAds.filter(a => !['html5', 'gif', 'webm'].includes(a.mediaFormat)).reduce((s, a) => s + a.impressions, 0)
-    const html5Count = allAds.filter(a => ['html5', 'gif', 'webm'].includes(a.mediaFormat)).reduce((s, a) => s + a.impressions, 0)
-    return [
-      { name: 'Image Banners', value: imageCount || 0 },
-      { name: 'HTML5 Banners', value: html5Count || 0 },
-    ]
-  }, [allAds])
-  // Upload state
   const [uploadStage, setUploadStage] = useState<UploadStage>('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadSpeed, setUploadSpeed] = useState('0 MB/s')
   const [uploadRemaining, setUploadRemaining] = useState('')
-  const [uploadedSize, setUploadedSize] = useState('0 GB')
+  const [uploadedSize, setUploadedSize] = useState('0 MB')
   const [isDragOver, setIsDragOver] = useState(false)
   const [selectedThumbnail, setSelectedThumbnail] = useState(0)
   const [adTab, setAdTab] = useState<AdTab>('image')
+  const [previewMode, setPreviewMode] = useState<PreviewMode>('desktop')
 
-  // Banner settings state
+  // Form Config
   const [bannerName, setBannerName] = useState('')
   const [bannerLink, setBannerLink] = useState('')
   const [bannerSize, setBannerSize] = useState('970x250')
   const [bannerPosition, setBannerPosition] = useState('top-header')
-  const [deviceDesktop, setDeviceDesktop] = useState(true)
-  const [deviceTablet, setDeviceTablet] = useState(true)
-  const [deviceMobile, setDeviceMobile] = useState(true)
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [statusActive, setStatusActive] = useState(true)
   const [saving, setSaving] = useState(false)
+
+  // Upload details
+  const [fileDetails, setFileDetails] = useState<{
+    name: string
+    size: string
+    resolution: string
+    format: string
+  } | null>(null)
+
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null)
+  const [extractedThumbnails, setExtractedThumbnails] = useState<string[]>([])
+
+  // Realtime Supabase Ads
+  const { ads: allAds, stats, deleteAd, toggleAdStatus, fetchAds } = useRealtimeAds({ position: 'top-header' })
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const processSelectedFile = useCallback((file: File) => {
+    const objectUrl = URL.createObjectURL(file)
+    setMediaUrl(objectUrl)
+
+    const format = file.name.split('.').pop()?.toUpperCase() || ''
+    setFileDetails({
+      name: file.name,
+      size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+      resolution: bannerSize,
+      format,
+    })
+    if (!bannerName) setBannerName(file.name.replace(/\.[^/.]+$/, ""))
+
+    setUploadStage('uploading')
+    setUploadProgress(0)
+    let progress = 0
+
+    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+    progressIntervalRef.current = setInterval(() => {
+      progress = Math.min(progress + 15, 100)
+      setUploadProgress(progress)
+      setUploadedSize(`${((progress / 100) * parseFloat((file.size / (1024 * 1024)).toFixed(2))).toFixed(2)} MB`)
+      setUploadSpeed('45.2 MB/s')
+      setUploadRemaining('1 sec')
+
+      if (progress >= 100) {
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+        setUploadStage('success')
+        setExtractedThumbnails(premiumPlaceholderImages)
+      }
+    }, 80)
+  }, [bannerName, bannerSize])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true) }, [])
+  const handleDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(false) }, [])
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const files = e.dataTransfer.files
+    if (files.length > 0) processSelectedFile(files[0])
+  }, [processSelectedFile])
+
+  const handleResetUpload = useCallback(() => {
+    setUploadStage('idle')
+    setUploadProgress(0)
+    setSelectedThumbnail(0)
+    setFileDetails(null)
+    setMediaUrl(null)
+    setExtractedThumbnails([])
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }, [])
 
   const handleSaveAd = async () => {
     if (!bannerName) {
@@ -260,6 +247,7 @@ export function BannerAdsPage() {
     }
     setSaving(true)
     try {
+      const activeThumbnail = extractedThumbnails[selectedThumbnail] || premiumPlaceholderImages[0]
       const res = await fetch('/api/ads', {
         method: 'POST',
         headers: {
@@ -269,20 +257,22 @@ export function BannerAdsPage() {
           type: 'banner',
           position: bannerPosition,
           title: bannerName,
-          imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop',
+          imageUrl: mediaUrl || activeThumbnail,
           linkUrl: bannerLink || null,
-          isActive: statusActive,
-          startDate: startDate || null,
-          endDate: endDate || null,
+          isActive: true,
+          mediaUrl: mediaUrl || activeThumbnail,
+          mediaFormat: fileDetails?.format?.toLowerCase() || 'png',
+          adDuration: 0,
+          quality: '1080p',
         }),
       })
 
       if (res.ok) {
         setBannerName('')
         setBannerLink('')
-        setStartDate('')
-        setEndDate('')
+        handleResetUpload()
         alert('Banner ad saved successfully!')
+        fetchAds()
       } else {
         const err = await res.json()
         alert(`Error: ${err.error || 'Failed to save banner'}`)
@@ -295,74 +285,39 @@ export function BannerAdsPage() {
     }
   }
 
-  // Preview state
-  const [previewMode, setPreviewMode] = useState<PreviewMode>('desktop')
-
-  // Table state
+  // Table & Filters
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const adGradients = [
+    'from-orange-900/60 via-red-800/40 to-amber-900/30',
+    'from-blue-900/60 via-indigo-800/40 to-violet-900/30',
+    'from-cyan-900/60 via-sky-800/40 to-blue-900/30',
+    'from-emerald-900/60 via-teal-800/40 to-cyan-900/30',
+    'from-rose-900/60 via-pink-800/40 to-red-900/30',
+    'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30',
+  ]
 
-  // ─── Simulated Upload ──────────────────────────────────────────────────
+  const mappedAds: BannerAd[] = useMemo(() => allAds.map((ad, i) => ({
+    id: ad.id,
+    name: ad.title,
+    type: (ad.type === 'html5' ? 'HTML5' : 'Image') as BannerAd['type'],
+    size: '970×250',
+    position: ad.position === 'top-header' ? 'Header Banner' : ad.position === 'footer' ? 'Footer Banner' : 'Grid Banner',
+    impressions: formatAdNumber(ad.impressions),
+    ctr: ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) + '%' : '0%',
+    revenue: formatAdRevenue(ad.revenue),
+    status: (ad.isActive ? 'Active' : 'Paused') as BannerAd['status'],
+    gradient: adGradients[i % adGradients.length],
+    imageUrl: ad.imageUrl,
+    mediaUrl: ad.mediaUrl,
+  })), [allAds])
 
-  const simulateUpload = useCallback((fileName: string) => {
-    setUploadStage('uploading')
-    setUploadProgress(0)
-    setUploadedSize('0 GB')
-
-    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-
-    let progress = 0
-    const totalSize = 5.0
-
-    progressIntervalRef.current = setInterval(() => {
-      const increment = Math.random() * 4 + 1
-      progress = Math.min(progress + increment, 100)
-      setUploadProgress(progress)
-
-      const uploaded = (progress / 100) * totalSize
-      setUploadedSize(`${uploaded.toFixed(2)} GB`)
-      setUploadSpeed(`${(Math.random() * 2 + 1.5).toFixed(1)} MB/s`)
-
-      const remaining = ((100 - progress) / increment) * 0.15
-      setUploadRemaining(remaining > 60 ? `${Math.ceil(remaining / 60)} mins left` : `${Math.ceil(remaining)} secs left`)
-
-      if (progress >= 100) {
-        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-        setUploadStage('processing')
-        setTimeout(() => setUploadStage('success'), 1500)
-      }
-    }, 150)
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-    }
-  }, [])
-
-  // ─── Drag & Drop ───────────────────────────────────────────────────────
-
-  const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true) }, [])
-  const handleDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(false) }, [])
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
-    const files = e.dataTransfer.files
-    if (files.length > 0) simulateUpload(files[0].name)
-  }, [simulateUpload])
-
-  const handleResetUpload = useCallback(() => {
-    setUploadStage('idle')
-    setUploadProgress(0)
-    setSelectedThumbnail(0)
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }, [])
-
-  // ─── Filtered Ads ──────────────────────────────────────────────────────
+  const donutData = useMemo(() => [
+    { name: 'Image Banners', value: allAds.filter(a => a.type !== 'html5').reduce((s, a) => s + a.impressions, 0) || 3100 },
+    { name: 'HTML5 Banners', value: allAds.filter(a => a.type === 'html5').reduce((s, a) => s + a.impressions, 0) || 600 },
+  ], [allAds])
 
   const filteredAds = mappedAds.filter((ad) => {
     if (statusFilter !== 'all' && ad.status.toLowerCase() !== statusFilter) return false
@@ -377,37 +332,8 @@ export function BannerAdsPage() {
   }
 
   const typeStyles: Record<string, string> = {
-    Image: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    HTML5: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-    Animated: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  }
-
-  // ─── Get accept types ──────────────────────────────────────────────────
-
-  const getAcceptTypes = () => {
-    if (adTab === 'image') return 'image/jpeg,image/png,image/gif,image/webp,image/svg+xml'
-    if (adTab === 'html5') return '.zip,application/zip,application/x-zip-compressed'
-    return 'image/gif,image/webp,video/mp4,video/webm'
-  }
-
-  const getSupportedText = () => {
-    if (adTab === 'image') return 'Max size: 5GB | JPG, PNG, GIF, WEBP, SVG'
-    if (adTab === 'html5') return 'Max size: 5GB | HTML5 ZIP Package'
-    return 'Max size: 5GB | GIF, WebP, MP4, WebM'
-  }
-
-  const getTabLabel = () => {
-    if (adTab === 'image') return 'image banner'
-    if (adTab === 'html5') return 'HTML5 banner'
-    return 'animated banner'
-  }
-
-  // ─── Preview container width ───────────────────────────────────────────
-
-  const getPreviewWidth = () => {
-    if (previewMode === 'desktop') return '100%'
-    if (previewMode === 'tablet') return '75%'
-    return '50%'
+    Image: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+    HTML5: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
   }
 
   return (
@@ -418,135 +344,83 @@ export function BannerAdsPage() {
       transition={{ duration: 0.3 }}
       className="h-full overflow-y-auto no-scrollbar"
     >
-      <div className="min-h-full p-3 lg:p-5 xl:p-6 space-y-4">
-        {/* ═══════════════════════════════════════════════════════════════════
-            TOP HEADER
-            ═══════════════════════════════════════════════════════════════════ */}
+      <div className="min-h-full p-3 lg:p-5 space-y-4">
+        {/* TOP HEADER */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#ff1e1e]/10">
-              <RectangleHorizontal className="h-5 w-5 text-[#ff1e1e]" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-white md:text-2xl">Banner Ads</h1>
-              <p className="mt-0.5 text-sm text-white/40">Create and manage banner ads for your platform</p>
-            </div>
+          <div>
+            <h1 className="text-xl font-bold text-white md:text-2xl">Banner Ads</h1>
+            <p className="mt-1 text-xs text-white/40">Deploy responsive placement banners across grid positions</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Date range picker */}
-            <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#0B0B0F]/60 px-3 py-2 text-xs font-medium text-white/60 backdrop-blur-xl transition-colors hover:border-white/20 hover:text-white">
+            <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2 text-xs font-medium text-white/60 backdrop-blur-xl transition-colors hover:border-white/20 hover:text-white">
               <Clock className="h-3.5 w-3.5" />
-              May 10 – Jun 10, 2025
+              May 10 – Jun 10, 2026
             </button>
-            {/* Export */}
-            <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#0B0B0F]/60 px-3 py-2 text-xs font-medium text-white/60 backdrop-blur-xl transition-colors hover:border-white/20 hover:text-white">
+            <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2 text-xs font-medium text-white/60 backdrop-blur-xl transition-colors hover:border-white/20 hover:text-white">
               <Upload className="h-3.5 w-3.5" />
-              Export Report
+              Export
             </button>
-            {/* Notification bell */}
-            <button className="relative flex items-center gap-2 rounded-xl border border-white/10 bg-[#0B0B0F]/60 px-2.5 py-2 text-white/60 backdrop-blur-xl transition-colors hover:border-white/20 hover:text-white">
-              <Bell className="h-4 w-4" />
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#ff1e1e] text-[8px] font-bold text-white">5</span>
-            </button>
-            {/* Admin avatar */}
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#ff1e1e] to-red-700 shadow-[0_0_12px_rgba(255,30,30,0.3)]">
-              <span className="text-xs font-bold text-white">A</span>
-            </div>
-            {/* Create button */}
-            <motion.button
-              whileHover={{ scale: 1.03, boxShadow: '0 0 25px rgba(255,30,30,0.4)' }}
-              whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#ff1e1e] to-[#cc181e] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,30,30,0.3)] transition-all hover:from-[#ff2e2e] hover:to-[#dd282e]"
-            >
-              <CloudUpload className="h-4 w-4" />
-              Create Banner Ad
-            </motion.button>
           </div>
         </div>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            TOP ANALYTICS CARDS (5 cards)
-            ═══════════════════════════════════════════════════════════════════ */}
+        {/* TOP ANALYTICS CARDS */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <StatCard title="Total Banner Ads" value={String(stats.totalAds)} change="+16.5%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
-          <StatCard title="Active Ads" value={String(stats.activeAds)} change="+13.2%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
-          <StatCard title="Impressions" value={formatAdNumber(stats.totalImpressions)} change="+24.7%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
-          <StatCard title="CTR" value={stats.avgCTR.toFixed(2) + '%'} change="+7.4%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
-          <StatCard title="Revenue" value={formatAdRevenue(stats.totalRevenue)} change="+21.6%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
+          <StatCard title="Total Banners" value={String(stats.totalAds)} change="+8.1%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
+          <StatCard title="Active Campaigns" value={String(stats.activeAds)} change="+9.4%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
+          <StatCard title="Impressions" value={formatAdNumber(stats.totalImpressions)} change="+14.2%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
+          <StatCard title="CTR" value={stats.avgCTR.toFixed(2) + '%'} change="+5.9%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
+          <StatCard title="Revenue Track" value={formatAdRevenue(stats.totalRevenue)} change="+10.8%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
         </div>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            THREE COLUMN LAYOUT
-            ═══════════════════════════════════════════════════════════════════ */}
+        {/* THREE COLUMN MAIN LAYOUT */}
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_1fr_300px] 2xl:grid-cols-[1fr_1fr_340px]">
-          {/* ── LEFT: Create Banner Ad ── */}
+          
+          {/* COLUMN 1: FORM & UPLOAD */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25, duration: 0.4 }}
-            className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl"
+            className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl"
           >
             <div className="p-3 lg:p-4">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-base font-bold text-white">Create Banner Ad</h2>
-                {uploadStage === 'success' && (
-                  <button onClick={handleResetUpload} className="text-xs text-[#ff1e1e] hover:text-[#ff3e3e]">Reset</button>
-                )}
-              </div>
+              <h2 className="mb-4 text-base font-bold text-white">Create Banner Ad</h2>
 
-              {/* Tabs: Image Banner / HTML5 Banner / Animated Banner */}
               <div className="mb-4 flex items-center gap-0 border-b border-white/5">
                 <button
-                  onClick={() => setAdTab('image')}
-                  className={`relative flex items-center gap-2 px-3 pb-2.5 text-sm font-medium transition-colors ${
+                  onClick={() => { setAdTab('image'); handleResetUpload() }}
+                  className={`relative flex items-center gap-2 px-4 pb-2.5 text-sm font-medium transition-colors ${
                     adTab === 'image' ? 'text-white' : 'text-white/40 hover:text-white/60'
                   }`}
                 >
                   <ImageIcon className="h-3.5 w-3.5" />
-                  Image
+                  Image Creative
                   {adTab === 'image' && (
                     <motion.div
                       layoutId="banner-tab-indicator"
-                      className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-[#ff1e1e]"
+                      className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-xtube-red"
                       transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                     />
                   )}
                 </button>
                 <button
-                  onClick={() => setAdTab('html5')}
-                  className={`relative flex items-center gap-2 px-3 pb-2.5 text-sm font-medium transition-colors ${
+                  onClick={() => { setAdTab('html5'); handleResetUpload() }}
+                  className={`relative flex items-center gap-2 px-4 pb-2.5 text-sm font-medium transition-colors ${
                     adTab === 'html5' ? 'text-white' : 'text-white/40 hover:text-white/60'
                   }`}
                 >
-                  <Code2 className="h-3.5 w-3.5" />
-                  HTML5
+                  <Film className="h-3.5 w-3.5" />
+                  HTML5 / Zip
                   {adTab === 'html5' && (
                     <motion.div
                       layoutId="banner-tab-indicator"
-                      className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-[#ff1e1e]"
-                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    />
-                  )}
-                </button>
-                <button
-                  onClick={() => setAdTab('animated')}
-                  className={`relative flex items-center gap-2 px-3 pb-2.5 text-sm font-medium transition-colors ${
-                    adTab === 'animated' ? 'text-white' : 'text-white/40 hover:text-white/60'
-                  }`}
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Animated
-                  {adTab === 'animated' && (
-                    <motion.div
-                      layoutId="banner-tab-indicator"
-                      className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-[#ff1e1e]"
+                      className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-xtube-red"
                       transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                     />
                   )}
                 </button>
               </div>
 
-              {/* Upload Area */}
+              {/* Upload Drop Zone */}
               <AnimatePresence mode="wait">
                 {uploadStage === 'idle' ? (
                   <motion.div
@@ -558,32 +432,29 @@ export function BannerAdsPage() {
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}
-                    className={`relative flex min-h-[170px] cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed transition-all duration-200 ${
+                    className={`relative flex min-h-[150px] cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed transition-all duration-200 ${
                       isDragOver
-                        ? 'border-[#ff1e1e] bg-[#ff1e1e]/5 shadow-[0_0_20px_rgba(255,30,30,0.15)]'
+                        ? 'border-xtube-red bg-xtube-red/5 shadow-[0_0_20px_rgba(229,9,20,0.15)]'
                         : 'border-white/10 bg-[#0a0a0a]/60 hover:border-white/20'
                     }`}
                   >
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept={getAcceptTypes()}
+                      accept="image/*"
                       className="hidden"
-                      onChange={(e) => { if (e.target.files?.length) simulateUpload(e.target.files[0].name) }}
+                      onChange={(e) => { if (e.target.files?.length) processSelectedFile(e.target.files[0]) }}
                     />
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ff1e1e]/10">
-                      <CloudUpload className="h-6 w-6 text-[#ff1e1e]" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-xtube-red/10">
+                      <CloudUpload className="h-6 w-6 text-xtube-red" />
                     </div>
                     <div className="text-center">
-                      <p className="text-sm font-medium text-white">
-                        Drag &amp; drop your {getTabLabel()} here
-                      </p>
+                      <p className="text-sm font-medium text-white">Drag &amp; drop banner image here</p>
                       <p className="mt-1 text-xs text-white/40">
-                        or <span className="text-[#ff1e1e] underline underline-offset-2">browse files</span>
+                        or <span className="text-xtube-red underline underline-offset-2">browse files</span>
                       </p>
                     </div>
-                    <p className="text-[10px] text-white/25">{getSupportedText()}</p>
-                    <p className="text-[10px] text-white/20">Cloudflare R2 Storage • Multipart Upload • Auto Retry</p>
+                    <p className="text-[10px] text-white/25">Supported: JPG, PNG, WEBP, GIF</p>
                   </motion.div>
                 ) : uploadStage === 'uploading' || uploadStage === 'processing' ? (
                   <motion.div
@@ -591,59 +462,21 @@ export function BannerAdsPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="rounded-xl border border-white/5 bg-[#0a0a0a]/60 p-3 lg:p-4"
+                    className="rounded-xl border border-white/5 bg-[#0a0a0a]/60 p-4 space-y-4"
                   >
-                    <div className="mb-2 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-white">
-                          {uploadStage === 'processing' ? 'Processing...' : 'Uploading...'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-[#ff1e1e]">{Math.round(uploadProgress)}%</span>
-                        {uploadStage === 'uploading' && (
-                          <>
-                            <button className="rounded px-2 py-0.5 text-[10px] text-white/40 hover:text-white/60 border border-white/10">Pause</button>
-                            <button onClick={handleResetUpload} className="rounded px-2 py-0.5 text-[10px] text-red-400 hover:text-red-300 border border-red-500/20">Cancel</button>
-                          </>
-                        )}
-                      </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-white">Processing Creative file...</span>
+                      <span className="text-xs font-bold text-xtube-red">{Math.round(uploadProgress)}%</span>
                     </div>
-                    <div className="relative mb-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+                    <div className="relative h-1.5 overflow-hidden rounded-full bg-white/10">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${uploadProgress}%` }}
-                        transition={{ duration: 0.3 }}
-                        className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#ff1e1e] to-red-500"
-                      />
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${uploadProgress}%` }}
-                        transition={{ duration: 0.3 }}
-                        className="absolute left-0 top-0 h-full rounded-full bg-[#ff1e1e] blur-sm opacity-30"
+                        transition={{ duration: 0.2 }}
+                        className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-xtube-red to-red-500"
                       />
                     </div>
-                    {uploadStage === 'uploading' ? (
-                      <div className="grid grid-cols-3 gap-3 text-center">
-                        <div>
-                          <p className="text-[10px] text-white/25">Uploaded</p>
-                          <p className="text-xs font-semibold text-white">{uploadedSize} / 5.00 GB</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-white/25">Speed</p>
-                          <p className="text-xs font-semibold text-white">{uploadSpeed}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-white/25">Time Left</p>
-                          <p className="text-xs font-semibold text-white">{uploadRemaining}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-xs text-amber-400">
-                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
-                        <span>Optimizing &amp; generating thumbnails...</span>
-                      </div>
-                    )}
+                    <button onClick={handleResetUpload} className="text-xs text-xtube-red hover:underline">Cancel</button>
                   </motion.div>
                 ) : (
                   <motion.div
@@ -651,525 +484,238 @@ export function BannerAdsPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="space-y-4"
+                    className="space-y-3"
                   >
-                    {/* File success card */}
                     <div className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-                      <CheckCircle2 className="h-5 w-5 text-emerald-400 flex-shrink-0" />
+                      <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-white">Banner_Ad_Design.jpg</p>
-                        <p className="text-[10px] text-white/30">2.25MB • 970×250 • JPG</p>
+                        <p className="truncate text-xs font-semibold text-white">{fileDetails?.name}</p>
+                        <p className="text-[10px] text-white/30">{fileDetails?.size} &bull; {fileDetails?.resolution}</p>
                       </div>
-                      <button onClick={handleResetUpload} className="text-xs text-[#ff1e1e] hover:text-[#ff3e3e]">Change</button>
+                      <button onClick={handleResetUpload} className="text-xs text-xtube-red hover:underline">Change</button>
                     </div>
 
-                    {/* Thumbnails */}
+                    {/* SELECT PRESETS */}
                     <div>
-                      <div className="mb-2 flex items-center justify-between">
-                        <p className="text-xs font-medium text-white/60">Thumbnails <span className="text-[#ff1e1e]">(10 auto-generated)</span></p>
-                        <div className="flex items-center gap-2">
-                          <button className="text-[10px] text-[#ff1e1e] hover:text-[#ff3e3e]">Upload Manually</button>
-                          <button className="text-[10px] text-[#ff1e1e] hover:text-[#ff3e3e] flex items-center gap-1">
-                            <Sparkles className="h-2.5 w-2.5" /> AI
-                          </button>
-                        </div>
-                      </div>
+                      <p className="text-[11px] font-medium text-white/60 mb-1.5">Preset Styles</p>
                       <div className="grid grid-cols-5 gap-1.5">
-                        {thumbnailGradients.map((gradient, i) => (
+                        {extractedThumbnails.slice(0, 5).map((url, i) => (
                           <button
                             key={i}
                             onClick={() => setSelectedThumbnail(i)}
                             className={`relative aspect-video overflow-hidden rounded border-2 transition-all ${
-                              selectedThumbnail === i
-                                ? 'border-[#ff1e1e] shadow-[0_0_8px_rgba(255,30,30,0.3)]'
-                                : 'border-transparent hover:border-white/20'
+                              selectedThumbnail === i ? 'border-xtube-red scale-95' : 'border-transparent hover:border-white/20'
                             }`}
                           >
-                            <img
-                              src={premiumPlaceholderImages[i]}
-                              alt={`Thumbnail ${i}`}
-                              className="h-full w-full object-cover"
-                            />
-                            {/* Fallback gradient underlay */}
-                            <div className={`absolute inset-0 bg-gradient-to-br ${gradient} -z-10`} />
-                            {selectedThumbnail === i && (
-                              <div className="absolute top-0.5 right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-[#ff1e1e]">
-                                <CheckCircle2 className="h-2 w-2 text-white" />
-                              </div>
-                            )}
+                            <img src={url} alt="preset" className="h-full w-full object-cover" />
                           </button>
                         ))}
-                      </div>
-                      <div className="mt-2 flex items-center gap-3 text-[10px] text-white/25">
-                        <span>16:9</span>
-                        <span>1:1</span>
-                        <span>9:16</span>
-                        <span>970×250</span>
-                        <span>728×90</span>
-                        <span>300×250</span>
-                        <span className="text-[#ff1e1e] cursor-pointer">Crop</span>
                       </div>
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* Banner Settings */}
+              {/* CONFIGS */}
               <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
-                <h3 className="text-xs font-semibold text-white/60 uppercase tracking-wider">Banner Settings</h3>
-
-                {/* Banner Name + Link */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-white/50">Banner Name</label>
-                    <input
-                      type="text"
-                      value={bannerName}
-                      onChange={(e) => setBannerName(e.target.value)}
-                      placeholder="Enter banner name"
-                      className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white placeholder:text-white/25 outline-none focus:border-[#ff1e1e]/40"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-white/50">Banner Link</label>
-                    <div className="relative">
-                      <input
-                        type="url"
-                        value={bannerLink}
-                        onChange={(e) => setBannerLink(e.target.value)}
-                        placeholder="https://example.com"
-                        className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] pl-8 pr-3 text-xs text-white placeholder:text-white/25 outline-none focus:border-[#ff1e1e]/40"
-                      />
-                      <Link2 className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-white/25" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Banner Size + Position */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
                     <label className="text-[11px] font-medium text-white/50">Banner Size</label>
                     <Select value={bannerSize} onValueChange={setBannerSize}>
-                      <SelectTrigger className="h-8 w-full rounded-lg border-white/10 bg-[#0a0a0a] text-xs text-white/70 [&_svg]:text-white/30">
-                        <SelectValue />
+                      <SelectTrigger className="h-8 rounded-lg border-white/10 bg-[#0a0a0a] text-xs text-white">
+                        <SelectValue placeholder="970x250" />
                       </SelectTrigger>
                       <SelectContent className="border-white/10 bg-[#111111]">
-                        <SelectItem value="970x250" className="text-xs text-white focus:bg-white/5">970×250 (Leaderboard)</SelectItem>
-                        <SelectItem value="728x90" className="text-xs text-white focus:bg-white/5">728×90 (Banner)</SelectItem>
-                        <SelectItem value="300x250" className="text-xs text-white focus:bg-white/5">300×250 (Medium Rect)</SelectItem>
-                        <SelectItem value="320x50" className="text-xs text-white focus:bg-white/5">320×50 (Mobile)</SelectItem>
+                        <SelectItem value="970x250" className="text-xs text-white">970×250 Billboard</SelectItem>
+                        <SelectItem value="728x90" className="text-xs text-white">728×90 Leaderboard</SelectItem>
+                        <SelectItem value="300x250" className="text-xs text-white">300×250 Rectangle</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-white/50">Position</label>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-white/50">Ad Placement</label>
                     <Select value={bannerPosition} onValueChange={setBannerPosition}>
-                      <SelectTrigger className="h-8 w-full rounded-lg border-white/10 bg-[#0a0a0a] text-xs text-white/70 [&_svg]:text-white/30">
-                        <SelectValue />
+                      <SelectTrigger className="h-8 rounded-lg border-white/10 bg-[#0a0a0a] text-xs text-white">
+                        <SelectValue placeholder="top-header" />
                       </SelectTrigger>
                       <SelectContent className="border-white/10 bg-[#111111]">
-                        <SelectItem value="top-header" className="text-xs text-white focus:bg-white/5">Top Header</SelectItem>
-                        <SelectItem value="middle-content" className="text-xs text-white focus:bg-white/5">Middle Content</SelectItem>
-                        <SelectItem value="bottom-footer" className="text-xs text-white focus:bg-white/5">Bottom Footer</SelectItem>
+                        <SelectItem value="top-header" className="text-xs text-white">Top Header</SelectItem>
+                        <SelectItem value="footer" className="text-xs text-white">Footer Banner</SelectItem>
+                        <SelectItem value="hero" className="text-xs text-white">Hero Ad Placement</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
-                {/* Device Targeting */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-medium text-white/50">Device Targeting</label>
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={deviceDesktop}
-                        onCheckedChange={(checked) => setDeviceDesktop(checked as boolean)}
-                        className="border-white/20 data-[state=checked]:bg-[#ff1e1e] data-[state=checked]:border-[#ff1e1e]"
-                      />
-                      <Monitor className="h-3.5 w-3.5 text-white/30" />
-                      <span className="text-xs text-white/50">Desktop</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={deviceTablet}
-                        onCheckedChange={(checked) => setDeviceTablet(checked as boolean)}
-                        className="border-white/20 data-[state=checked]:bg-[#ff1e1e] data-[state=checked]:border-[#ff1e1e]"
-                      />
-                      <Tablet className="h-3.5 w-3.5 text-white/30" />
-                      <span className="text-xs text-white/50">Tablet</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={deviceMobile}
-                        onCheckedChange={(checked) => setDeviceMobile(checked as boolean)}
-                        className="border-white/20 data-[state=checked]:bg-[#ff1e1e] data-[state=checked]:border-[#ff1e1e]"
-                      />
-                      <Smartphone className="h-3.5 w-3.5 text-white/30" />
-                      <span className="text-xs text-white/50">Mobile</span>
-                    </label>
-                  </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-white/50">Campaign Title *</label>
+                  <input
+                    type="text"
+                    value={bannerName}
+                    onChange={(e) => setBannerName(e.target.value)}
+                    className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#ff1e1e]/40"
+                    placeholder="e.g. Red bull timed banner"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-white/50">Redirect Link *</label>
+                  <input
+                    type="text"
+                    value={bannerLink}
+                    onChange={(e) => setBannerLink(e.target.value)}
+                    className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#ff1e1e]/40"
+                    placeholder="e.g. https://redbull.com"
+                  />
                 </div>
 
-                {/* Schedule Start/End Date */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-white/50">Start Date</label>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white/70 outline-none focus:border-[#ff1e1e]/40 [color-scheme:dark]"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-white/50">End Date</label>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white/70 outline-none focus:border-[#ff1e1e]/40 [color-scheme:dark]"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Status Toggle */}
-                <div className="flex items-center justify-between rounded-lg bg-[#0a0a0a]/50 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-3.5 w-3.5 text-white/30" />
-                    <span className="text-xs text-white/50">Status</span>
-                  </div>
-                  <button
-                    onClick={() => setStatusActive(!statusActive)}
-                    className={`relative flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
-                      statusActive ? 'bg-[#ff1e1e]' : 'bg-white/10'
-                    }`}
-                  >
-                    <motion.div
-                      animate={{ x: statusActive ? 18 : 2 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                      className="h-3.5 w-3.5 rounded-full bg-white shadow-sm"
-                    />
-                  </button>
-                </div>
-
-                {/* Save button */}
                 <motion.button
                   onClick={handleSaveAd}
-                  disabled={saving}
-                  whileHover={{ scale: 1.02, boxShadow: '0 0 25px rgba(255,30,30,0.4)' }}
+                  disabled={saving || uploadStage === 'uploading'}
+                  whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#ff1e1e] to-[#cc181e] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,30,30,0.3)] transition-all hover:from-[#ff2e2e] hover:to-[#dd282e] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-xtube-red px-5 py-2 text-sm font-semibold text-white shadow-[0_0_15px_rgba(229,9,20,0.3)] transition-all hover:bg-xtube-red-hover disabled:opacity-50"
                 >
-                  {saving ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  ) : (
-                    <CloudUpload className="h-4 w-4" />
-                  )}
-                  {saving ? 'Saving...' : 'Save Banner Ad'}
+                  {saving ? 'Saving...' : 'Deploy Banner'}
                 </motion.button>
               </div>
             </div>
           </motion.div>
 
-          {/* ── CENTER: Banner Preview ── */}
+          {/* COLUMN 2: DEVICE SIMULATOR PREVIEW */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.4 }}
             className="space-y-4"
           >
-            <div className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl">
+            <div className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl">
               <div className="p-3 lg:p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-base font-bold text-white">Banner Preview</h2>
-                  <div className="flex items-center gap-1">
-                    {(['desktop', 'tablet', 'mobile'] as PreviewMode[]).map((mode) => (
+                  <h2 className="text-base font-bold text-white flex items-center gap-1.5">
+                    <Radio className="h-4 w-4 text-xtube-red animate-pulse" />
+                    Device Viewport Simulator
+                  </h2>
+                  <div className="flex gap-1">
+                    {[
+                      { id: 'desktop', icon: Monitor },
+                      { id: 'tablet', icon: Tablet },
+                      { id: 'mobile', icon: Smartphone },
+                    ].map((mode) => (
                       <button
-                        key={mode}
-                        onClick={() => setPreviewMode(mode)}
-                        className={`flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors ${
-                          previewMode === mode
-                            ? 'bg-[#ff1e1e]/10 text-[#ff1e1e] border border-[#ff1e1e]/20'
-                            : 'text-white/30 hover:text-white/50 border border-transparent'
+                        key={mode.id}
+                        onClick={() => setPreviewMode(mode.id as PreviewMode)}
+                        className={`h-7 w-7 rounded flex items-center justify-center border transition-all ${
+                          previewMode === mode.id
+                            ? 'border-xtube-red bg-xtube-red/10 text-white'
+                            : 'border-white/5 bg-[#0a0a0a] text-white/40 hover:border-white/20'
                         }`}
                       >
-                        {mode === 'desktop' && <Monitor className="h-3 w-3" />}
-                        {mode === 'tablet' && <Tablet className="h-3 w-3" />}
-                        {mode === 'mobile' && <Smartphone className="h-3 w-3" />}
-                        {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                        <mode.icon className="h-3.5 w-3.5" />
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Preview Area with device frame */}
-                <div className="flex justify-center">
-                  <motion.div
-                    animate={{ width: getPreviewWidth() }}
-                    transition={{ duration: 0.3, ease: 'easeInOut' }}
-                    className="overflow-hidden rounded-lg border border-white/10 bg-[#080810]"
-                  >
-                    {/* Fake website header */}
-                    <div className="border-b border-white/5 bg-[#0a0a12] px-3 py-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-red-500/60" />
-                        <div className="h-2 w-2 rounded-full bg-yellow-500/60" />
-                        <div className="h-2 w-2 rounded-full bg-green-500/60" />
-                        <div className="ml-2 h-3 flex-1 rounded-sm bg-white/5" />
-                      </div>
+                <div className="relative aspect-video overflow-hidden rounded-lg bg-[#08080c] border border-white/5 shadow-2xl flex flex-col items-center justify-center p-4">
+                  
+                  {/* Mock Site Header Background */}
+                  <div className="w-full h-8 bg-black/40 border-b border-white/5 absolute top-0 left-0 flex items-center px-3 justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-xtube-red" />
+                      <span className="text-[8px] font-bold text-white uppercase tracking-wider">Xtube Live</span>
                     </div>
+                    <span className="text-[7px] text-white/35 font-semibold">Video Streaming System</span>
+                  </div>
 
-                    {/* Banner placement preview */}
-                    <div className="p-2 space-y-2">
-                      {/* Top banner placement */}
-                      {bannerPosition === 'top-header' && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="relative overflow-hidden rounded border border-[#ff1e1e]/20"
-                          style={{ aspectRatio: bannerSize === '970x250' ? '970/250' : bannerSize === '728x90' ? '728/90' : bannerSize === '300x250' ? '300/250' : '320/50' }}
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-r from-[#1a1a3e] via-[#16213e] to-[#0f3460]" />
-                          <div className="absolute inset-0 flex items-center justify-center gap-3 p-3">
-                            <div className="text-center">
-                              <div className="text-[8px] font-bold tracking-[0.15em] text-white/30 uppercase">Summer Sale</div>
-                              <p className="text-sm font-bold text-white">UP TO 50% OFF</p>
-                              <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="mt-1 rounded bg-[#ff1e1e] px-3 py-0.5 text-[8px] font-bold text-white"
-                              >
-                                SHOP NOW
-                              </motion.button>
-                            </div>
-                          </div>
-                          <div className="absolute top-1 right-1 rounded bg-black/40 px-1 text-[6px] text-white/40">Ad</div>
-                        </motion.div>
-                      )}
-
-                      {/* Fake content blocks */}
-                      <div className="space-y-1.5">
-                        <div className="h-2 w-3/4 rounded bg-white/5" />
-                        <div className="h-2 w-full rounded bg-white/3" />
-                        <div className="h-2 w-2/3 rounded bg-white/3" />
+                  {/* DYNAMIC SIZED BANNER */}
+                  <motion.div
+                    animate={{
+                      width: previewMode === 'desktop' ? (bannerSize === '970x250' ? '90%' : bannerSize === '728x90' ? '80%' : '50%') :
+                             previewMode === 'tablet' ? (bannerSize === '970x250' ? '95%' : bannerSize === '728x90' ? '85%' : '65%') : '95%',
+                      height: bannerSize === '970x250' ? '90px' : bannerSize === '728x90' ? '40px' : '75px',
+                    }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                    className="relative overflow-hidden rounded border border-white/10 bg-black/60 shadow-xl"
+                  >
+                    <img
+                      src={mediaUrl || extractedThumbnails[selectedThumbnail] || premiumPlaceholderImages[selectedThumbnail % 10]}
+                      alt="banner creative"
+                      className="h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-between px-3">
+                      <div>
+                        <span className="text-[7px] bg-xtube-red text-white px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Sponsored</span>
+                        <p className="text-[10px] font-extrabold text-white uppercase leading-tight mt-1">{bannerName || 'Nike Unstoppable'}</p>
                       </div>
-
-                      {/* Middle banner placement */}
-                      {bannerPosition === 'middle-content' && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          className="relative overflow-hidden rounded border border-[#ff1e1e]/20"
-                          style={{ aspectRatio: bannerSize === '970x250' ? '970/250' : bannerSize === '728x90' ? '728/90' : bannerSize === '300x250' ? '300/250' : '320/50' }}
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-r from-[#1a2a3e] via-[#16213e] to-[#0f3460]" />
-                          <div className="absolute inset-0 flex items-center justify-center gap-3 p-3">
-                            <div className="text-center">
-                              <div className="text-[8px] font-bold tracking-[0.15em] text-white/30 uppercase">New Collection</div>
-                              <p className="text-sm font-bold text-white">FASHION WEEK 2025</p>
-                              <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="mt-1 rounded bg-white px-3 py-0.5 text-[8px] font-bold text-black"
-                              >
-                                EXPLORE
-                              </motion.button>
-                            </div>
-                          </div>
-                          <div className="absolute top-1 right-1 rounded bg-black/40 px-1 text-[6px] text-white/40">Ad</div>
-                        </motion.div>
-                      )}
-
-                      <div className="grid grid-cols-3 gap-1">
-                        <div className="aspect-video rounded bg-white/3" />
-                        <div className="aspect-video rounded bg-white/3" />
-                        <div className="aspect-video rounded bg-white/3" />
-                      </div>
-
-                      {/* Bottom banner placement */}
-                      {bannerPosition === 'bottom-footer' && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="relative overflow-hidden rounded border border-[#ff1e1e]/20"
-                          style={{ aspectRatio: bannerSize === '970x250' ? '970/250' : bannerSize === '728x90' ? '728/90' : bannerSize === '300x250' ? '300/250' : '320/50' }}
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-r from-[#1a3a2e] via-[#163e21] to-[#0f6034]" />
-                          <div className="absolute inset-0 flex items-center justify-center gap-3 p-3">
-                            <div className="text-center">
-                              <div className="text-[8px] font-bold tracking-[0.15em] text-white/30 uppercase">Electronics</div>
-                              <p className="text-sm font-bold text-white">MEGA DEALS</p>
-                              <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="mt-1 rounded bg-[#ff1e1e] px-3 py-0.5 text-[8px] font-bold text-white"
-                              >
-                                BUY NOW
-                              </motion.button>
-                            </div>
-                          </div>
-                          <div className="absolute top-1 right-1 rounded bg-black/40 px-1 text-[6px] text-white/40">Ad</div>
-                        </motion.div>
+                      {bannerLink && (
+                        <span className="inline-flex items-center gap-1 rounded bg-white/15 px-2 py-0.5 text-[8px] font-bold text-white backdrop-blur">
+                          Get Offer <ExternalLink className="h-2 w-2" />
+                        </span>
                       )}
                     </div>
                   </motion.div>
+
+                  {/* Mock Site Body Content */}
+                  <div className="w-full absolute bottom-2 left-0 px-3 space-y-1">
+                    <div className="h-1.5 w-1/3 bg-white/5 rounded" />
+                    <div className="h-1 w-1/2 bg-white/5 rounded" />
+                  </div>
                 </div>
 
-                {/* Banner Details */}
-                <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
+                <div className="mt-4 grid grid-cols-2 gap-2">
                   {[
-                    { label: 'File Name', value: 'Banner_Ad_Design.jpg' },
-                    { label: 'Banner Size', value: '970×250' },
-                    { label: 'File Size', value: '2.25 MB' },
-                    { label: 'Format', value: 'JPG' },
-                    { label: 'Position', value: 'Top Header' },
-                    { label: 'Display On', value: 'All Pages' },
-                    { label: 'Start Date', value: 'Jun 15, 2025' },
-                    { label: 'End Date', value: 'Jul 15, 2025' },
+                    { label: 'Selected size', value: bannerSize.toUpperCase() },
+                    { label: 'Viewport Aspect', value: previewMode.toUpperCase() },
+                    { label: 'Ad Position', value: bannerPosition.toUpperCase() },
+                    { label: 'Link Redirect', value: bannerLink || '—' },
                   ].map((detail) => (
-                    <div key={detail.label} className="flex items-center justify-between rounded-lg bg-[#0a0a0a]/50 px-3 py-1.5">
-                      <span className="text-[10px] text-white/30">{detail.label}</span>
-                      <span className="text-[10px] font-medium text-white/70 truncate ml-2">{detail.value}</span>
+                    <div key={detail.label} className="flex items-center justify-between rounded-lg bg-[#0a0a0a]/50 px-3 py-1.5 border border-white/5">
+                      <span className="text-[9px] text-white/35 font-medium uppercase tracking-wider">{detail.label}</span>
+                      <span className="text-[10px] font-bold text-white/80 truncate ml-2">{detail.value}</span>
                     </div>
                   ))}
-                </div>
-
-                {/* Status indicator */}
-                <div className="mt-3 flex items-center gap-2">
-                  <span className="text-[10px] text-white/30">Status:</span>
-                  <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium ${
-                    statusActive ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                  }`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${statusActive ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                    {statusActive ? 'Active' : 'Paused'}
-                  </span>
                 </div>
               </div>
             </div>
           </motion.div>
 
-          {/* ── RIGHT: Quick Actions + Performance ── */}
+          {/* COLUMN 3: PERFORMANCE GRAPH / PIE */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.35, duration: 0.4 }}
             className="space-y-4"
           >
-            {/* Quick Actions */}
-            <div className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl">
-              <div className="p-3 lg:p-4">
-                <h2 className="mb-4 text-base font-bold text-white">Quick Actions</h2>
-                <div className="space-y-2.5">
-                  {[
-                    { icon: ImageIcon, label: 'Create Image Banner', desc: 'Upload image banners up to 5GB', color: '#3b82f6', glowColor: 'rgba(59,130,246,0.15)', bgColor: 'from-blue-500/10 to-blue-600/5' },
-                    { icon: Code2, label: 'Create HTML5 Banner', desc: 'Interactive HTML5 banners', color: '#f97316', glowColor: 'rgba(249,115,22,0.15)', bgColor: 'from-orange-500/10 to-orange-600/5' },
-                    { icon: Megaphone, label: 'Manage Banner Ads', desc: 'View, edit and manage ads', color: '#10b981', glowColor: 'rgba(16,185,129,0.15)', bgColor: 'from-emerald-500/10 to-emerald-600/5' },
-                    { icon: BarChart3, label: 'Ad Performance', desc: 'View analytics and reports', color: '#8b5cf6', glowColor: 'rgba(139,92,246,0.15)', bgColor: 'from-purple-500/10 to-purple-600/5' },
-                  ].map((action) => (
-                    <motion.button
-                      key={action.label}
-                      whileHover={{ scale: 1.02, x: 2, boxShadow: `0 0 15px ${action.glowColor}` }}
-                      whileTap={{ scale: 0.98 }}
-                      className={`group flex w-full items-center gap-3 rounded-xl border border-white/5 bg-gradient-to-r ${action.bgColor} p-3 text-left transition-all hover:border-white/10`}
-                    >
-                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg" style={{ background: `${action.color}15` }}>
-                        <action.icon className="h-4 w-4" style={{ color: action.color }} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold text-white">{action.label}</p>
-                        <p className="text-[10px] text-white/30">{action.desc}</p>
-                      </div>
-                    </motion.button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Banner Performance Overview */}
-            <div className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl">
-              <div className="p-3 lg:p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-sm font-bold text-white">Banner Performance Overview</h2>
-                  <button className="text-[10px] text-white/30 hover:text-white/50">Last 30 Days</button>
-                </div>
-                <div className="h-44">
-                  <ResponsiveContainer width="99%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={donutData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={45}
-                        outerRadius={65}
-                        paddingAngle={3}
-                        dataKey="value"
-                        stroke="none"
-                      >
-                        {donutData.map((_entry, index) => (
-                          <Cell key={`donut-${index}`} fill={DONUT_COLORS[index]} />
-                        ))}
-                      </Pie>
-                      <text x="50%" y="44%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-sm font-bold">
-                        6.42M
-                      </text>
-                      <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-white/30 text-[8px]">
-                        Impressions
-                      </text>
-                      <Tooltip
-                        content={({ active, payload }) => {
-                          if (!active || !payload?.length) return null
-                          const d = payload[0]
-                          const total = donutData.reduce((s, e) => s + e.value, 0)
-                          const pct = ((d.value as number) / total * 100).toFixed(0)
-                          return (
-                            <div className="rounded-lg border border-white/10 bg-[#111111]/95 px-3 py-2 shadow-xl backdrop-blur-xl">
-                              <p className="text-xs font-semibold text-white">{d.name}</p>
-                              <p className="text-[10px] text-white/40">{(d.value as number).toLocaleString()} ({pct}%)</p>
-                            </div>
-                          )
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                {/* Legend */}
-                <div className="mt-2 space-y-1.5">
-                  {donutData.map((item, i) => {
-                    const total = donutData.reduce((s, e) => s + e.value, 0)
-                    const pct = ((item.value / total) * 100).toFixed(0)
-                    return (
-                      <div key={item.name} className="flex items-center justify-between text-[10px]">
-                        <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full" style={{ background: DONUT_COLORS[i] }} />
-                          <span className="text-white/50">{item.name}</span>
-                        </div>
-                        <span className="font-medium text-white/70">{pct}% • {(item.value / 1000000).toFixed(2)}M</span>
-                      </div>
-                    )
-                  })}
-                </div>
+            <div className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-4 backdrop-blur-xl">
+              <h2 className="mb-3 text-sm font-bold text-white">Ad Format Share</h2>
+              <div className="h-44">
+                <ResponsiveContainer width="99%" height="100%">
+                  <PieChart>
+                    <Pie data={donutData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} paddingAngle={3} dataKey="value" stroke="none">
+                      {donutData.map((_entry, idx) => (
+                        <Cell key={idx} fill={DONUT_COLORS[idx]} />
+                      ))}
+                    </Pie>
+                    <text x="50%" y="44%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-xs font-bold">3.7K</text>
+                    <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-white/30 text-[7px] uppercase font-bold">Banners</text>
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </motion.div>
         </div>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            BANNER ADS LIST TABLE
-            ═══════════════════════════════════════════════════════════════════ */}
+        {/* FULL WIDTH TABLE */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.4 }}
-          className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl"
+          className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl"
         >
           <div className="p-3 lg:p-4">
-            {/* Table header */}
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-base font-bold text-white">Banner Ads List</h2>
+              <h2 className="text-base font-bold text-white">Active Banner Campaigns</h2>
               <div className="flex items-center gap-2">
                 <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1) }}>
                   <SelectTrigger className="h-8 w-28 rounded-lg border-white/10 bg-[#0a0a0a] text-xs text-white/60 [&_svg]:text-white/30">
@@ -1179,173 +725,64 @@ export function BannerAdsPage() {
                     <SelectItem value="all" className="text-xs text-white focus:bg-white/5">All Status</SelectItem>
                     <SelectItem value="active" className="text-xs text-white focus:bg-white/5">Active</SelectItem>
                     <SelectItem value="paused" className="text-xs text-white focus:bg-white/5">Paused</SelectItem>
-                    <SelectItem value="draft" className="text-xs text-white focus:bg-white/5">Draft</SelectItem>
                   </SelectContent>
                 </Select>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/30" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
-                    placeholder="Search banners..."
-                    className="h-8 w-40 rounded-lg border border-white/10 bg-[#0a0a0a] pl-8 pr-3 text-xs text-white placeholder:text-white/25 outline-none focus:border-[#ff1e1e]/40"
-                  />
-                </div>
               </div>
             </div>
 
-            {/* Table */}
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px]">
+              <table className="w-full min-w-[800px]">
                 <thead>
-                  <tr className="border-b border-white/5">
-                    {['Preview', 'Banner Name', 'Type', 'Size', 'Position', 'Impressions', 'CTR', 'Revenue', 'Status', 'Actions'].map((h) => (
-                      <th key={h} className="pb-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-white/25">{h}</th>
-                    ))}
+                  <tr className="border-b border-white/5 text-[10px] font-semibold uppercase tracking-wider text-white/25">
+                    <th className="pb-2 text-left">Creative Preview</th>
+                    <th className="pb-2 text-left">Ad Name</th>
+                    <th className="pb-2 text-left">Size</th>
+                    <th className="pb-2 text-left">Placement</th>
+                    <th className="pb-2 text-left">Impressions</th>
+                    <th className="pb-2 text-left">CTR</th>
+                    <th className="pb-2 text-left">Revenue</th>
+                    <th className="pb-2 text-left">Status</th>
+                    <th className="pb-2 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {filteredAds.map((ad, i) => (
-                    <motion.tr
-                      key={ad.id}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.45 + i * 0.04, duration: 0.3 }}
-                      className="group transition-colors hover:bg-white/[0.02]"
-                    >
-                      {/* Preview */}
-                      <td className="py-2 pr-3">
-                        <div className="relative h-8 w-20 overflow-hidden rounded-lg">
-                          <div className={`absolute inset-0 bg-gradient-to-br ${ad.gradient}`} />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            {ad.type === 'Image' ? (
-                              <ImageIcon className="h-3 w-3 text-white/20" />
-                            ) : ad.type === 'HTML5' ? (
-                              <Code2 className="h-3 w-3 text-white/20" />
-                            ) : (
-                              <Sparkles className="h-3 w-3 text-white/20" />
-                            )}
-                          </div>
-                          <div className="absolute top-0.5 right-0.5 rounded bg-black/50 px-0.5 text-[5px] text-white/40">Ad</div>
+                    <motion.tr key={ad.id} className="group hover:bg-white/[0.02] transition-colors">
+                      <td className="py-2.5">
+                        <div className="h-9 w-16 overflow-hidden rounded bg-black/60 border border-white/5">
+                          <img src={ad.imageUrl} alt={ad.name} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = premiumPlaceholderImages[i % 10] }} />
                         </div>
                       </td>
-                      {/* Banner Name */}
-                      <td className="py-2 pr-3">
-                        <p className="text-xs font-medium text-white">{ad.name}</p>
+                      <td className="py-2.5">
+                        <span className="text-xs font-semibold text-white group-hover:text-xtube-red transition-colors">{ad.name}</span>
+                        <p className="text-[9px] text-white/25 uppercase font-mono">Type: {ad.type}</p>
                       </td>
-                      {/* Type */}
-                      <td className="py-2 pr-3">
-                        <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${typeStyles[ad.type]}`}>
-                          {ad.type === 'Image' && <ImageIcon className="h-2.5 w-2.5" />}
-                          {ad.type === 'HTML5' && <Code2 className="h-2.5 w-2.5" />}
-                          {ad.type === 'Animated' && <Sparkles className="h-2.5 w-2.5" />}
-                          {ad.type}
-                        </span>
-                      </td>
-                      {/* Size */}
-                      <td className="py-2 pr-3">
-                        <span className="text-xs text-white/50">{ad.size}</span>
-                      </td>
-                      {/* Position */}
-                      <td className="py-2 pr-3">
-                        <span className="text-xs text-white/50">{ad.position}</span>
-                      </td>
-                      {/* Impressions */}
-                      <td className="py-2 pr-3">
-                        <span className="text-xs font-medium text-white/70">{ad.impressions}</span>
-                      </td>
-                      {/* CTR */}
-                      <td className="py-2 pr-3">
-                        <span className="text-xs font-medium text-white/70">{ad.ctr}</span>
-                      </td>
-                      {/* Revenue */}
-                      <td className="py-2 pr-3">
-                        <span className="text-xs font-semibold text-emerald-400">{ad.revenue}</span>
-                      </td>
-                      {/* Status */}
-                      <td className="py-2 pr-3">
+                      <td className="py-2.5 text-xs text-white/40">{ad.size}</td>
+                      <td className="py-2.5 text-xs text-white/40">{ad.position}</td>
+                      <td className="py-2.5 text-xs text-white/70">{ad.impressions}</td>
+                      <td className="py-2.5 text-xs font-bold text-xtube-red">{ad.ctr}</td>
+                      <td className="py-2.5 text-xs font-semibold text-emerald-400">{ad.revenue}</td>
+                      <td className="py-2.5">
                         <button
                           onClick={() => toggleAdStatus(ad.id, ad.status !== 'Active')}
-                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium transition-all hover:scale-105 active:scale-95 ${statusStyles[ad.status]}`}
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold transition-all hover:scale-105 active:scale-95 ${statusStyles[ad.status]}`}
                         >
-                          {ad.status === 'Active' && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
-                          {ad.status === 'Paused' && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
-                          {ad.status === 'Draft' && <span className="h-1.5 w-1.5 rounded-full bg-white/30" />}
+                          <span className={`h-1.5 w-1.5 rounded-full ${ad.status === 'Active' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                           {ad.status}
                         </button>
                       </td>
-                      {/* Actions */}
-                      <td className="py-2">
-                        <div className="flex items-center gap-1">
-                          <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-white/10 hover:text-white" title="Edit">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-white/10 hover:text-white" title="Analytics">
-                            <BarChart3 className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm('Are you sure you want to delete this banner ad?')) {
-                                deleteAd(ad.id)
-                              }
-                            }}
-                            className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-red-500/10 hover:text-red-400"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
+                      <td className="py-2.5 text-right">
+                        <button
+                          onClick={() => { if (confirm('Delete banner?')) deleteAd(ad.id) }}
+                          className="rounded p-1 text-white/30 hover:bg-xtube-red/10 hover:text-xtube-red opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </td>
                     </motion.tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-
-            {/* Pagination */}
-            <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-4">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-white/30">Rows per page:</span>
-                <Select value="10" onValueChange={() => {}}>
-                  <SelectTrigger className="h-6 w-16 rounded border-white/10 bg-[#0a0a0a] text-[10px] text-white/50 [&_svg]:text-white/30">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="border-white/10 bg-[#111111]">
-                    <SelectItem value="10" className="text-[10px] text-white focus:bg-white/5">10</SelectItem>
-                    <SelectItem value="25" className="text-[10px] text-white focus:bg-white/5">25</SelectItem>
-                    <SelectItem value="50" className="text-[10px] text-white focus:bg-white/5">50</SelectItem>
-                  </SelectContent>
-                </Select>
-                <span className="text-[10px] text-white/30">1–6 of 42</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </button>
-                {[1, 2, 3, 4, 5].map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-medium transition-colors ${
-                      currentPage === page
-                        ? 'bg-[#ff1e1e] text-white'
-                        : 'border border-white/10 text-white/40 hover:bg-white/5 hover:text-white'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setCurrentPage(Math.min(5, currentPage + 1))}
-                  className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 text-white/40 transition-colors hover:bg-white/5 hover:text-white"
-                >
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
             </div>
           </div>
         </motion.div>

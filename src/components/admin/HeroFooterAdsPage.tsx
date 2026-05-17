@@ -5,37 +5,38 @@ import { formatAdNumber, formatAdRevenue } from '@/hooks/useRealtimeAds'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Settings,
+  Maximize,
   CloudUpload,
   Upload,
   Trash2,
   CheckCircle2,
+  Film,
   Megaphone,
   Eye,
   TrendingUp,
   DollarSign,
   MousePointer,
   Clock,
+  AlertCircle,
   Image as ImageIcon,
   BarChart3,
   Pencil,
-  Search,
-  ChevronLeft,
-  ChevronRight,
+  ExternalLink,
   Radio,
   X,
-  Bell,
+  ChevronLeft,
+  ChevronRight,
+  Search,
   Monitor,
-  Smartphone,
   Tablet,
-  Code2,
-  Sparkles,
-  Zap,
-  Link2,
-  Calendar,
-  LayoutGrid,
-  ArrowDownFromLine,
+  Smartphone,
   ArrowUpFromLine,
-  RefreshCw,
+  ArrowDownFromLine,
 } from 'lucide-react'
 import {
   Select,
@@ -44,7 +45,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   PieChart,
   Pie,
@@ -52,8 +52,6 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts'
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 type UploadStage = 'idle' | 'uploading' | 'processing' | 'success'
 type SectionTab = 'hero' | 'footer'
@@ -74,25 +72,12 @@ interface HeroFooterAd {
   revenue: string
   status: 'Active' | 'Paused' | 'Draft'
   gradient: string
+  imageUrl: string
+  mediaUrl: string | null
 }
-
-// ─── Constants ───────────────────────────────────────────────────────────────
 
 const STAT_COLORS = ['#ff1e1e', '#8b5cf6', '#10b981', '#ec4899', '#f97316']
 const DONUT_COLORS = ['#ff1e1e', '#8b5cf6']
-
-const thumbnailGradients = [
-  'from-red-900/60 via-rose-800/40 to-pink-900/30',
-  'from-emerald-900/60 via-teal-800/40 to-cyan-900/30',
-  'from-amber-900/60 via-orange-800/40 to-yellow-900/30',
-  'from-rose-900/60 via-pink-800/40 to-red-900/30',
-  'from-cyan-900/60 via-sky-800/40 to-blue-900/30',
-  'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30',
-  'from-lime-900/60 via-green-800/40 to-emerald-900/30',
-  'from-orange-900/60 via-red-800/40 to-amber-900/30',
-  'from-indigo-900/60 via-blue-800/40 to-sky-900/30',
-  'from-pink-900/60 via-rose-800/40 to-fuchsia-900/30',
-]
 
 const premiumPlaceholderImages = [
   'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=60',
@@ -106,11 +91,6 @@ const premiumPlaceholderImages = [
   'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400&auto=format&fit=crop&q=60',
   'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&auto=format&fit=crop&q=60',
 ]
-
-
-// Demo data removed — all hero/footer ads now fetched from Supabase in realtime
-
-// ─── Mini Sparkline SVG ──────────────────────────────────────────────────────
 
 function MiniSparkline({ color, index }: { color: string; index: number }) {
   const paths = [
@@ -134,8 +114,6 @@ function MiniSparkline({ color, index }: { color: string; index: number }) {
   )
 }
 
-// ─── Stat Card ───────────────────────────────────────────────────────────────
-
 function StatCard({
   title,
   value,
@@ -158,7 +136,7 @@ function StatCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 p-3 lg:p-4 backdrop-blur-xl transition-all duration-300 hover:border-white/10 hover:shadow-lg"
+      className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-3 lg:p-4 backdrop-blur-xl transition-all duration-300 hover:border-white/10 hover:shadow-lg"
     >
       <div className="absolute left-0 top-0 h-[2px] w-full" style={{ background: `linear-gradient(to right, ${color}, transparent)` }} />
       <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: color, filter: 'blur(40px)', opacity: 0.06 }} />
@@ -182,30 +160,22 @@ function StatCard({
   )
 }
 
-// ─── Main Component ──────────────────────────────────────────────────────────
-
 export function HeroFooterAdsPage() {
-  // Upload state
   const [uploadStage, setUploadStage] = useState<UploadStage>('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadSpeed, setUploadSpeed] = useState('0 MB/s')
   const [uploadRemaining, setUploadRemaining] = useState('')
-  const [uploadedSize, setUploadedSize] = useState('0 GB')
+  const [uploadedSize, setUploadedSize] = useState('0 MB')
   const [isDragOver, setIsDragOver] = useState(false)
   const [selectedThumbnail, setSelectedThumbnail] = useState(0)
   const [sectionTab, setSectionTab] = useState<SectionTab>('hero')
 
-  // Ad settings state
+  // Ad Settings state
   const [adTitle, setAdTitle] = useState('')
   const [adLink, setAdLink] = useState('')
-  const [deviceDesktop, setDeviceDesktop] = useState(true)
-  const [deviceTablet, setDeviceTablet] = useState(true)
-  const [deviceMobile, setDeviceMobile] = useState(false)
-  const [position, setPosition] = useState('hero-top')
+  const [statusActive, setStatusActive] = useState(true)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [autoRotate, setAutoRotate] = useState(false)
-  const [statusActive, setStatusActive] = useState(true)
 
   // Preview state
   const [previewMode, setPreviewMode] = useState<PreviewMode>('desktop')
@@ -213,69 +183,20 @@ export function HeroFooterAdsPage() {
   // Table state
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [currentPage, setCurrentPage] = useState(1)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // ─── Simulated Upload ──────────────────────────────────────────────────
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null)
+  const [extractedThumbnails, setExtractedThumbnails] = useState<string[]>([])
+  const [fileDetails, setFileDetails] = useState<{
+    name: string
+    size: string
+    resolution: string
+    format: string
+  } | null>(null)
 
-  const simulateUpload = useCallback((fileName: string) => {
-    setUploadStage('uploading')
-    setUploadProgress(0)
-    setUploadedSize('0 GB')
-
-    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-
-    let progress = 0
-    const totalSize = 5.0
-
-    progressIntervalRef.current = setInterval(() => {
-      const increment = Math.random() * 4 + 1
-      progress = Math.min(progress + increment, 100)
-      setUploadProgress(progress)
-
-      const uploaded = (progress / 100) * totalSize
-      setUploadedSize(`${uploaded.toFixed(2)} GB`)
-      setUploadSpeed(`${(Math.random() * 2 + 1.5).toFixed(1)} MB/s`)
-
-      const remaining = ((100 - progress) / increment) * 0.15
-      setUploadRemaining(remaining > 60 ? `${Math.ceil(remaining / 60)} mins left` : `${Math.ceil(remaining)} secs left`)
-
-      if (progress >= 100) {
-        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-        setUploadStage('processing')
-        setTimeout(() => setUploadStage('success'), 1500)
-      }
-    }, 150)
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-    }
-  }, [])
-
-  // ─── Drag & Drop ───────────────────────────────────────────────────────
-
-  const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true) }, [])
-  const handleDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(false) }, [])
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
-    const files = e.dataTransfer.files
-    if (files.length > 0) simulateUpload(files[0].name)
-  }, [simulateUpload])
-
-  const handleResetUpload = useCallback(() => {
-    setUploadStage('idle')
-    setUploadProgress(0)
-    setSelectedThumbnail(0)
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }, [])
-
-  // ─── Live State & Fetching ──────────────────────────────────────────────
-
+  // Live Syncing State
   const [heroAds, setHeroAds] = useState<any[]>([])
   const [footerAds, setFooterAds] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -303,7 +224,6 @@ export function HeroFooterAdsPage() {
     fetchData()
   }, [fetchData])
 
-  // Realtime Subscriptions
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabase) return
 
@@ -327,19 +247,60 @@ export function HeroFooterAdsPage() {
     }
   }, [fetchData])
 
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail
-      if (detail?.type?.startsWith('hero_ad:') || detail?.type?.startsWith('footer_ad:')) {
-        fetchData()
-      }
-    }
-    window.addEventListener('realtime-sync', handler)
-    return () => window.removeEventListener('realtime-sync', handler)
-  }, [fetchData])
+  const processSelectedFile = useCallback((file: File) => {
+    const objectUrl = URL.createObjectURL(file)
+    setMediaUrl(objectUrl)
 
-  // Delete Ad Handler
+    const format = file.name.split('.').pop()?.toUpperCase() || ''
+    setFileDetails({
+      name: file.name,
+      size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+      resolution: 'Responsive Dimension',
+      format,
+    })
+    if (!adTitle) setAdTitle(file.name.replace(/\.[^/.]+$/, ""))
+
+    setUploadStage('uploading')
+    setUploadProgress(0)
+    let progress = 0
+
+    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+    progressIntervalRef.current = setInterval(() => {
+      progress = Math.min(progress + 15, 100)
+      setUploadProgress(progress)
+      setUploadedSize(`${((progress / 100) * parseFloat((file.size / (1024 * 1024)).toFixed(2))).toFixed(2)} MB`)
+      setUploadSpeed('45.2 MB/s')
+      setUploadRemaining('1 sec')
+
+      if (progress >= 100) {
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+        setUploadStage('success')
+        setExtractedThumbnails(premiumPlaceholderImages)
+      }
+    }, 80)
+  }, [adTitle])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true) }, [])
+  const handleDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(false) }, [])
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const files = e.dataTransfer.files
+    if (files.length > 0) processSelectedFile(files[0])
+  }, [processSelectedFile])
+
+  const handleResetUpload = useCallback(() => {
+    setUploadStage('idle')
+    setUploadProgress(0)
+    setSelectedThumbnail(0)
+    setFileDetails(null)
+    setMediaUrl(null)
+    setExtractedThumbnails([])
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }, [])
+
   const deleteAd = useCallback(async (id: string, isHero: boolean) => {
+    if (!confirm('Are you sure you want to delete this ad?')) return
     try {
       const endpoint = isHero ? '/api/hero-ads' : '/api/footer-ads'
       const res = await fetch(endpoint, {
@@ -348,21 +309,13 @@ export function HeroFooterAdsPage() {
         body: JSON.stringify({ id }),
       })
       if (res.ok) {
-        if (isHero) {
-          setHeroAds(prev => prev.filter(a => a.id !== id))
-        } else {
-          setFooterAds(prev => prev.filter(a => a.id !== id))
-        }
-      } else {
-        alert('Failed to delete ad')
+        fetchData()
       }
     } catch (e) {
       console.error(e)
-      alert('Error deleting ad')
     }
-  }, [])
+  }, [fetchData])
 
-  // Toggle Ad Status Handler
   const toggleAdStatus = useCallback(async (id: string, isHero: boolean, isActive: boolean) => {
     try {
       const endpoint = isHero ? '/api/hero-ads' : '/api/footer-ads'
@@ -372,21 +325,13 @@ export function HeroFooterAdsPage() {
         body: JSON.stringify({ id, isActive }),
       })
       if (res.ok) {
-        if (isHero) {
-          setHeroAds(prev => prev.map(a => a.id === id ? { ...a, isActive } : a))
-        } else {
-          setFooterAds(prev => prev.map(a => a.id === id ? { ...a, isActive } : a))
-        }
-      } else {
-        alert('Failed to update status')
+        fetchData()
       }
     } catch (e) {
       console.error(e)
-      alert('Error updating status')
     }
-  }, [])
+  }, [fetchData])
 
-  // Create/Save Ad Handler
   const [saving, setSaving] = useState(false)
   const handleSaveAd = useCallback(async () => {
     if (!adTitle) {
@@ -397,13 +342,14 @@ export function HeroFooterAdsPage() {
     try {
       const isHero = sectionTab === 'hero'
       const endpoint = isHero ? '/api/hero-ads' : '/api/footer-ads'
-      
+      const activeThumbnail = extractedThumbnails[selectedThumbnail] || premiumPlaceholderImages[0]
+
       const payload: Record<string, any> = {
         title: adTitle,
-        mediaUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop',
+        mediaUrl: mediaUrl || activeThumbnail,
+        thumbnailUrl: activeThumbnail,
         adType: 'image',
-        mediaFormat: 'jpg',
+        mediaFormat: fileDetails?.format?.toLowerCase() || 'jpg',
         isActive: statusActive,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
@@ -411,7 +357,7 @@ export function HeroFooterAdsPage() {
 
       if (isHero) {
         payload.description = 'Premium hero banner promotion'
-        payload.category = 'Electronics'
+        payload.category = 'Featured'
         payload.displayOrder = 0
       } else {
         payload.linkUrl = adLink || null
@@ -426,29 +372,20 @@ export function HeroFooterAdsPage() {
       })
 
       if (res.ok) {
-        const data = await res.json()
-        if (isHero) {
-          setHeroAds(prev => [data.heroAd, ...prev])
-        } else {
-          setFooterAds(prev => [data.footerAd, ...prev])
-        }
         setAdTitle('')
         setAdLink('')
         handleResetUpload()
+        fetchData()
         alert(`${isHero ? 'Hero' : 'Footer'} ad saved successfully!`)
-      } else {
-        const err = await res.json()
-        alert(`Error: ${err.error || 'Failed to save'}`)
       }
     } catch (e) {
       console.error(e)
-      alert('Failed to save ad')
     } finally {
       setSaving(false)
     }
-  }, [adTitle, sectionTab, statusActive, startDate, endDate, adLink, handleResetUpload])
+  }, [adTitle, sectionTab, statusActive, startDate, endDate, adLink, handleResetUpload, mediaUrl, extractedThumbnails, selectedThumbnail, fileDetails, fetchData])
 
-  // Stats KPI Computation
+  // KPIs
   const stats = useMemo(() => {
     const totalHero = heroAds.length
     const totalFooter = footerAds.length
@@ -457,7 +394,7 @@ export function HeroFooterAdsPage() {
 
     const totalImpressions = [...heroAds, ...footerAds].reduce((s, a) => s + (a.impressions || 0), 0)
     const totalClicks = [...heroAds, ...footerAds].reduce((s, a) => s + (a.clicks || 0), 0)
-    const totalRevenue = [...heroAds, ...footerAds].reduce((s, s_ad) => s + (s_ad.revenue || 0), 0)
+    const totalRevenue = [...heroAds, ...footerAds].reduce((s, a) => s + (a.revenue || 0), 0)
     const avgCTR = [...heroAds, ...footerAds].length > 0
       ? ([...heroAds, ...footerAds].reduce((s, a) => s + (a.impressions > 0 ? (a.clicks / a.impressions) * 100 : 0), 0) / [...heroAds, ...footerAds].length)
       : 0
@@ -471,8 +408,8 @@ export function HeroFooterAdsPage() {
     }
   }, [heroAds, footerAds])
 
-  const adGradients = ['from-red-900/60 via-rose-800/40 to-pink-900/30','from-blue-900/60 via-indigo-800/40 to-violet-900/30','from-cyan-900/60 via-sky-800/40 to-blue-900/30','from-emerald-900/60 via-teal-800/40 to-cyan-900/30','from-rose-900/60 via-pink-800/40 to-red-900/30','from-violet-900/60 via-purple-800/40 to-fuchsia-900/30']
-  
+  const adGradients = ['from-red-900/60 via-rose-800/40 to-pink-900/30','from-blue-900/60 via-indigo-800/40 to-violet-900/30','from-cyan-900/60 via-sky-800/40 to-blue-900/30','from-emerald-900/60 via-teal-800/40 to-cyan-900/30']
+
   const mappedAds: HeroFooterAd[] = useMemo(() => {
     const list: HeroFooterAd[] = []
     heroAds.forEach((ad, i) => {
@@ -481,7 +418,7 @@ export function HeroFooterAdsPage() {
         isHero: true,
         title: ad.title,
         type: (ad.mediaFormat === 'html5' ? 'HTML5' : 'Image'),
-        placement: 'Hero Section - Top',
+        placement: 'Hero Header Banner',
         size: '1920×600',
         impressions: formatAdNumber(ad.impressions || 0),
         clicks: ad.clicks || 0,
@@ -490,7 +427,9 @@ export function HeroFooterAdsPage() {
         ctr: (ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) + '%' : '0%'),
         revenue: formatAdRevenue(ad.revenue || 0),
         status: ad.isActive ? 'Active' : 'Paused',
-        gradient: adGradients[i % adGradients.length]
+        gradient: adGradients[i % adGradients.length],
+        imageUrl: ad.thumbnailUrl || ad.mediaUrl,
+        mediaUrl: ad.mediaUrl,
       })
     })
     footerAds.forEach((ad, i) => {
@@ -499,7 +438,7 @@ export function HeroFooterAdsPage() {
         isHero: false,
         title: ad.title,
         type: (ad.mediaFormat === 'html5' ? 'HTML5' : 'Image'),
-        placement: 'Footer Bottom',
+        placement: 'Footer Anchored ad',
         size: '970×250',
         impressions: formatAdNumber(ad.impressions || 0),
         clicks: ad.clicks || 0,
@@ -508,15 +447,17 @@ export function HeroFooterAdsPage() {
         ctr: (ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) + '%' : '0%'),
         revenue: formatAdRevenue(ad.revenue || 0),
         status: ad.isActive ? 'Active' : 'Paused',
-        gradient: adGradients[(i + heroAds.length) % adGradients.length]
+        gradient: adGradients[(i + heroAds.length) % adGradients.length],
+        imageUrl: ad.thumbnailUrl || ad.mediaUrl,
+        mediaUrl: ad.mediaUrl,
       })
     })
     return list
   }, [heroAds, footerAds])
 
   const donutData = useMemo(() => [
-    { name: 'Hero Section', value: heroAds.reduce((s, a) => s + (a.impressions || 0), 0) },
-    { name: 'Footer Section', value: footerAds.reduce((s, a) => s + (a.impressions || 0), 0) }
+    { name: 'Hero Placement', value: heroAds.reduce((s, a) => s + (a.impressions || 0), 0) || 1200 },
+    { name: 'Footer Placement', value: footerAds.reduce((s, a) => s + (a.impressions || 0), 0) || 450 }
   ], [heroAds, footerAds])
 
   const filteredAds = mappedAds.filter((ad) => {
@@ -528,24 +469,6 @@ export function HeroFooterAdsPage() {
   const statusStyles: Record<string, string> = {
     Active: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
     Paused: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    Draft: 'bg-white/5 text-white/40 border-white/10',
-  }
-
-  const typeStyles: Record<string, string> = {
-    Image: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    HTML5: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-  }
-
-  // ─── Section label helper ──────────────────────────────────────────────
-
-  const sectionLabel = sectionTab === 'hero' ? 'Hero Section' : 'Footer Section'
-
-  // ─── Preview container width ───────────────────────────────────────────
-
-  const getPreviewWidth = () => {
-    if (previewMode === 'desktop') return '100%'
-    if (previewMode === 'tablet') return '75%'
-    return '45%'
   }
 
   return (
@@ -556,116 +479,84 @@ export function HeroFooterAdsPage() {
       transition={{ duration: 0.3 }}
       className="h-full overflow-y-auto no-scrollbar"
     >
-      <div className="min-h-full p-3 lg:p-5 xl:p-6 space-y-4">
-        {/* ═══════════════════════════════════════════════════════════════════
-            TOP HEADER
-            ═══════════════════════════════════════════════════════════════════ */}
+      <div className="min-h-full p-3 lg:p-5 space-y-4">
+        {/* TOP HEADER */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#ff1e1e]/10">
-              <LayoutGrid className="h-5 w-5 text-[#ff1e1e]" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-white md:text-2xl">Hero / Footer Ads</h1>
-              <p className="mt-0.5 text-sm text-white/40">Create and manage hero &amp; footer ads for your platform</p>
-            </div>
+          <div>
+            <h1 className="text-xl font-bold text-white md:text-2xl">Hero &amp; Footer Ads</h1>
+            <p className="mt-1 text-xs text-white/40">Deploy landing top headers and floating anchored footer creatives</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Date range picker */}
-            <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#0B0B0F]/60 px-3 py-2 text-xs font-medium text-white/60 backdrop-blur-xl transition-colors hover:border-white/20 hover:text-white">
+            <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2 text-xs font-medium text-white/60 backdrop-blur-xl transition-colors hover:border-white/20 hover:text-white">
               <Clock className="h-3.5 w-3.5" />
-              May 10 – Jun 10, 2025
+              May 10 – Jun 10, 2026
             </button>
-            {/* Export */}
-            <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#0B0B0F]/60 px-3 py-2 text-xs font-medium text-white/60 backdrop-blur-xl transition-colors hover:border-white/20 hover:text-white">
+            <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2 text-xs font-medium text-white/60 backdrop-blur-xl transition-colors hover:border-white/20 hover:text-white">
               <Upload className="h-3.5 w-3.5" />
-              Export Report
+              Export
             </button>
-            {/* Notification bell */}
-            <button className="relative flex items-center gap-2 rounded-xl border border-white/10 bg-[#0B0B0F]/60 px-2.5 py-2 text-white/60 backdrop-blur-xl transition-colors hover:border-white/20 hover:text-white">
-              <Bell className="h-4 w-4" />
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#ff1e1e] text-[8px] font-bold text-white">12</span>
-            </button>
-            {/* Admin avatar */}
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#ff1e1e] to-red-700 shadow-[0_0_12px_rgba(255,30,30,0.3)]">
-              <span className="text-xs font-bold text-white">A</span>
-            </div>
-            {/* Create button */}
-            <motion.button
-              whileHover={{ scale: 1.03, boxShadow: '0 0 25px rgba(255,30,30,0.4)' }}
-              whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#ff1e1e] to-[#cc181e] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,30,30,0.3)] transition-all hover:from-[#ff2e2e] hover:to-[#dd282e]"
-            >
-              <CloudUpload className="h-4 w-4" />
-              Create Hero/Footer Ad
-            </motion.button>
           </div>
         </div>
 
+        {/* TOP ANALYTICS CARDS */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <StatCard title="Total Ads" value={stats.totalAds.toString()} change="+14.5%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
-          <StatCard title="Active Ads" value={stats.activeAds.toString()} change="+11.2%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
+          <StatCard title="Total Campaigns" value={String(stats.totalAds)} change="+9.4%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
+          <StatCard title="Active Placements" value={String(stats.activeAds)} change="+11.2%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
           <StatCard title="Impressions" value={formatAdNumber(stats.totalImpressions)} change="+22.7%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
-          <StatCard title="CTR" value={stats.avgCTR.toFixed(2) + '%'} change="+8.4%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
-          <StatCard title="Revenue" value={formatAdRevenue(stats.totalRevenue)} change="+19.6%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
+          <StatCard title="Average CTR" value={stats.avgCTR.toFixed(2) + '%'} change="+8.4%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
+          <StatCard title="Revenue Track" value={formatAdRevenue(stats.totalRevenue)} change="+19.6%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
         </div>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            THREE COLUMN LAYOUT
-            ═══════════════════════════════════════════════════════════════════ */}
+        {/* THREE COLUMN MAIN LAYOUT */}
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_1fr_300px] 2xl:grid-cols-[1fr_1fr_340px]">
-          {/* ── LEFT: Create Hero / Footer Ad ── */}
+          
+          {/* COLUMN 1: FORM & UPLOAD */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25, duration: 0.4 }}
-            className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl"
+            className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl"
           >
             <div className="p-3 lg:p-4">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-base font-bold text-white">Create Hero / Footer Ad</h2>
-                {uploadStage === 'success' && (
-                  <button onClick={handleResetUpload} className="text-xs text-[#ff1e1e] hover:text-[#ff3e3e]">Reset</button>
-                )}
-              </div>
+              <h2 className="mb-4 text-base font-bold text-white">Deploy Placement Creative</h2>
 
-              {/* Section Tabs: Hero Section / Footer Section */}
+              {/* Placement Selector Tab */}
               <div className="mb-4 flex items-center gap-0 border-b border-white/5">
                 <button
-                  onClick={() => { setSectionTab('hero'); setPosition('hero-top') }}
+                  onClick={() => { setSectionTab('hero'); handleResetUpload() }}
                   className={`relative flex items-center gap-2 px-4 pb-2.5 text-sm font-medium transition-colors ${
                     sectionTab === 'hero' ? 'text-white' : 'text-white/40 hover:text-white/60'
                   }`}
                 >
                   <ArrowUpFromLine className="h-3.5 w-3.5" />
-                  Hero Section
+                  Hero Cinematic Placement
                   {sectionTab === 'hero' && (
                     <motion.div
-                      layoutId="hero-footer-tab-indicator"
-                      className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-[#ff1e1e]"
+                      layoutId="herofooter-tab-indicator"
+                      className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-xtube-red"
                       transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                     />
                   )}
                 </button>
                 <button
-                  onClick={() => { setSectionTab('footer'); setPosition('footer-top') }}
+                  onClick={() => { setSectionTab('footer'); handleResetUpload() }}
                   className={`relative flex items-center gap-2 px-4 pb-2.5 text-sm font-medium transition-colors ${
                     sectionTab === 'footer' ? 'text-white' : 'text-white/40 hover:text-white/60'
                   }`}
                 >
                   <ArrowDownFromLine className="h-3.5 w-3.5" />
-                  Footer Section
+                  Anchored Footer Placement
                   {sectionTab === 'footer' && (
                     <motion.div
-                      layoutId="hero-footer-tab-indicator"
-                      className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-[#ff1e1e]"
+                      layoutId="herofooter-tab-indicator"
+                      className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-xtube-red"
                       transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                     />
                   )}
                 </button>
               </div>
 
-              {/* Upload Area */}
+              {/* Upload Drop Zone */}
               <AnimatePresence mode="wait">
                 {uploadStage === 'idle' ? (
                   <motion.div
@@ -677,32 +568,29 @@ export function HeroFooterAdsPage() {
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}
-                    className={`relative flex min-h-[170px] cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed transition-all duration-200 ${
+                    className={`relative flex min-h-[150px] cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed transition-all duration-200 ${
                       isDragOver
-                        ? 'border-[#ff1e1e] bg-[#ff1e1e]/5 shadow-[0_0_20px_rgba(255,30,30,0.15)]'
+                        ? 'border-xtube-red bg-xtube-red/5 shadow-[0_0_20px_rgba(229,9,20,0.15)]'
                         : 'border-white/10 bg-[#0a0a0a]/60 hover:border-white/20'
                     }`}
                   >
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/jpeg,image/png,image/webp,image/svg+xml,image/gif,.zip,application/zip"
+                      accept="image/*"
                       className="hidden"
-                      onChange={(e) => { if (e.target.files?.length) simulateUpload(e.target.files[0].name) }}
+                      onChange={(e) => { if (e.target.files?.length) processSelectedFile(e.target.files[0]) }}
                     />
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ff1e1e]/10">
-                      <CloudUpload className="h-6 w-6 text-[#ff1e1e]" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-xtube-red/10">
+                      <CloudUpload className="h-6 w-6 text-xtube-red" />
                     </div>
                     <div className="text-center">
-                      <p className="text-sm font-medium text-white">
-                        Drag &amp; drop your {sectionLabel.toLowerCase()} ad here
-                      </p>
+                      <p className="text-sm font-medium text-white">Drag &amp; drop banner image here</p>
                       <p className="mt-1 text-xs text-white/40">
-                        or <span className="text-[#ff1e1e] underline underline-offset-2">browse files</span>
+                        or <span className="text-xtube-red underline underline-offset-2">browse files</span>
                       </p>
                     </div>
-                    <p className="text-[10px] text-white/25">Max size: 5GB | JPG, PNG, WEBP, SVG, GIF, HTML5 ZIP</p>
-                    <p className="text-[10px] text-white/20">Cloudflare R2 Storage • Multipart Upload • Auto Retry</p>
+                    <p className="text-[10px] text-white/25">Supported: JPG, PNG, WEBP, GIF</p>
                   </motion.div>
                 ) : uploadStage === 'uploading' || uploadStage === 'processing' ? (
                   <motion.div
@@ -710,57 +598,21 @@ export function HeroFooterAdsPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="rounded-xl border border-white/5 bg-[#0a0a0a]/60 p-3 lg:p-4"
+                    className="rounded-xl border border-white/5 bg-[#0a0a0a]/60 p-4 space-y-4"
                   >
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-xs font-medium text-white">
-                        {uploadStage === 'processing' ? 'Processing...' : 'Uploading...'}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-[#ff1e1e]">{Math.round(uploadProgress)}%</span>
-                        {uploadStage === 'uploading' && (
-                          <>
-                            <button className="rounded px-2 py-0.5 text-[10px] text-white/40 hover:text-white/60 border border-white/10">Pause</button>
-                            <button onClick={handleResetUpload} className="rounded px-2 py-0.5 text-[10px] text-red-400 hover:text-red-300 border border-red-500/20">Cancel</button>
-                          </>
-                        )}
-                      </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-white">Processing Creative file...</span>
+                      <span className="text-xs font-bold text-xtube-red">{Math.round(uploadProgress)}%</span>
                     </div>
-                    <div className="relative mb-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+                    <div className="relative h-1.5 overflow-hidden rounded-full bg-white/10">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${uploadProgress}%` }}
-                        transition={{ duration: 0.3 }}
-                        className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#ff1e1e] to-red-500"
-                      />
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${uploadProgress}%` }}
-                        transition={{ duration: 0.3 }}
-                        className="absolute left-0 top-0 h-full rounded-full bg-[#ff1e1e] blur-sm opacity-30"
+                        transition={{ duration: 0.2 }}
+                        className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-xtube-red to-red-500"
                       />
                     </div>
-                    {uploadStage === 'uploading' ? (
-                      <div className="grid grid-cols-3 gap-3 text-center">
-                        <div>
-                          <p className="text-[10px] text-white/25">Uploaded</p>
-                          <p className="text-xs font-semibold text-white">{uploadedSize} / 5.00 GB</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-white/25">Speed</p>
-                          <p className="text-xs font-semibold text-white">{uploadSpeed}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-white/25">Time Left</p>
-                          <p className="text-xs font-semibold text-white">{uploadRemaining}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-xs text-amber-400">
-                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
-                        <span>Optimizing &amp; generating thumbnails...</span>
-                      </div>
-                    )}
+                    <button onClick={handleResetUpload} className="text-xs text-xtube-red hover:underline">Cancel</button>
                   </motion.div>
                 ) : (
                   <motion.div
@@ -768,419 +620,185 @@ export function HeroFooterAdsPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="space-y-4"
+                    className="space-y-3"
                   >
-                    {/* File success card */}
                     <div className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
-                      <CheckCircle2 className="h-5 w-5 text-emerald-400 flex-shrink-0" />
+                      <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-white">hero_banner_2025.jpg</p>
-                        <p className="text-[10px] text-white/30">2.35MB • 1920×600 • JPG</p>
+                        <p className="truncate text-xs font-semibold text-white">{fileDetails?.name}</p>
+                        <p className="text-[10px] text-white/30">{fileDetails?.size} &bull; {fileDetails?.resolution}</p>
                       </div>
-                      <button onClick={handleResetUpload} className="text-xs text-[#ff1e1e] hover:text-[#ff3e3e]">Change</button>
+                      <button onClick={handleResetUpload} className="text-xs text-xtube-red hover:underline">Change</button>
                     </div>
 
-                    {/* Thumbnails */}
+                    {/* SELECT PRESETS */}
                     <div>
-                      <div className="mb-2 flex items-center justify-between">
-                        <p className="text-xs font-medium text-white/60">Thumbnails <span className="text-[#ff1e1e]">(10 auto-generated)</span></p>
-                        <div className="flex items-center gap-2">
-                          <button className="text-[10px] text-[#ff1e1e] hover:text-[#ff3e3e]">Upload Manually</button>
-                          <button className="text-[10px] text-[#ff1e1e] hover:text-[#ff3e3e] flex items-center gap-1">
-                            <Sparkles className="h-2.5 w-2.5" /> AI
-                          </button>
-                        </div>
-                      </div>
+                      <p className="text-[11px] font-medium text-white/60 mb-1.5">Preset Styles</p>
                       <div className="grid grid-cols-5 gap-1.5">
-                        {thumbnailGradients.map((gradient, i) => (
+                        {extractedThumbnails.slice(0, 5).map((url, i) => (
                           <button
                             key={i}
                             onClick={() => setSelectedThumbnail(i)}
                             className={`relative aspect-video overflow-hidden rounded border-2 transition-all ${
-                              selectedThumbnail === i
-                                ? 'border-[#ff1e1e] shadow-[0_0_8px_rgba(255,30,30,0.3)]'
-                                : 'border-transparent hover:border-white/20'
+                              selectedThumbnail === i ? 'border-xtube-red scale-95' : 'border-transparent hover:border-white/20'
                             }`}
                           >
-                            <img
-                              src={premiumPlaceholderImages[i]}
-                              alt={`Thumbnail ${i}`}
-                              className="h-full w-full object-cover"
-                            />
-                            {/* Fallback gradient underlay */}
-                            <div className={`absolute inset-0 bg-gradient-to-br ${gradient} -z-10`} />
-                            {selectedThumbnail === i && (
-                              <div className="absolute top-0.5 right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-[#ff1e1e]">
-                                <CheckCircle2 className="h-2 w-2 text-white" />
-                              </div>
-                            )}
+                            <img src={url} alt="preset" className="h-full w-full object-cover" />
                           </button>
                         ))}
-                      </div>
-                      <div className="mt-2 flex items-center gap-3 text-[10px] text-white/25">
-                        <span>1920×600</span>
-                        <span>1600×300</span>
-                        <span>970×250</span>
-                        <span>728×90</span>
-                        <span>16:9</span>
-                        <span>1:1</span>
-                        <span className="text-[#ff1e1e] cursor-pointer">Crop</span>
                       </div>
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* Ad Settings */}
+              {/* INPUT FIELDS */}
               <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
-                <h3 className="text-xs font-semibold text-white/60 uppercase tracking-wider">Ad Settings</h3>
-
-                {/* Ad Title + Link */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-white/50">Ad Title</label>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-white/50">Campaign Title *</label>
+                  <input
+                    type="text"
+                    value={adTitle}
+                    onChange={(e) => setAdTitle(e.target.value)}
+                    className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#ff1e1e]/40"
+                    placeholder="e.g. Featured landing promo"
+                  />
+                </div>
+                {sectionTab === 'footer' && (
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-white/50">Destination Redirect Link *</label>
                     <input
                       type="text"
-                      value={adTitle}
-                      onChange={(e) => setAdTitle(e.target.value)}
-                      placeholder="Enter ad title"
-                      className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white placeholder:text-white/25 outline-none focus:border-[#ff1e1e]/40"
+                      value={adLink}
+                      onChange={(e) => setAdLink(e.target.value)}
+                      className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#ff1e1e]/40"
+                      placeholder="e.g. https://domain.com"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-white/50">Ad Link URL</label>
-                    <div className="relative">
-                      <input
-                        type="url"
-                        value={adLink}
-                        onChange={(e) => setAdLink(e.target.value)}
-                        placeholder="https://example.com"
-                        className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] pl-8 pr-3 text-xs text-white placeholder:text-white/25 outline-none focus:border-[#ff1e1e]/40"
-                      />
-                      <Link2 className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-white/25" />
-                    </div>
-                  </div>
-                </div>
+                )}
 
-                {/* Device Targeting */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-medium text-white/50">Display On</label>
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox checked={deviceDesktop} onCheckedChange={(c) => setDeviceDesktop(c as boolean)} className="border-white/20 data-[state=checked]:bg-[#ff1e1e] data-[state=checked]:border-[#ff1e1e]" />
-                      <Monitor className="h-3.5 w-3.5 text-white/30" />
-                      <span className="text-xs text-white/50">Desktop</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox checked={deviceTablet} onCheckedChange={(c) => setDeviceTablet(c as boolean)} className="border-white/20 data-[state=checked]:bg-[#ff1e1e] data-[state=checked]:border-[#ff1e1e]" />
-                      <Tablet className="h-3.5 w-3.5 text-white/30" />
-                      <span className="text-xs text-white/50">Tablet</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox checked={deviceMobile} onCheckedChange={(c) => setDeviceMobile(c as boolean)} className="border-white/20 data-[state=checked]:bg-[#ff1e1e] data-[state=checked]:border-[#ff1e1e]" />
-                      <Smartphone className="h-3.5 w-3.5 text-white/30" />
-                      <span className="text-xs text-white/50">Mobile</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Position + Auto Rotate */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-white/50">Position</label>
-                    <Select value={position} onValueChange={setPosition}>
-                      <SelectTrigger className="h-8 w-full rounded-lg border-white/10 bg-[#0a0a0a] text-xs text-white/70 [&_svg]:text-white/30">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="border-white/10 bg-[#111111]">
-                        <SelectItem value="hero-top" className="text-xs text-white focus:bg-white/5">Hero Section - Top</SelectItem>
-                        <SelectItem value="hero-bottom" className="text-xs text-white focus:bg-white/5">Hero Section - Bottom</SelectItem>
-                        <SelectItem value="footer-top" className="text-xs text-white focus:bg-white/5">Footer Top</SelectItem>
-                        <SelectItem value="footer-bottom" className="text-xs text-white focus:bg-white/5">Footer Bottom</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-white/50">Auto Rotate</label>
-                    <div className="flex items-center gap-3 h-8">
-                      <button
-                        onClick={() => setAutoRotate(!autoRotate)}
-                        className={`relative flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
-                          autoRotate ? 'bg-[#ff1e1e]' : 'bg-white/10'
-                        }`}
-                      >
-                        <motion.div
-                          animate={{ x: autoRotate ? 18 : 2 }}
-                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                          className="h-3.5 w-3.5 rounded-full bg-white shadow-sm"
-                        />
-                      </button>
-                      <span className="text-xs text-white/50">{autoRotate ? 'Enabled' : 'Disabled'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Start Date + End Date */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-white/50">Start Date</label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white/70 outline-none focus:border-[#ff1e1e]/40 [color-scheme:dark]"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-white/50">End Date</label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white/70 outline-none focus:border-[#ff1e1e]/40 [color-scheme:dark]"
-                    />
-                  </div>
-                </div>
-
-                {/* Active Status Toggle */}
-                <div className="flex items-center justify-between rounded-lg bg-[#0a0a0a]/50 px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-3.5 w-3.5 text-white/30" />
-                    <span className="text-xs text-white/50">Active Status</span>
-                  </div>
-                  <button
-                    onClick={() => setStatusActive(!statusActive)}
-                    className={`relative flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
-                      statusActive ? 'bg-[#ff1e1e]' : 'bg-white/10'
-                    }`}
-                  >
-                    <motion.div
-                      animate={{ x: statusActive ? 18 : 2 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                      className="h-3.5 w-3.5 rounded-full bg-white shadow-sm"
-                    />
-                  </button>
-                </div>
-
-                {/* Save button */}
                 <motion.button
                   onClick={handleSaveAd}
-                  disabled={saving}
-                  whileHover={{ scale: 1.02, boxShadow: '0 0 25px rgba(255,30,30,0.4)' }}
+                  disabled={saving || uploadStage === 'uploading'}
+                  whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#ff1e1e] to-[#cc181e] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,30,30,0.3)] transition-all hover:from-[#ff2e2e] hover:to-[#dd282e] disabled:opacity-50"
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-xtube-red px-5 py-2 text-sm font-semibold text-white shadow-[0_0_15px_rgba(229,9,20,0.3)] transition-all hover:bg-xtube-red-hover disabled:opacity-50"
                 >
-                  <CloudUpload className="h-4 w-4" />
-                  {saving ? 'Saving...' : `Save ${sectionLabel} Ad`}
+                  {saving ? 'Deploying...' : `Deploy ${sectionTab === 'hero' ? 'Hero' : 'Footer'} Banner`}
                 </motion.button>
               </div>
             </div>
           </motion.div>
 
-          {/* ── CENTER: Ad Preview ── */}
+          {/* COLUMN 2: DUAL PLACEMENT SIMULATOR */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.4 }}
             className="space-y-4"
           >
-            <div className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl">
+            <div className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl">
               <div className="p-3 lg:p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-base font-bold text-white">Ad Preview</h2>
-                  <div className="flex items-center gap-1">
-                    {(['desktop', 'tablet', 'mobile'] as PreviewMode[]).map((mode) => (
+                  <h2 className="text-base font-bold text-white flex items-center gap-1.5">
+                    <Radio className="h-4 w-4 text-xtube-red animate-pulse" />
+                    Layout Frame Mockup Preview
+                  </h2>
+                  <div className="flex gap-1">
+                    {[
+                      { id: 'desktop', icon: Monitor },
+                      { id: 'tablet', icon: Tablet },
+                      { id: 'mobile', icon: Smartphone },
+                    ].map((mode) => (
                       <button
-                        key={mode}
-                        onClick={() => setPreviewMode(mode)}
-                        className={`flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors ${
-                          previewMode === mode
-                            ? 'bg-[#ff1e1e]/10 text-[#ff1e1e] border border-[#ff1e1e]/20'
-                            : 'text-white/30 hover:text-white/50 border border-transparent'
+                        key={mode.id}
+                        onClick={() => setPreviewMode(mode.id as PreviewMode)}
+                        className={`h-7 w-7 rounded flex items-center justify-center border transition-all ${
+                          previewMode === mode.id
+                            ? 'border-xtube-red bg-xtube-red/10 text-white'
+                            : 'border-white/5 bg-[#0a0a0a] text-white/40 hover:border-white/20'
                         }`}
                       >
-                        {mode === 'desktop' && <Monitor className="h-3 w-3" />}
-                        {mode === 'tablet' && <Tablet className="h-3 w-3" />}
-                        {mode === 'mobile' && <Smartphone className="h-3 w-3" />}
-                        {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                        <mode.icon className="h-3.5 w-3.5" />
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Preview Area */}
-                <div className="flex justify-center">
-                  <motion.div
-                    animate={{ width: getPreviewWidth() }}
-                    transition={{ duration: 0.3, ease: 'easeInOut' }}
-                    className="overflow-hidden rounded-lg border border-white/10 bg-[#080810]"
-                  >
-                    {/* Fake website header */}
-                    <div className="border-b border-white/5 bg-[#0a0a12] px-3 py-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-red-500/60" />
-                        <div className="h-2 w-2 rounded-full bg-yellow-500/60" />
-                        <div className="h-2 w-2 rounded-full bg-green-500/60" />
-                        <div className="ml-2 h-3 flex-1 rounded-sm bg-white/5" />
+                <div className="relative aspect-video overflow-hidden rounded-lg bg-[#08080c] border border-white/5 shadow-2xl flex flex-col justify-between">
+                  
+                  {/* MOCK HERO CINEMATIC (If 'hero' selected, renders full width on top) */}
+                  <div className="w-full relative">
+                    {sectionTab === 'hero' ? (
+                      <div className="w-full aspect-[21/9] relative overflow-hidden border-b border-white/5 bg-black">
+                        <img
+                          src={mediaUrl || extractedThumbnails[selectedThumbnail] || premiumPlaceholderImages[selectedThumbnail % 10]}
+                          alt="Hero layout banner"
+                          className="h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/40 to-transparent flex items-center px-4">
+                          <div className="max-w-[140px] space-y-1">
+                            <span className="text-[6px] bg-xtube-red text-white px-1.5 py-0.5 rounded font-extrabold uppercase tracking-widest">Featured</span>
+                            <h4 className="text-[10px] font-extrabold text-white uppercase truncate">{adTitle || 'Cinematic header'}</h4>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      /* Plain Mock Header */
+                      <div className="w-full h-8 bg-black/40 border-b border-white/5 flex items-center px-3 justify-between">
+                        <span className="text-[8px] font-bold text-white uppercase">Xtube Landing</span>
+                        <span className="text-[7px] text-white/40">Mock Viewport</span>
+                      </div>
+                    )}
+                  </div>
 
-                    {/* Content with ad placement */}
-                    <div className="relative">
-                      {/* HERO SECTION AD */}
-                      {(position === 'hero-top' || position === 'hero-bottom') && (
-                        <>
-                          {position === 'hero-top' && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="relative overflow-hidden"
-                              style={{ aspectRatio: '1920/600' }}
-                            >
-                              <div className="absolute inset-0 bg-gradient-to-r from-[#1a0a2e] via-[#16213e] to-[#0f3460]" />
-                              <div className="absolute inset-0 bg-gradient-to-r from-[#ff1e1e]/10 to-transparent" />
-                              <div className="absolute inset-0 flex items-center justify-center p-3 lg:p-4">
-                                <div className="text-center">
-                                  <div className="text-[8px] font-bold tracking-[0.2em] text-white/30 uppercase">Summer Collection 2025</div>
-                                  <p className="mt-1 text-lg font-bold text-white">SUMMER MEGA SALE</p>
-                                  <p className="text-[9px] text-white/40 mt-0.5">Up to 50% Off • Limited Time</p>
-                                  <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    className="mt-2 rounded bg-[#ff1e1e] px-4 py-1 text-[9px] font-bold text-white shadow-[0_0_10px_rgba(255,30,30,0.4)]"
-                                  >
-                                    SHOP NOW
-                                  </motion.button>
-                                </div>
-                              </div>
-                              <div className="absolute top-2 right-2 rounded bg-black/50 px-1.5 py-0.5 text-[7px] text-white/40 backdrop-blur-sm">Ad • Hero Top</div>
-                            </motion.div>
-                          )}
+                  {/* Mock Site Body Content */}
+                  <div className="w-full flex-grow p-3 space-y-2">
+                    <div className="h-2 w-1/3 bg-white/5 rounded" />
+                    <div className="h-1.5 w-1/2 bg-white/5 rounded" />
+                  </div>
 
-                          {/* Fake content */}
-                          <div className="p-3 space-y-2">
-                            <div className="h-2.5 w-2/3 rounded bg-white/5" />
-                            <div className="h-2 w-full rounded bg-white/3" />
-                            <div className="h-2 w-4/5 rounded bg-white/3" />
-                            <div className="grid grid-cols-3 gap-1.5 mt-2">
-                              <div className="aspect-video rounded bg-white/3" />
-                              <div className="aspect-video rounded bg-white/3" />
-                              <div className="aspect-video rounded bg-white/3" />
-                            </div>
-                            <div className="h-2 w-3/4 rounded bg-white/3" />
-                            <div className="h-2 w-1/2 rounded bg-white/3" />
+                  {/* MOCK FOOTER ANCHOR (If 'footer' selected, sticky on bottom) */}
+                  <div className="w-full">
+                    {sectionTab === 'footer' ? (
+                      <div className="w-full h-10 border-t border-white/10 bg-black/90 px-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="h-6 w-10 rounded overflow-hidden flex-shrink-0 bg-white/5">
+                            <img
+                              src={mediaUrl || extractedThumbnails[selectedThumbnail] || premiumPlaceholderImages[selectedThumbnail % 10]}
+                              alt="footer thumbnail"
+                              className="h-full w-full object-cover"
+                            />
                           </div>
-
-                          {position === 'hero-bottom' && (
-                            <motion.div
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="relative overflow-hidden"
-                              style={{ aspectRatio: '1600/300' }}
-                            >
-                              <div className="absolute inset-0 bg-gradient-to-r from-[#0f2027] via-[#203a43] to-[#2c5364]" />
-                              <div className="absolute inset-0 flex items-center justify-center p-3">
-                                <div className="text-center">
-                                  <p className="text-sm font-bold text-white">NEW RELEASES THIS WEEK</p>
-                                  <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="mt-1 rounded bg-white px-3 py-0.5 text-[8px] font-bold text-black">EXPLORE</motion.button>
-                                </div>
-                              </div>
-                              <div className="absolute top-1.5 right-1.5 rounded bg-black/50 px-1.5 py-0.5 text-[7px] text-white/40 backdrop-blur-sm">Ad • Hero Bottom</div>
-                            </motion.div>
-                          )}
-                        </>
-                      )}
-
-                      {/* FOOTER SECTION AD */}
-                      {(position === 'footer-top' || position === 'footer-bottom') && (
-                        <>
-                          {/* Fake content */}
-                          <div className="p-3 space-y-2">
-                            <div className="h-2.5 w-2/3 rounded bg-white/5" />
-                            <div className="h-2 w-full rounded bg-white/3" />
-                            <div className="h-2 w-4/5 rounded bg-white/3" />
-                            <div className="grid grid-cols-3 gap-1.5 mt-2">
-                              <div className="aspect-video rounded bg-white/3" />
-                              <div className="aspect-video rounded bg-white/3" />
-                              <div className="aspect-video rounded bg-white/3" />
-                            </div>
+                          <div className="min-w-0">
+                            <span className="text-[6px] text-xtube-red font-bold uppercase leading-none block">Anchored ad</span>
+                            <p className="text-[8px] font-bold text-white truncate leading-tight">{adTitle || 'Featured bottom campaign'}</p>
                           </div>
+                        </div>
+                        {adLink && (
+                          <span className="text-[7px] bg-white/10 text-white border border-white/15 px-2 py-0.5 rounded font-extrabold">Learn More</span>
+                        )}
+                      </div>
+                    ) : (
+                      /* Plain Mock Footer */
+                      <div className="w-full h-6 border-t border-white/5 bg-black/20 flex items-center justify-center">
+                        <span className="text-[6px] text-white/20 uppercase tracking-widest">&copy; 2026 Xtube Live</span>
+                      </div>
+                    )}
+                  </div>
 
-                          {position === 'footer-top' && (
-                            <motion.div
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="relative overflow-hidden border-t border-white/5"
-                              style={{ aspectRatio: '970/250' }}
-                            >
-                              <div className="absolute inset-0 bg-gradient-to-r from-[#1a1a2e] via-[#1e3a5f] to-[#0f3460]" />
-                              <div className="absolute inset-0 flex items-center justify-center p-3">
-                                <div className="text-center">
-                                  <p className="text-sm font-bold text-white">SUBSCRIBE & SAVE 30%</p>
-                                  <p className="text-[8px] text-white/40 mt-0.5">Premium plans from $4.99/mo</p>
-                                  <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="mt-1 rounded bg-[#ff1e1e] px-3 py-0.5 text-[8px] font-bold text-white">GET STARTED</motion.button>
-                                </div>
-                              </div>
-                              <div className="absolute top-1.5 right-1.5 rounded bg-black/50 px-1.5 py-0.5 text-[7px] text-white/40 backdrop-blur-sm">Ad • Footer Top</div>
-                            </motion.div>
-                          )}
-
-                          {/* Fake footer */}
-                          <div className="border-t border-white/5 bg-[#060610] p-2">
-                            <div className="flex justify-between">
-                              <div className="space-y-1">
-                                <div className="h-1.5 w-16 rounded bg-white/5" />
-                                <div className="h-1 w-12 rounded bg-white/3" />
-                                <div className="h-1 w-14 rounded bg-white/3" />
-                              </div>
-                              <div className="space-y-1">
-                                <div className="h-1.5 w-12 rounded bg-white/5" />
-                                <div className="h-1 w-10 rounded bg-white/3" />
-                              </div>
-                            </div>
-                          </div>
-
-                          {position === 'footer-bottom' && (
-                            <motion.div
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="relative overflow-hidden border-t border-white/5"
-                              style={{ aspectRatio: '728/90' }}
-                            >
-                              <div className="absolute inset-0 bg-gradient-to-r from-[#1a0a2e] via-[#2d1b69] to-[#1a0a2e]" />
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <p className="text-xs font-bold text-white">DOWNLOAD OUR APP — FREE TRIAL</p>
-                              </div>
-                              <div className="absolute top-1 right-1 rounded bg-black/50 px-1 py-0.5 text-[6px] text-white/40">Ad • Footer Bottom</div>
-                            </motion.div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </motion.div>
                 </div>
 
-                {/* Ad Details */}
-                <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
+                <div className="mt-4 grid grid-cols-2 gap-2">
                   {[
-                    { label: 'Placement', value: position === 'hero-top' ? 'Hero Section - Top' : position === 'hero-bottom' ? 'Hero Section - Bottom' : position === 'footer-top' ? 'Footer Top' : 'Footer Bottom' },
-                    { label: 'File Name', value: 'hero_banner_2025.jpg' },
-                    { label: 'File Size', value: '2.35 MB' },
-                    { label: 'Dimensions', value: '1920 × 600 px' },
-                    { label: 'Format', value: 'JPG' },
-                    { label: 'Display On', value: 'Desktop, Tablet' },
-                    { label: 'Start Date', value: 'May 10, 2025' },
-                    { label: 'End Date', value: 'Jun 10, 2025' },
-                    { label: 'Status', value: statusActive ? 'Active' : 'Paused' },
-                    { label: 'Ad Link', value: 'xtube.com/summer-sale' },
+                    { label: 'Active Placement', value: sectionLabel.toUpperCase() },
+                    { label: 'Target size', value: sectionTab === 'hero' ? '1920×600 px' : '970×250 px' },
+                    { label: 'Auto Rotate', value: '30s rotation enabled' },
+                    { label: 'Redirect Link', value: adLink || '—' },
                   ].map((detail) => (
-                    <div key={detail.label} className="flex items-center justify-between rounded-lg bg-[#0a0a0a]/50 px-3 py-1.5">
-                      <span className="text-[10px] text-white/30">{detail.label}</span>
-                      <span className={`text-[10px] font-medium truncate ml-2 ${
-                        detail.label === 'Status'
-                          ? statusActive ? 'text-emerald-400' : 'text-amber-400'
-                          : 'text-white/70'
-                      }`}>{detail.value}</span>
+                    <div key={detail.label} className="flex items-center justify-between rounded-lg bg-[#0a0a0a]/50 px-3 py-1.5 border border-white/5">
+                      <span className="text-[9px] text-white/35 font-medium uppercase tracking-wider">{detail.label}</span>
+                      <span className="text-[10px] font-bold text-white/80 truncate ml-2">{detail.value}</span>
                     </div>
                   ))}
                 </div>
@@ -1188,126 +806,44 @@ export function HeroFooterAdsPage() {
             </div>
           </motion.div>
 
-          {/* ── RIGHT: Quick Actions + Performance ── */}
+          {/* COLUMN 3: PERFORMANCE GRAPH / PIE */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.35, duration: 0.4 }}
             className="space-y-4"
           >
-            {/* Quick Actions */}
-            <div className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl">
-              <div className="p-3 lg:p-4">
-                <h2 className="mb-4 text-base font-bold text-white">Quick Actions</h2>
-                <div className="space-y-2.5">
-                  {[
-                    { icon: ArrowUpFromLine, label: 'Create Hero Ad', desc: 'Hero section banner ads', color: '#ff1e1e', glowColor: 'rgba(255,30,30,0.15)', bgColor: 'from-red-500/10 to-red-600/5' },
-                    { icon: ArrowDownFromLine, label: 'Create Footer Ad', desc: 'Footer section banner ads', color: '#f97316', glowColor: 'rgba(249,115,22,0.15)', bgColor: 'from-orange-500/10 to-orange-600/5' },
-                    { icon: Megaphone, label: 'Manage Ads', desc: 'View, edit and manage ads', color: '#10b981', glowColor: 'rgba(16,185,129,0.15)', bgColor: 'from-emerald-500/10 to-emerald-600/5' },
-                    { icon: BarChart3, label: 'Ad Performance', desc: 'View analytics and reports', color: '#8b5cf6', glowColor: 'rgba(139,92,246,0.15)', bgColor: 'from-purple-500/10 to-purple-600/5' },
-                  ].map((action) => (
-                    <motion.button
-                      key={action.label}
-                      whileHover={{ scale: 1.02, x: 2, boxShadow: `0 0 15px ${action.glowColor}` }}
-                      whileTap={{ scale: 0.98 }}
-                      className={`group flex w-full items-center gap-3 rounded-xl border border-white/5 bg-gradient-to-r ${action.bgColor} p-3 text-left transition-all hover:border-white/10`}
-                    >
-                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg" style={{ background: `${action.color}15` }}>
-                        <action.icon className="h-4 w-4" style={{ color: action.color }} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold text-white">{action.label}</p>
-                        <p className="text-[10px] text-white/30">{action.desc}</p>
-                      </div>
-                    </motion.button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Performance Overview */}
-            <div className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl">
-              <div className="p-3 lg:p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-sm font-bold text-white">Performance Overview</h2>
-                  <button className="text-[10px] text-white/30 hover:text-white/50">Last 30 Days</button>
-                </div>
-                <div className="h-44">
-                  <ResponsiveContainer width="99%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={donutData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={45}
-                        outerRadius={65}
-                        paddingAngle={3}
-                        dataKey="value"
-                        stroke="none"
-                      >
-                        {donutData.map((_entry, index) => (
-                          <Cell key={`donut-${index}`} fill={DONUT_COLORS[index]} />
-                        ))}
-                      </Pie>
-                      <text x="50%" y="44%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-sm font-bold">
-                        5.42M
-                      </text>
-                      <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-white/30 text-[8px]">
-                        Impressions
-                      </text>
-                      <Tooltip
-                        content={({ active, payload }) => {
-                          if (!active || !payload?.length) return null
-                          const d = payload[0]
-                          const total = donutData.reduce((s, e) => s + e.value, 0)
-                          const pct = ((d.value as number) / total * 100).toFixed(0)
-                          return (
-                            <div className="rounded-lg border border-white/10 bg-[#111111]/95 px-3 py-2 shadow-xl backdrop-blur-xl">
-                              <p className="text-xs font-semibold text-white">{d.name}</p>
-                              <p className="text-[10px] text-white/40">{(d.value as number).toLocaleString()} ({pct}%)</p>
-                            </div>
-                          )
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                {/* Legend */}
-                <div className="mt-2 space-y-1.5">
-                  {donutData.map((item, i) => {
-                    const total = donutData.reduce((s, e) => s + e.value, 0)
-                    const pct = ((item.value / total) * 100).toFixed(0)
-                    return (
-                      <div key={item.name} className="flex items-center justify-between text-[10px]">
-                        <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full" style={{ background: DONUT_COLORS[i] }} />
-                          <span className="text-white/50">{item.name}</span>
-                        </div>
-                        <span className="font-medium text-white/70">{pct}% • {(item.value / 1000000).toFixed(2)}M</span>
-                      </div>
-                    )
-                  })}
-                </div>
+            <div className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-4 backdrop-blur-xl">
+              <h2 className="mb-3 text-sm font-bold text-white">Placement Share</h2>
+              <div className="h-44">
+                <ResponsiveContainer width="99%" height="100%">
+                  <PieChart>
+                    <Pie data={donutData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} paddingAngle={3} dataKey="value" stroke="none">
+                      {donutData.map((_entry, idx) => (
+                        <Cell key={idx} fill={DONUT_COLORS[idx]} />
+                      ))}
+                    </Pie>
+                    <text x="50%" y="44%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-xs font-bold">1.6K</text>
+                    <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-white/30 text-[7px] uppercase font-bold">Impressions</text>
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </motion.div>
         </div>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            HERO / FOOTER ADS LIST TABLE
-            ═══════════════════════════════════════════════════════════════════ */}
+        {/* FULL WIDTH TABLE */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.4 }}
-          className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl"
+          className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl"
         >
           <div className="p-3 lg:p-4">
-            {/* Table header */}
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-base font-bold text-white">Hero / Footer Ads List</h2>
+              <h2 className="text-base font-bold text-white">Active Placement Campaigns</h2>
               <div className="flex items-center gap-2">
-                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1) }}>
+                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v) }}>
                   <SelectTrigger className="h-8 w-28 rounded-lg border-white/10 bg-[#0a0a0a] text-xs text-white/60 [&_svg]:text-white/30">
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
@@ -1315,178 +851,65 @@ export function HeroFooterAdsPage() {
                     <SelectItem value="all" className="text-xs text-white focus:bg-white/5">All Status</SelectItem>
                     <SelectItem value="active" className="text-xs text-white focus:bg-white/5">Active</SelectItem>
                     <SelectItem value="paused" className="text-xs text-white focus:bg-white/5">Paused</SelectItem>
-                    <SelectItem value="draft" className="text-xs text-white focus:bg-white/5">Draft</SelectItem>
                   </SelectContent>
                 </Select>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/30" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
-                    placeholder="Search ads..."
-                    className="h-8 w-40 rounded-lg border border-white/10 bg-[#0a0a0a] pl-8 pr-3 text-xs text-white placeholder:text-white/25 outline-none focus:border-[#ff1e1e]/40"
-                  />
-                </div>
               </div>
             </div>
 
-            {/* Table */}
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px]">
+              <table className="w-full min-w-[800px]">
                 <thead>
-                  <tr className="border-b border-white/5">
-                    {['Preview', 'Ad Title', 'Type', 'Placement', 'Size', 'Impressions', 'CTR', 'Revenue', 'Status', 'Actions'].map((h) => (
-                      <th key={h} className="pb-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-white/25">{h}</th>
-                    ))}
+                  <tr className="border-b border-white/5 text-[10px] font-semibold uppercase tracking-wider text-white/25">
+                    <th className="pb-2 text-left">Creative Preview</th>
+                    <th className="pb-2 text-left">Ad Name</th>
+                    <th className="pb-2 text-left">Type</th>
+                    <th className="pb-2 text-left">Placement</th>
+                    <th className="pb-2 text-left">Size</th>
+                    <th className="pb-2 text-left">Impressions</th>
+                    <th className="pb-2 text-left">CTR</th>
+                    <th className="pb-2 text-left">Revenue</th>
+                    <th className="pb-2 text-left">Status</th>
+                    <th className="pb-2 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {filteredAds.slice((currentPage - 1) * 10, currentPage * 10).map((ad, i) => (
-                    <motion.tr
-                      key={ad.id}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.45 + i * 0.04, duration: 0.3 }}
-                      className="group transition-colors hover:bg-white/[0.02]"
-                    >
-                      {/* Preview */}
-                      <td className="py-2 pr-3">
-                        <div className="relative h-8 w-20 overflow-hidden rounded-lg">
-                          <div className={`absolute inset-0 bg-gradient-to-br ${ad.gradient}`} />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            {ad.type === 'Image' ? (
-                              <ImageIcon className="h-3 w-3 text-white/20" />
-                            ) : (
-                              <Code2 className="h-3 w-3 text-white/20" />
-                            )}
-                          </div>
-                          <div className="absolute top-0.5 right-0.5 rounded bg-black/50 px-0.5 text-[5px] text-white/40">
-                            {ad.placement.includes('Hero') ? 'H' : 'F'}
-                          </div>
+                  {filteredAds.map((ad, i) => (
+                    <motion.tr key={ad.id} className="group hover:bg-white/[0.02] transition-colors">
+                      <td className="py-2.5">
+                        <div className="h-9 w-16 overflow-hidden rounded bg-black/60 border border-white/5">
+                          <img src={ad.imageUrl} alt={ad.title} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = premiumPlaceholderImages[i % 10] }} />
                         </div>
                       </td>
-                      {/* Ad Title */}
-                      <td className="py-2 pr-3">
-                        <p className="text-xs font-medium text-white">{ad.title}</p>
+                      <td className="py-2.5">
+                        <span className="text-xs font-semibold text-white group-hover:text-xtube-red transition-colors">{ad.title}</span>
                       </td>
-                      {/* Type */}
-                      <td className="py-2 pr-3">
-                        <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${typeStyles[ad.type]}`}>
-                          {ad.type === 'Image' ? <ImageIcon className="h-2.5 w-2.5" /> : <Code2 className="h-2.5 w-2.5" />}
-                          {ad.type}
-                        </span>
-                      </td>
-                      {/* Placement */}
-                      <td className="py-2 pr-3">
-                        <span className={`inline-flex items-center gap-1 text-xs ${ad.placement.includes('Hero') ? 'text-red-400/70' : 'text-purple-400/70'}`}>
-                          {ad.placement.includes('Hero') ? <ArrowUpFromLine className="h-2.5 w-2.5" /> : <ArrowDownFromLine className="h-2.5 w-2.5" />}
-                          {ad.placement}
-                        </span>
-                      </td>
-                      {/* Size */}
-                      <td className="py-2 pr-3">
-                        <span className="text-xs text-white/50">{ad.size}</span>
-                      </td>
-                      {/* Impressions */}
-                      <td className="py-2 pr-3">
-                        <span className="text-xs font-medium text-white/70">{ad.impressions}</span>
-                      </td>
-                      {/* CTR */}
-                      <td className="py-2 pr-3">
-                        <span className="text-xs font-medium text-white/70">{ad.ctr}</span>
-                      </td>
-                      {/* Revenue */}
-                      <td className="py-2 pr-3">
-                        <span className="text-xs font-semibold text-emerald-400">{ad.revenue}</span>
-                      </td>
-                      {/* Status */}
-                      <td className="py-2 pr-3">
+                      <td className="py-2.5 text-xs text-white/45">{ad.type}</td>
+                      <td className="py-2.5 text-xs text-white/40">{ad.placement}</td>
+                      <td className="py-2.5 text-xs text-white/40">{ad.size}</td>
+                      <td className="py-2.5 text-xs text-white/70">{ad.impressions}</td>
+                      <td className="py-2.5 text-xs font-bold text-xtube-red">{ad.ctr}</td>
+                      <td className="py-2.5 text-xs font-semibold text-emerald-400">{ad.revenue}</td>
+                      <td className="py-2.5">
                         <button
                           onClick={() => toggleAdStatus(ad.id, ad.isHero, ad.status !== 'Active')}
-                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium ${statusStyles[ad.status]} transition-colors hover:bg-white/5`}
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold transition-all hover:scale-105 active:scale-95 ${statusStyles[ad.status]}`}
                         >
-                          {ad.status === 'Active' && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />}
-                          {ad.status === 'Paused' && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
-                          {ad.status === 'Draft' && <span className="h-1.5 w-1.5 rounded-full bg-white/30" />}
+                          <span className={`h-1.5 w-1.5 rounded-full ${ad.status === 'Active' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                           {ad.status}
                         </button>
                       </td>
-                      {/* Actions */}
-                      <td className="py-2">
-                        <div className="flex items-center gap-1">
-                          <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-white/10 hover:text-white" title="Edit">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-white/10 hover:text-white" title="Analytics">
-                            <BarChart3 className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm('Are you sure you want to delete this ad?')) {
-                                deleteAd(ad.id, ad.isHero)
-                              }
-                            }}
-                            className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-red-500/10 hover:text-red-400"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
+                      <td className="py-2.5 text-right">
+                        <button
+                          onClick={() => deleteAd(ad.id, ad.isHero)}
+                          className="rounded p-1 text-white/30 hover:bg-xtube-red/10 hover:text-xtube-red opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </td>
                     </motion.tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-
-            {/* Pagination */}
-            <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-4">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-white/30">Rows per page:</span>
-                <Select value="10" onValueChange={() => {}}>
-                  <SelectTrigger className="h-6 w-16 rounded border-white/10 bg-[#0a0a0a] text-[10px] text-white/50 [&_svg]:text-white/30">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="border-white/10 bg-[#111111]">
-                    <SelectItem value="10" className="text-[10px] text-white focus:bg-white/5">10</SelectItem>
-                    <SelectItem value="25" className="text-[10px] text-white focus:bg-white/5">25</SelectItem>
-                    <SelectItem value="50" className="text-[10px] text-white focus:bg-white/5">50</SelectItem>
-                  </SelectContent>
-                </Select>
-                <span className="text-[10px] text-white/30">
-                  {filteredAds.length > 0 ? (currentPage - 1) * 10 + 1 : 0}–{Math.min(currentPage * 10, filteredAds.length)} of {filteredAds.length}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 text-white/40 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </button>
-                {Array.from({ length: Math.ceil(filteredAds.length / 10) }).map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-medium transition-colors ${
-                      currentPage === i + 1
-                        ? 'bg-[#ff1e1e] text-white'
-                        : 'border border-white/10 text-white/40 hover:bg-white/5 hover:text-white'
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-                <button
-                  disabled={currentPage === Math.ceil(filteredAds.length / 10) || filteredAds.length === 0}
-                  onClick={() => setCurrentPage(Math.min(Math.ceil(filteredAds.length / 10), currentPage + 1))}
-                  className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 text-white/40 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-40"
-                >
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
             </div>
           </div>
         </motion.div>

@@ -7,10 +7,12 @@ import {
   Play,
   Pause,
   Volume2,
+  VolumeX,
   Settings,
   Maximize,
   CloudUpload,
   Upload,
+  Trash2,
   CheckCircle2,
   Film,
   Megaphone,
@@ -23,17 +25,12 @@ import {
   Image as ImageIcon,
   BarChart3,
   Pencil,
-  Search,
-  ChevronLeft,
-  ChevronRight,
   ExternalLink,
   Radio,
-  Trash2,
-  Monitor,
-  Tablet,
-  Smartphone,
-  Code,
-  Type,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Search,
 } from 'lucide-react'
 import {
   Select,
@@ -50,46 +47,27 @@ import {
   Tooltip,
 } from 'recharts'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
 type UploadStage = 'idle' | 'uploading' | 'processing' | 'success'
-type AdTab = 'image' | 'html5' | 'text'
+type AdTab = 'image' | 'text'
 type OverlayPosition = 'top-left' | 'top-center' | 'top-right' | 'middle-left' | 'center' | 'middle-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'
 
 interface OverlayAd {
   id: string
   name: string
-  type: 'Image' | 'HTML5'
+  type: 'Image' | 'Text'
   placement: string
   impressions: string
   ctr: string
   revenue: string
   status: 'Active' | 'Paused' | 'Draft'
   gradient: string
+  imageUrl: string
+  mediaUrl: string | null
+  position: string
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-const STAT_COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#EC4899', '#F59E0B']
-const DONUT_COLORS = ['#3B82F6', '#8B5CF6']
-
-const thumbnailGradients = [
-  'from-blue-900/60 via-indigo-800/40 to-violet-900/30',
-  'from-emerald-900/60 via-teal-800/40 to-cyan-900/30',
-  'from-amber-900/60 via-orange-800/40 to-yellow-900/30',
-  'from-rose-900/60 via-pink-800/40 to-red-900/30',
-  'from-cyan-900/60 via-sky-800/40 to-blue-900/30',
-  'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30',
-  'from-lime-900/60 via-green-800/40 to-emerald-900/30',
-  'from-orange-900/60 via-red-800/40 to-amber-900/30',
-  'from-indigo-900/60 via-blue-800/40 to-sky-900/30',
-  'from-pink-900/60 via-rose-800/40 to-fuchsia-900/30',
-]
-
-const thumbnailTimecodes = [
-  '00:01', '00:02', '00:03', '00:04', '00:05',
-  '00:06', '00:07', '00:08', '00:09', '00:10',
-]
+const STAT_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#ec4899', '#f97316']
+const DONUT_COLORS = ['#3b82f6', '#10b981']
 
 const premiumPlaceholderImages = [
   'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=60',
@@ -103,7 +81,6 @@ const premiumPlaceholderImages = [
   'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400&auto=format&fit=crop&q=60',
   'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&auto=format&fit=crop&q=60',
 ]
-
 
 const positionOptions: { id: OverlayPosition; label: string }[] = [
   { id: 'top-left', label: 'TL' },
@@ -129,9 +106,17 @@ const positionLabels: Record<OverlayPosition, string> = {
   'bottom-right': 'Bottom Right',
 }
 
-// Demo data removed — all overlay ads now fetched from Supabase in realtime
-
-// ─── Mini Sparkline SVG ──────────────────────────────────────────────────────
+const positionOverlayClasses: Record<OverlayPosition, string> = {
+  'top-left': 'top-2 left-2',
+  'top-center': 'top-2 left-1/2 -translate-x-1/2',
+  'top-right': 'top-2 right-2',
+  'middle-left': 'top-1/2 left-2 -translate-y-1/2',
+  'center': 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
+  'middle-right': 'top-1/2 right-2 -translate-y-1/2',
+  'bottom-left': 'bottom-2 left-2',
+  'bottom-center': 'bottom-2 left-1/2 -translate-x-1/2',
+  'bottom-right': 'bottom-2 right-2',
+}
 
 function MiniSparkline({ color, index }: { color: string; index: number }) {
   const paths = [
@@ -143,12 +128,17 @@ function MiniSparkline({ color, index }: { color: string; index: number }) {
   ]
   return (
     <svg viewBox="0 0 56 24" className="mt-2 h-6 w-full opacity-40">
-      <path d={paths[index % paths.length]} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d={paths[index % paths.length]}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
-
-// ─── Stat Card ───────────────────────────────────────────────────────────────
 
 function StatCard({
   title,
@@ -172,7 +162,7 @@ function StatCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="group relative overflow-hidden rounded-[18px] border border-[#1A1A1A] bg-[#0B0B0F] p-3 lg:p-4 backdrop-blur-xl transition-all duration-300 hover:border-white/10 hover:shadow-lg"
+      className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-3 lg:p-4 backdrop-blur-xl transition-all duration-300 hover:border-white/10 hover:shadow-lg"
     >
       <div className="absolute left-0 top-0 h-[2px] w-full" style={{ background: `linear-gradient(to right, ${color}, transparent)` }} />
       <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: color, filter: 'blur(40px)', opacity: 0.06 }} />
@@ -182,8 +172,8 @@ function StatCard({
           <p className="text-[11px] font-medium uppercase tracking-wider text-white/40">{title}</p>
           <p className="text-xl font-bold text-white">{value}</p>
           <div className="flex items-center gap-1.5">
-            <TrendingUp className="h-3 w-3 text-[#00FF85]" />
-            <span className="text-xs font-semibold text-[#00FF85]">{change}</span>
+            <TrendingUp className="h-3 w-3 text-emerald-400" />
+            <span className="text-xs font-semibold text-emerald-400">{change}</span>
             <span className="text-[10px] text-white/25">from last 30 days</span>
           </div>
         </div>
@@ -196,53 +186,7 @@ function StatCard({
   )
 }
 
-// ─── Position Selector ───────────────────────────────────────────────────────
-
-function PositionSelector({
-  selected,
-  onSelect,
-}: {
-  selected: OverlayPosition
-  onSelect: (pos: OverlayPosition) => void
-}) {
-  return (
-    <div>
-      <p className="mb-2 text-xs font-medium text-white/60">Position</p>
-      <div className="grid grid-cols-3 gap-1.5">
-        {positionOptions.map((pos) => (
-          <motion.button
-            key={pos.id}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onSelect(pos.id)}
-            className={`relative flex h-9 items-center justify-center rounded-lg border text-[10px] font-semibold transition-all ${
-              selected === pos.id
-                ? 'border-[#FF0000]/40 bg-[#FF0000]/10 text-white shadow-[0_0_8px_rgba(255,0,0,0.15)]'
-                : 'border-[#1A1A1A] bg-white/[0.02] text-white/40 hover:border-white/20 hover:text-white/60'
-            }`}
-          >
-            {pos.label}
-            {selected === pos.id && (
-              <motion.div
-                layoutId="position-indicator"
-                className="absolute inset-0 rounded-lg border border-[#FF0000]/30"
-                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-              />
-            )}
-          </motion.button>
-        ))}
-      </div>
-      <p className="mt-1.5 text-[10px] text-white/25">
-        Selected: <span className="text-white/50">{positionLabels[selected]}</span>
-      </p>
-    </div>
-  )
-}
-
-// ─── Main Component ──────────────────────────────────────────────────────────
-
 export function OverlayAdsPage() {
-  // Upload state
   const [uploadStage, setUploadStage] = useState<UploadStage>('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadSpeed, setUploadSpeed] = useState('0 MB/s')
@@ -253,16 +197,83 @@ export function OverlayAdsPage() {
   const [adTab, setAdTab] = useState<AdTab>('image')
   const [isPlaying, setIsPlaying] = useState(false)
 
-  // Overlay-specific state
+  // Overlay Config state
   const [selectedPosition, setSelectedPosition] = useState<OverlayPosition>('bottom-center')
   const [adSize, setAdSize] = useState('medium')
-  const [autoClose, setAutoClose] = useState('10')
-  const [displayDesktop, setDisplayDesktop] = useState(true)
-  const [displayTablet, setDisplayTablet] = useState(true)
-  const [displayMobile, setDisplayMobile] = useState(false)
   const [overlayName, setOverlayName] = useState('')
   const [overlayLink, setOverlayLink] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // Extracted media details
+  const [fileDetails, setFileDetails] = useState<{
+    name: string
+    size: string
+    resolution: string
+    format: string
+  } | null>(null)
+
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null)
+  const [extractedThumbnails, setExtractedThumbnails] = useState<string[]>([])
+
+  // Realtime Supabase Ads
+  const { ads: allAds, stats, deleteAd, toggleAdStatus, fetchAds } = useRealtimeAds({ position: 'timed' })
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Process selected image file
+  const processSelectedFile = useCallback((file: File) => {
+    const objectUrl = URL.createObjectURL(file)
+    setMediaUrl(objectUrl)
+
+    const format = file.name.split('.').pop()?.toUpperCase() || ''
+    setFileDetails({
+      name: file.name,
+      size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+      resolution: 'Responsive Overlay',
+      format,
+    })
+    if (!overlayName) setOverlayName(file.name.replace(/\.[^/.]+$/, ""))
+
+    // Start progress simulation
+    setUploadStage('uploading')
+    setUploadProgress(0)
+    let progress = 0
+
+    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+    progressIntervalRef.current = setInterval(() => {
+      progress = Math.min(progress + 15, 100)
+      setUploadProgress(progress)
+      setUploadedSize(`${((progress / 100) * parseFloat((file.size / (1024 * 1024)).toFixed(2))).toFixed(2)} MB`)
+      setUploadSpeed('45.2 MB/s')
+      setUploadRemaining('1 sec')
+
+      if (progress >= 100) {
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+        setUploadStage('success')
+        setExtractedThumbnails(premiumPlaceholderImages)
+      }
+    }, 80)
+  }, [overlayName])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true) }, [])
+  const handleDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(false) }, [])
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const files = e.dataTransfer.files
+    if (files.length > 0) processSelectedFile(files[0])
+  }, [processSelectedFile])
+
+  const handleResetUpload = useCallback(() => {
+    setUploadStage('idle')
+    setUploadProgress(0)
+    setSelectedThumbnail(0)
+    setFileDetails(null)
+    setMediaUrl(null)
+    setExtractedThumbnails([])
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }, [])
 
   const handleSaveAd = async () => {
     if (!overlayName) {
@@ -271,6 +282,7 @@ export function OverlayAdsPage() {
     }
     setSaving(true)
     try {
+      const activeThumbnail = extractedThumbnails[selectedThumbnail] || premiumPlaceholderImages[0]
       const res = await fetch('/api/ads', {
         method: 'POST',
         headers: {
@@ -280,18 +292,21 @@ export function OverlayAdsPage() {
           type: 'overlay',
           position: selectedPosition,
           title: overlayName,
-          imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop',
+          imageUrl: mediaUrl || activeThumbnail,
           linkUrl: overlayLink || null,
           isActive: true,
-          startDate: null,
-          endDate: null,
+          mediaUrl: mediaUrl || activeThumbnail,
+          mediaFormat: fileDetails?.format?.toLowerCase() || 'png',
+          quality: '720p',
         }),
       })
 
       if (res.ok) {
         setOverlayName('')
         setOverlayLink('')
+        handleResetUpload()
         alert('Overlay ad saved successfully!')
+        fetchAds()
       } else {
         const err = await res.json()
         alert(`Error: ${err.error || 'Failed to save overlay'}`)
@@ -304,76 +319,39 @@ export function OverlayAdsPage() {
     }
   }
 
-  // Table state
+  // Table & Filters
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const adGradients = [
+    'from-orange-900/60 via-red-800/40 to-amber-900/30',
+    'from-blue-900/60 via-indigo-800/40 to-violet-900/30',
+    'from-cyan-900/60 via-sky-800/40 to-blue-900/30',
+    'from-emerald-900/60 via-teal-800/40 to-cyan-900/30',
+    'from-rose-900/60 via-pink-800/40 to-red-900/30',
+    'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30',
+  ]
 
-  // ─── Simulated Upload ──────────────────────────────────────────────────
+  const mappedAds: OverlayAd[] = useMemo(() => allAds.map((ad, i) => ({
+    id: ad.id,
+    name: ad.title,
+    type: (ad.type === 'text' ? 'Text' : 'Image') as OverlayAd['type'],
+    placement: `Timed Overlay (${positionLabels[ad.position as OverlayPosition] || ad.position})`,
+    impressions: formatAdNumber(ad.impressions),
+    ctr: ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) + '%' : '0%',
+    revenue: formatAdRevenue(ad.revenue),
+    status: (ad.isActive ? 'Active' : 'Paused') as OverlayAd['status'],
+    gradient: adGradients[i % adGradients.length],
+    imageUrl: ad.imageUrl,
+    mediaUrl: ad.mediaUrl,
+    position: ad.position,
+  })), [allAds])
 
-  const simulateUpload = useCallback((fileName: string) => {
-    setUploadStage('uploading')
-    setUploadProgress(0)
-    setUploadedSize('0 MB')
-
-    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-
-    let progress = 0
-    const totalSize = 5.0 // MB for overlay
-
-    progressIntervalRef.current = setInterval(() => {
-      const increment = Math.random() * 6 + 2
-      progress = Math.min(progress + increment, 100)
-      setUploadProgress(progress)
-
-      const uploaded = (progress / 100) * totalSize
-      setUploadedSize(`${uploaded.toFixed(2)} MB`)
-      setUploadSpeed(`${(Math.random() * 1.5 + 1).toFixed(1)} MB/s`)
-
-      const remaining = ((100 - progress) / increment) * 0.08
-      setUploadRemaining(remaining > 60 ? `${Math.ceil(remaining / 60)} mins left` : `${Math.ceil(remaining)} sec left`)
-
-      if (progress >= 100) {
-        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-        setUploadStage('processing')
-        setTimeout(() => setUploadStage('success'), 1200)
-      }
-    }, 120)
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-    }
-  }, [])
-
-  // ─── Drag & Drop ───────────────────────────────────────────────────────
-
-  const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true) }, [])
-  const handleDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(false) }, [])
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
-    const files = e.dataTransfer.files
-    if (files.length > 0) simulateUpload(files[0].name)
-  }, [simulateUpload])
-
-  const handleResetUpload = useCallback(() => {
-    setUploadStage('idle')
-    setUploadProgress(0)
-    setSelectedThumbnail(0)
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }, [])
-
-  // ─── Filtered Ads ──────────────────────────────────────────────────────
-
-  const { ads: allAds, stats, deleteAd, toggleAdStatus } = useRealtimeAds({ type: 'overlay' })
-  const adGradients = ['from-orange-900/60 via-red-800/40 to-amber-900/30','from-blue-900/60 via-indigo-800/40 to-violet-900/30','from-cyan-900/60 via-sky-800/40 to-blue-900/30','from-emerald-900/60 via-teal-800/40 to-cyan-900/30','from-rose-900/60 via-pink-800/40 to-red-900/30','from-violet-900/60 via-purple-800/40 to-fuchsia-900/30']
-  const mappedAds: OverlayAd[] = useMemo(() => allAds.map((ad, i) => ({ id: ad.id, name: ad.title, type: (ad.mediaFormat === 'html5' ? 'HTML5' : 'Image') as OverlayAd['type'], placement: `Overlay (${ad.position || 'Bottom Center'})`, impressions: formatAdNumber(ad.impressions), ctr: ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) + '%' : '0%', revenue: formatAdRevenue(ad.revenue), status: (ad.isActive ? 'Active' : 'Paused') as OverlayAd['status'], gradient: adGradients[i % adGradients.length] })), [allAds])
-  const donutData = useMemo(() => [{ name: 'Image Ads', value: allAds.filter(a => a.mediaFormat !== 'html5').reduce((s, a) => s + a.impressions, 0) }, { name: 'HTML5 Ads', value: allAds.filter(a => a.mediaFormat === 'html5').reduce((s, a) => s + a.impressions, 0) }], [allAds])
+  const donutData = useMemo(() => [
+    { name: 'Image Overlays', value: allAds.filter(a => a.type !== 'text').reduce((s, a) => s + a.impressions, 0) || 1900 },
+    { name: 'Text/HTML Overlays', value: allAds.filter(a => a.type === 'text').reduce((s, a) => s + a.impressions, 0) || 400 },
+  ], [allAds])
 
   const filteredAds = mappedAds.filter((ad) => {
     if (statusFilter !== 'all' && ad.status.toLowerCase() !== statusFilter) return false
@@ -382,32 +360,14 @@ export function OverlayAdsPage() {
   })
 
   const statusStyles: Record<string, string> = {
-    Active: 'bg-[#00FF85]/10 text-[#00FF85] border-[#00FF85]/20',
-    Paused: 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/20',
+    Active: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    Paused: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
     Draft: 'bg-white/5 text-white/40 border-white/10',
   }
 
   const typeStyles: Record<string, string> = {
-    Image: 'bg-[#3B82F6]/10 text-[#3B82F6] border-[#3B82F6]/20',
-    HTML5: 'bg-[#8B5CF6]/10 text-[#8B5CF6] border-[#8B5CF6]/20',
-  }
-
-  // Pagination
-  const adsPerPage = 10
-  const totalPages = Math.ceil(filteredAds.length / adsPerPage)
-  const paginatedAds = filteredAds.slice((currentPage - 1) * adsPerPage, currentPage * adsPerPage)
-
-  // Position styles for the preview overlay
-  const positionClasses: Record<OverlayPosition, string> = {
-    'top-left': 'top-2 left-2',
-    'top-center': 'top-2 left-1/2 -translate-x-1/2',
-    'top-right': 'top-2 right-2',
-    'middle-left': 'top-1/2 -translate-y-1/2 left-2',
-    'center': 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
-    'middle-right': 'top-1/2 -translate-y-1/2 right-2',
-    'bottom-left': 'bottom-12 left-2',
-    'bottom-center': 'bottom-12 left-1/2 -translate-x-1/2',
-    'bottom-right': 'bottom-12 right-2',
+    Image: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+    Text: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
   }
 
   return (
@@ -418,104 +378,83 @@ export function OverlayAdsPage() {
       transition={{ duration: 0.3 }}
       className="h-full overflow-y-auto no-scrollbar"
     >
-      <div className="min-h-full p-3 lg:p-5 xl:p-6 space-y-4">
-        {/* ═══════════════════════════════════════════════════════════════════
-            TOP HEADER
-            ═══════════════════════════════════════════════════════════════════ */}
+      <div className="min-h-full p-3 lg:p-5 space-y-4">
+        {/* TOP HEADER */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-xl font-bold text-white md:text-2xl">Overlay Ads</h1>
-            <p className="mt-1 text-sm text-white/40">Create, preview and manage overlay ads for video content</p>
+            <p className="mt-1 text-xs text-white/40">Deploy floating contextual overlay advertisements on player screens</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Date range */}
-            <button className="flex items-center gap-2 rounded-[18px] border border-[#1A1A1A] bg-[#0B0B0F] px-3 py-2 text-xs font-medium text-white/60 backdrop-blur-xl transition-colors hover:border-white/20 hover:text-white">
+            <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2 text-xs font-medium text-white/60 backdrop-blur-xl transition-colors hover:border-white/20 hover:text-white">
               <Clock className="h-3.5 w-3.5" />
-              May 10 – Jun 10, 2025
+              May 10 – Jun 10, 2026
             </button>
-            {/* Export */}
-            <button className="flex items-center gap-2 rounded-[18px] border border-[#1A1A1A] bg-[#0B0B0F] px-3 py-2 text-xs font-medium text-white/60 backdrop-blur-xl transition-colors hover:border-white/20 hover:text-white">
+            <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2 text-xs font-medium text-white/60 backdrop-blur-xl transition-colors hover:border-white/20 hover:text-white">
               <Upload className="h-3.5 w-3.5" />
-              Export Report
+              Export
             </button>
-            {/* Create button */}
-            <motion.button
-              whileHover={{ scale: 1.03, boxShadow: '0 0 25px rgba(255,0,0,0.4)' }}
-              whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-2 rounded-[18px] bg-[#FF0000] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,0,0,0.3)] transition-all hover:bg-red-600"
-            >
-              <CloudUpload className="h-4 w-4" />
-              + Create Overlay Ad
-            </motion.button>
           </div>
         </div>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            TOP ANALYTICS CARDS (5 cards)
-            ═══════════════════════════════════════════════════════════════════ */}
+        {/* TOP ANALYTICS CARDS */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <StatCard title="Total Overlay Ads" value={String(stats.totalAds)} change="+13.6%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
-          <StatCard title="Active Ads" value={String(stats.activeAds)} change="+12.3%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
-          <StatCard title="Impressions" value={formatAdNumber(stats.totalImpressions)} change="+19.4%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
-          <StatCard title="CTR" value={stats.avgCTR.toFixed(2) + '%'} change="+7.8%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
-          <StatCard title="Revenue" value={formatAdRevenue(stats.totalRevenue)} change="+16.1%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
+          <StatCard title="Total Overlays" value={String(stats.totalAds)} change="+9.4%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
+          <StatCard title="Active Campaigns" value={String(stats.activeAds)} change="+8.2%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
+          <StatCard title="Impressions" value={formatAdNumber(stats.totalImpressions)} change="+15.3%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
+          <StatCard title="CTR" value={stats.avgCTR.toFixed(2) + '%'} change="+6.7%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
+          <StatCard title="Revenue Track" value={formatAdRevenue(stats.totalRevenue)} change="+11.4%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
         </div>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            THREE COLUMN LAYOUT
-            ═══════════════════════════════════════════════════════════════════ */}
+        {/* THREE COLUMN MAIN LAYOUT */}
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_1fr_300px] 2xl:grid-cols-[1fr_1fr_340px]">
-          {/* ── LEFT: Create Overlay Ad ── */}
+          
+          {/* COLUMN 1: FORM & UPLOAD */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25, duration: 0.4 }}
-            className="overflow-hidden rounded-[18px] border border-[#1A1A1A] bg-[#0B0B0F] backdrop-blur-xl"
+            className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl"
           >
             <div className="p-3 lg:p-4">
               <h2 className="mb-4 text-base font-bold text-white">Create Overlay Ad</h2>
 
-              {/* Tabs */}
-              <div className="mb-4 flex items-center gap-0 border-b border-[#1A1A1A]">
+              <div className="mb-4 flex items-center gap-0 border-b border-white/5">
                 <button
-                  onClick={() => setAdTab('image')}
-                  className={`relative flex items-center gap-2 px-3 pb-2.5 text-sm font-medium transition-colors ${
+                  onClick={() => { setAdTab('image'); handleResetUpload() }}
+                  className={`relative flex items-center gap-2 px-4 pb-2.5 text-sm font-medium transition-colors ${
                     adTab === 'image' ? 'text-white' : 'text-white/40 hover:text-white/60'
                   }`}
                 >
                   <ImageIcon className="h-3.5 w-3.5" />
-                  Image Ad
+                  Image Creative
                   {adTab === 'image' && (
-                    <motion.div layoutId="overlay-tab-indicator" className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-[#FF0000]" transition={{ type: 'spring', stiffness: 500, damping: 30 }} />
+                    <motion.div
+                      layoutId="overlay-tab-indicator"
+                      className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-xtube-red"
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    />
                   )}
                 </button>
                 <button
-                  onClick={() => setAdTab('html5')}
-                  className={`relative flex items-center gap-2 px-3 pb-2.5 text-sm font-medium transition-colors ${
-                    adTab === 'html5' ? 'text-white' : 'text-white/40 hover:text-white/60'
-                  }`}
-                >
-                  <Code className="h-3.5 w-3.5" />
-                  HTML5 Ad
-                  {adTab === 'html5' && (
-                    <motion.div layoutId="overlay-tab-indicator" className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-[#FF0000]" transition={{ type: 'spring', stiffness: 500, damping: 30 }} />
-                  )}
-                </button>
-                <button
-                  onClick={() => setAdTab('text')}
-                  className={`relative flex items-center gap-2 px-3 pb-2.5 text-sm font-medium transition-colors ${
+                  onClick={() => { setAdTab('text'); handleResetUpload() }}
+                  className={`relative flex items-center gap-2 px-4 pb-2.5 text-sm font-medium transition-colors ${
                     adTab === 'text' ? 'text-white' : 'text-white/40 hover:text-white/60'
                   }`}
                 >
-                  <Type className="h-3.5 w-3.5" />
-                  Text Ad
+                  <Film className="h-3.5 w-3.5" />
+                  Text Banner
                   {adTab === 'text' && (
-                    <motion.div layoutId="overlay-tab-indicator" className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-[#FF0000]" transition={{ type: 'spring', stiffness: 500, damping: 30 }} />
+                    <motion.div
+                      layoutId="overlay-tab-indicator"
+                      className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-xtube-red"
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    />
                   )}
                 </button>
               </div>
 
-              {/* Upload Area */}
+              {/* Upload Drop Zone */}
               <AnimatePresence mode="wait">
                 {uploadStage === 'idle' ? (
                   <motion.div
@@ -527,31 +466,29 @@ export function OverlayAdsPage() {
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}
-                    className={`relative flex min-h-[160px] cursor-pointer flex-col items-center justify-center gap-3 rounded-[18px] border-2 border-dashed transition-all duration-200 ${
+                    className={`relative flex min-h-[150px] cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed transition-all duration-200 ${
                       isDragOver
-                        ? 'border-[#FF0000] bg-[#FF0000]/5 shadow-[0_0_20px_rgba(255,0,0,0.15)]'
-                        : 'border-[#1A1A1A] bg-[#050505]/60 hover:border-white/20'
+                        ? 'border-xtube-red bg-xtube-red/5 shadow-[0_0_20px_rgba(229,9,20,0.15)]'
+                        : 'border-white/10 bg-[#0a0a0a]/60 hover:border-white/20'
                     }`}
                   >
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/png,image/jpeg,image/gif,image/webp,.html,.htm"
+                      accept="image/*"
                       className="hidden"
-                      onChange={(e) => { if (e.target.files?.length) simulateUpload(e.target.files[0].name) }}
+                      onChange={(e) => { if (e.target.files?.length) processSelectedFile(e.target.files[0]) }}
                     />
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FF0000]/10">
-                      <CloudUpload className="h-6 w-6 text-[#FF0000]" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-xtube-red/10">
+                      <CloudUpload className="h-6 w-6 text-xtube-red" />
                     </div>
                     <div className="text-center">
-                      <p className="text-sm font-medium text-white">Drag &amp; drop your {adTab === 'image' ? 'image' : adTab === 'html5' ? 'HTML5' : 'text'} here</p>
+                      <p className="text-sm font-medium text-white">Drag &amp; drop overlay image here</p>
                       <p className="mt-1 text-xs text-white/40">
-                        or <span className="text-[#FF0000] underline underline-offset-2">click to browse files</span>
+                        or <span className="text-xtube-red underline underline-offset-2">browse files</span>
                       </p>
                     </div>
-                    <p className="text-[10px] text-white/25">
-                      Max: 5GB | Supported: {adTab === 'image' ? 'JPG, PNG, GIF, WebP' : adTab === 'html5' ? 'HTML5' : 'Plain Text'}
-                    </p>
+                    <p className="text-[10px] text-white/25">Supported: JPG, PNG, WEBP, GIF</p>
                   </motion.div>
                 ) : uploadStage === 'uploading' || uploadStage === 'processing' ? (
                   <motion.div
@@ -559,55 +496,21 @@ export function OverlayAdsPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="rounded-[18px] border border-[#1A1A1A] bg-[#050505]/60 p-3 lg:p-4"
+                    className="rounded-xl border border-white/5 bg-[#0a0a0a]/60 p-4 space-y-4"
                   >
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-xs font-medium text-white truncate mr-2">
-                        {uploadStage === 'processing' ? 'Processing...' : 'Overlay_Banner_Ad.png'}
-                      </span>
-                      <span className="text-xs font-bold text-[#FF0000]">{Math.round(uploadProgress)}%</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-white">Processing Overlay file...</span>
+                      <span className="text-xs font-bold text-xtube-red">{Math.round(uploadProgress)}%</span>
                     </div>
-                    <div className="relative mb-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+                    <div className="relative h-1.5 overflow-hidden rounded-full bg-white/10">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${uploadProgress}%` }}
-                        transition={{ duration: 0.3 }}
-                        className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#FF0000] to-red-500"
-                      />
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${uploadProgress}%` }}
-                        transition={{ duration: 0.3 }}
-                        className="absolute left-0 top-0 h-full rounded-full bg-[#FF0000] blur-sm opacity-40"
+                        transition={{ duration: 0.2 }}
+                        className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-xtube-red to-red-500"
                       />
                     </div>
-                    {uploadStage === 'uploading' ? (
-                      <>
-                        <div className="grid grid-cols-3 gap-3 text-center mb-3">
-                          <div>
-                            <p className="text-[10px] text-white/25">Uploaded</p>
-                            <p className="text-xs font-semibold text-white">{uploadedSize} / 5.00 MB</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] text-white/25">Speed</p>
-                            <p className="text-xs font-semibold text-white">{uploadSpeed}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] text-white/25">Time Left</p>
-                            <p className="text-xs font-semibold text-white">{uploadRemaining}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button className="flex-1 rounded-lg border border-[#1A1A1A] bg-white/5 py-1.5 text-[10px] font-medium text-white/50 hover:bg-white/10 hover:text-white transition-colors">Pause</button>
-                          <button onClick={handleResetUpload} className="flex-1 rounded-lg border border-[#1A1A1A] bg-[#FF0000]/5 py-1.5 text-[10px] font-medium text-[#FF0000] hover:bg-[#FF0000]/15 transition-colors">Cancel</button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex items-center gap-2 text-xs text-[#F59E0B]">
-                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-[#F59E0B] border-t-transparent" />
-                        <span>Generating thumbnails and processing overlay...</span>
-                      </div>
-                    )}
+                    <button onClick={handleResetUpload} className="text-xs text-xtube-red hover:underline">Cancel</button>
                   </motion.div>
                 ) : (
                   <motion.div
@@ -615,47 +518,30 @@ export function OverlayAdsPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="space-y-4"
+                    className="space-y-3"
                   >
-                    {/* File success card */}
-                    <div className="flex items-center gap-3 rounded-[18px] border border-[#00FF85]/20 bg-[#00FF85]/5 p-3">
-                      <CheckCircle2 className="h-5 w-5 text-[#00FF85]" />
+                    <div className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-white">Overlay_Banner_Ad.png</p>
-                        <p className="text-[10px] text-white/30">2.25 MB • 300×250 • PNG</p>
+                        <p className="truncate text-xs font-semibold text-white">{fileDetails?.name}</p>
+                        <p className="text-[10px] text-white/30">{fileDetails?.size} &bull; {fileDetails?.resolution}</p>
                       </div>
-                      <button onClick={handleResetUpload} className="text-xs text-[#FF0000] hover:text-red-400">Change</button>
+                      <button onClick={handleResetUpload} className="text-xs text-xtube-red hover:underline">Change</button>
                     </div>
 
-                    {/* Thumbnails */}
+                    {/* SELECT PRESETS */}
                     <div>
-                      <div className="mb-2 flex items-center justify-between">
-                        <p className="text-xs font-medium text-white/60">Thumbnail <span className="text-[#FF0000]">(10 auto-generated)</span></p>
-                        <button className="text-[10px] text-[#FF0000] hover:text-red-400">Upload Manually</button>
-                      </div>
-                      <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
-                        {thumbnailGradients.map((gradient, i) => (
+                      <p className="text-[11px] font-medium text-white/60 mb-1.5">Preset Styles</p>
+                      <div className="grid grid-cols-5 gap-1.5">
+                        {extractedThumbnails.slice(0, 5).map((url, i) => (
                           <button
                             key={i}
                             onClick={() => setSelectedThumbnail(i)}
-                            className={`relative flex-shrink-0 h-12 w-16 overflow-hidden rounded border-2 transition-all ${
-                              selectedThumbnail === i
-                                ? 'border-[#FF0000] shadow-[0_0_8px_rgba(255,0,0,0.3)]'
-                                : 'border-transparent hover:border-white/20'
+                            className={`relative aspect-video overflow-hidden rounded border-2 transition-all ${
+                              selectedThumbnail === i ? 'border-xtube-red scale-95' : 'border-transparent hover:border-white/20'
                             }`}
                           >
-                            <img
-                              src={premiumPlaceholderImages[i]}
-                              alt={`Thumbnail ${i}`}
-                              className="h-full w-full object-cover"
-                            />
-                            {/* Fallback gradient underlay */}
-                            <div className={`absolute inset-0 bg-gradient-to-br ${gradient} -z-10`} />
-                            {selectedThumbnail === i && (
-                              <div className="absolute top-0.5 right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-[#FF0000]">
-                                <CheckCircle2 className="h-2 w-2 text-white" />
-                              </div>
-                            )}
+                            <img src={url} alt="preset" className="h-full w-full object-cover" />
                           </button>
                         ))}
                       </div>
@@ -664,230 +550,121 @@ export function OverlayAdsPage() {
                 )}
               </AnimatePresence>
 
-              {/* Position Selector */}
-              <div className="mt-4">
-                <PositionSelector selected={selectedPosition} onSelect={setSelectedPosition} />
-              </div>
-
-              {/* Size + Auto Close Row */}
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div>
-                  <p className="mb-1.5 text-xs font-medium text-white/60">Size</p>
-                  <Select value={adSize} onValueChange={setAdSize}>
-                    <SelectTrigger className="h-8 w-full rounded-[12px] border-[#1A1A1A] bg-[#050505] text-xs text-white/60 [&_svg]:text-white/30">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="border-[#1A1A1A] bg-[#0B0B0F]">
-                      <SelectItem value="small" className="text-xs text-white focus:bg-white/5">Small (180×150)</SelectItem>
-                      <SelectItem value="medium" className="text-xs text-white focus:bg-white/5">Medium (300×250)</SelectItem>
-                      <SelectItem value="large" className="text-xs text-white focus:bg-white/5">Large (728×90)</SelectItem>
-                      <SelectItem value="leaderboard" className="text-xs text-white focus:bg-white/5">Leaderboard (728×90)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <p className="mb-1.5 text-xs font-medium text-white/60">Auto Close</p>
-                  <Select value={autoClose} onValueChange={setAutoClose}>
-                    <SelectTrigger className="h-8 w-full rounded-[12px] border-[#1A1A1A] bg-[#050505] text-xs text-white/60 [&_svg]:text-white/30">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="border-[#1A1A1A] bg-[#0B0B0F]">
-                      <SelectItem value="5" className="text-xs text-white focus:bg-white/5">5 sec</SelectItem>
-                      <SelectItem value="10" className="text-xs text-white focus:bg-white/5">10 sec</SelectItem>
-                      <SelectItem value="15" className="text-xs text-white focus:bg-white/5">15 sec</SelectItem>
-                      <SelectItem value="20" className="text-xs text-white focus:bg-white/5">20 sec</SelectItem>
-                      <SelectItem value="30" className="text-xs text-white focus:bg-white/5">30 sec</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Display On Checkboxes */}
-              <div className="mt-4">
-                <p className="mb-2 text-xs font-medium text-white/60">Display On</p>
-                <div className="flex gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer group">
-                    <div
-                      onClick={() => setDisplayDesktop(!displayDesktop)}
-                      className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all ${
-                        displayDesktop
-                          ? 'border-[#FF0000]/40 bg-[#FF0000]/10 text-[#FF0000]'
-                          : 'border-[#1A1A1A] bg-white/[0.02] text-white/30 hover:border-white/20'
-                      }`}
-                    >
-                      <Monitor className="h-3.5 w-3.5" />
-                    </div>
-                    <span className="text-[10px] text-white/50 group-hover:text-white/70">Desktop</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer group">
-                    <div
-                      onClick={() => setDisplayTablet(!displayTablet)}
-                      className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all ${
-                        displayTablet
-                          ? 'border-[#FF0000]/40 bg-[#FF0000]/10 text-[#FF0000]'
-                          : 'border-[#1A1A1A] bg-white/[0.02] text-white/30 hover:border-white/20'
-                      }`}
-                    >
-                      <Tablet className="h-3.5 w-3.5" />
-                    </div>
-                    <span className="text-[10px] text-white/50 group-hover:text-white/70">Tablet</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer group">
-                    <div
-                      onClick={() => setDisplayMobile(!displayMobile)}
-                      className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-all ${
-                        displayMobile
-                          ? 'border-[#FF0000]/40 bg-[#FF0000]/10 text-[#FF0000]'
-                          : 'border-[#1A1A1A] bg-white/[0.02] text-white/30 hover:border-white/20'
-                      }`}
-                    >
-                      <Smartphone className="h-3.5 w-3.5" />
-                    </div>
-                    <span className="text-[10px] text-white/50 group-hover:text-white/70">Mobile</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Ad Name & Link */}
+              {/* INPUT FIELDS & CONFIGS */}
               <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-medium text-white/50">Overlay Name *</label>
+                
+                {/* POSITION GRID */}
+                <div>
+                  <label className="text-[11px] font-medium text-white/50 mb-1.5 block">Overlay Float Alignment</label>
+                  <div className="grid grid-cols-3 gap-1.5 max-w-[180px]">
+                    {positionOptions.map((pos) => (
+                      <button
+                        key={pos.id}
+                        onClick={() => setSelectedPosition(pos.id)}
+                        className={`flex h-8 items-center justify-center rounded border text-[10px] font-bold transition-all ${
+                          selectedPosition === pos.id
+                            ? 'border-xtube-red bg-xtube-red/10 text-white font-extrabold'
+                            : 'border-white/5 bg-white/[0.01] text-white/40 hover:border-white/10'
+                        }`}
+                      >
+                        {pos.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-white/50">Campaign Title *</label>
                   <input
                     type="text"
                     value={overlayName}
                     onChange={(e) => setOverlayName(e.target.value)}
-                    className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white/70 outline-none focus:border-[#ff1e1e]/40"
-                    placeholder="e.g. Nike Banner Overlay"
+                    className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#ff1e1e]/40"
+                    placeholder="e.g. Red bull overlay timed"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-medium text-white/50">Destination URL</label>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-white/50">Destination Redirect Link *</label>
                   <input
                     type="text"
                     value={overlayLink}
                     onChange={(e) => setOverlayLink(e.target.value)}
-                    className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white/70 outline-none focus:border-[#ff1e1e]/40"
-                    placeholder="e.g. https://nike.com/promo"
+                    className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#ff1e1e]/40"
+                    placeholder="e.g. https://redbull.com"
                   />
                 </div>
 
-                {/* Save button */}
                 <motion.button
                   onClick={handleSaveAd}
-                  disabled={saving}
-                  whileHover={{ scale: 1.02, boxShadow: '0 0 25px rgba(255,0,0,0.4)' }}
+                  disabled={saving || uploadStage === 'uploading'}
+                  whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF0000] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,0,0,0.3)] transition-all hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-xtube-red px-5 py-2 text-sm font-semibold text-white shadow-[0_0_15px_rgba(229,9,20,0.3)] transition-all hover:bg-xtube-red-hover disabled:opacity-50"
                 >
-                  {saving ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  ) : (
-                    <CloudUpload className="h-4 w-4" />
-                  )}
-                  {saving ? 'Saving...' : 'Save Overlay Ad'}
+                  {saving ? 'Saving overlay...' : 'Deploy Overlay Campaign'}
                 </motion.button>
               </div>
             </div>
           </motion.div>
 
-          {/* ── CENTER: Ad Preview ── */}
+          {/* COLUMN 2: INTERACTIVE LIVE PREVIEW PLAYER */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.4 }}
             className="space-y-4"
           >
-            <div className="overflow-hidden rounded-[18px] border border-[#1A1A1A] bg-[#0B0B0F] backdrop-blur-xl">
+            <div className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl">
               <div className="p-3 lg:p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-base font-bold text-white">Ad Preview</h2>
-                  <span className="text-xs text-white/30">Nike Air Max Overlay</span>
-                </div>
+                <h2 className="text-base font-bold text-white mb-3 flex items-center gap-1.5">
+                  <Radio className="h-4 w-4 text-xtube-red animate-pulse" />
+                  Interactive Contextual Overlay Preview
+                </h2>
 
-                {/* Player with overlay */}
-                <div className="relative aspect-video overflow-hidden rounded-lg bg-black">
-                  {/* Video background scene */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#1a2a4a] via-[#0d1b2a] to-[#0a1628]" />
-                  {/* Subtle video content */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center opacity-20">
-                      <Film className="h-10 w-10 text-white mx-auto mb-2" />
-                      <p className="text-xs text-white">Video Content Playing</p>
+                <div className="relative aspect-video overflow-hidden rounded-lg bg-black border border-white/5 shadow-2xl">
+                  {/* Mock Video Playing Background */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 via-slate-900 to-emerald-950 flex items-center justify-center">
+                    <div className="text-center space-y-1">
+                      <Film className="h-8 w-8 text-white/10 mx-auto animate-spin" />
+                      <p className="text-[10px] text-white/30 font-medium uppercase tracking-widest">Active Video Streaming</p>
                     </div>
                   </div>
 
-                  {/* ── Overlay Ad ── */}
-                  <motion.div
-                    layout
-                    className={`absolute ${positionClasses[selectedPosition]} z-10`}
-                    transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                  >
+                  {/* FLOATING OVERLAY AD CONTAINER */}
+                  <div className={`absolute ${positionOverlayClasses[selectedPosition]} z-20 m-2 transition-all duration-300`}>
                     <motion.div
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className={`overflow-hidden rounded-lg border border-white/10 bg-[#0B0B0F]/90 backdrop-blur-md shadow-[0_0_20px_rgba(0,0,0,0.6)] ${
-                        selectedPosition.includes('bottom') || selectedPosition.includes('middle') ? 'w-40' : 'w-36'
-                      }`}
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="relative bg-black/85 border border-white/10 text-white rounded p-2.5 backdrop-blur-md shadow-xl flex items-center gap-2 max-w-[200px]"
                     >
-                      {/* Overlay gradient top */}
-                      <div className="h-[2px] w-full bg-gradient-to-r from-[#FF0000] to-orange-500" />
-                      <div className="p-3 text-center">
-                        <p className="text-[8px] font-bold tracking-wider text-white/40 mb-1">NEW ARRIVAL</p>
-                        <p className="text-[11px] font-bold text-white leading-tight">NIKE AIR MAX</p>
-                        <p className="text-[10px] font-bold text-[#FF0000] mt-0.5">50% OFF</p>
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="mt-2 rounded bg-[#FF0000] px-3 py-1 text-[8px] font-bold text-white shadow-[0_0_8px_rgba(255,0,0,0.3)]"
-                        >
-                          SHOP NOW
-                        </motion.button>
+                      <div className="h-7 w-12 rounded overflow-hidden flex-shrink-0 bg-white/5">
+                        <img
+                          src={mediaUrl || extractedThumbnails[selectedThumbnail] || premiumPlaceholderImages[selectedThumbnail % 10]}
+                          alt="overlay preview"
+                          className="h-full w-full object-cover"
+                        />
                       </div>
+                      <div className="min-w-0 flex-1 text-left">
+                        <p className="text-[8px] font-extrabold text-xtube-red uppercase leading-none mb-0.5">Ad Banner</p>
+                        <p className="text-[9px] font-bold text-white truncate leading-tight">{overlayName || 'Featured Promo'}</p>
+                      </div>
+                      <button className="text-white/40 hover:text-white ml-1">
+                        <X className="h-2.5 w-2.5" />
+                      </button>
                     </motion.div>
-                  </motion.div>
-
-                  {/* Countdown */}
-                  <div className="absolute top-2 left-2 flex items-center gap-1.5 rounded-md bg-[#FF0000]/20 px-2 py-1 backdrop-blur-sm border border-[#FF0000]/30 z-20">
-                    <span className="text-[9px] font-bold text-white">Ad</span>
-                    <span className="text-[9px] text-white/60">10s</span>
-                  </div>
-
-                  {/* Bottom controls */}
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 pb-2 pt-6 z-20">
-                    <div className="group/progress relative mb-1.5 h-1 cursor-pointer rounded-full bg-white/20">
-                      <div className="absolute left-0 top-0 h-full w-[55%] rounded-full bg-[#FF0000]" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => setIsPlaying(!isPlaying)} className="text-white/70 hover:text-white">
-                          {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                        </button>
-                        <button className="text-white/70 hover:text-white"><Volume2 className="h-3.5 w-3.5" /></button>
-                        <span className="text-[10px] text-white/50">03:42 / 06:18</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button className="text-white/70 hover:text-white"><Settings className="h-3.5 w-3.5" /></button>
-                        <button className="text-white/70 hover:text-white"><Maximize className="h-3.5 w-3.5" /></button>
-                      </div>
-                    </div>
                   </div>
                 </div>
 
-                {/* Ad Details */}
-                <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
+                <div className="mt-4 grid grid-cols-2 gap-2">
                   {[
-                    { label: 'Placement', value: 'Overlay (During Video)' },
-                    { label: 'File', value: 'Overlay_Banner_Ad.png' },
-                    { label: 'Resolution', value: '300×250' },
-                    { label: 'File Size', value: '2.25 MB' },
-                    { label: 'Format', value: 'PNG' },
-                    { label: 'Auto Close', value: `${autoClose} sec` },
-                    { label: 'Position', value: positionLabels[selectedPosition] },
-                    { label: 'Display On', value: `${displayDesktop ? 'Desktop' : ''}${displayDesktop && displayTablet ? ', ' : ''}${displayTablet ? 'Tablet' : ''}${displayTablet && displayMobile ? ', ' : ''}${displayMobile ? 'Mobile' : ''}` },
+                    { label: 'Floating Alignment', value: positionLabels[selectedPosition] },
+                    { label: 'Campaign Title', value: overlayName || '—' },
+                    { label: 'Destination link', value: overlayLink || '—' },
+                    { label: 'Dynamic Width', value: 'Auto-fitted flex' },
                   ].map((detail) => (
-                    <div key={detail.label} className="flex items-center justify-between rounded-lg bg-[#050505]/50 px-3 py-1.5 border border-[#1A1A1A]/50">
-                      <span className="text-[10px] text-white/30">{detail.label}</span>
-                      <span className="text-[10px] font-medium text-white/70 truncate ml-2">{detail.value}</span>
+                    <div key={detail.label} className="flex items-center justify-between rounded-lg bg-[#0a0a0a]/50 px-3 py-1.5 border border-white/5">
+                      <span className="text-[9px] text-white/35 font-medium uppercase tracking-wider">{detail.label}</span>
+                      <span className="text-[10px] font-bold text-white/80 truncate ml-2">{detail.value}</span>
                     </div>
                   ))}
                 </div>
@@ -895,287 +672,107 @@ export function OverlayAdsPage() {
             </div>
           </motion.div>
 
-          {/* ── RIGHT: Quick Actions + Performance ── */}
+          {/* COLUMN 3: RATIO CHART */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.35, duration: 0.4 }}
             className="space-y-4"
           >
-            {/* Quick Actions */}
-            <div className="overflow-hidden rounded-[18px] border border-[#1A1A1A] bg-[#0B0B0F] backdrop-blur-xl">
-              <div className="p-3 lg:p-4">
-                <h2 className="mb-4 text-base font-bold text-white">Quick Actions</h2>
-                <div className="space-y-2.5">
-                  {[
-                    { icon: ImageIcon, label: 'Create Image Overlay Ad', desc: 'Upload image ad up to 5GB', color: '#FF0000', bgColor: 'from-red-500/10 to-red-600/5' },
-                    { icon: Code, label: 'Create HTML5 Overlay Ad', desc: 'Upload HTML5 ad', color: '#8B5CF6', bgColor: 'from-purple-500/10 to-purple-600/5' },
-                    { icon: Megaphone, label: 'Manage Overlay Ads', desc: 'View, edit and manage ads', color: '#00FF85', bgColor: 'from-emerald-500/10 to-emerald-600/5' },
-                    { icon: BarChart3, label: 'Ad Performance', desc: 'View analytics and reports', color: '#F59E0B', bgColor: 'from-orange-500/10 to-orange-600/5' },
-                  ].map((action) => (
-                    <motion.button
-                      key={action.label}
-                      whileHover={{ scale: 1.02, x: 2 }}
-                      whileTap={{ scale: 0.98 }}
-                      className={`group flex w-full items-center gap-3 rounded-[18px] border border-[#1A1A1A] bg-gradient-to-r ${action.bgColor} p-3 text-left transition-all hover:border-white/10 hover:shadow-lg`}
-                    >
-                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg" style={{ background: `${action.color}15` }}>
-                        <action.icon className="h-4 w-4" style={{ color: action.color }} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold text-white">{action.label}</p>
-                        <p className="text-[10px] text-white/30">{action.desc}</p>
-                      </div>
-                    </motion.button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Ad Performance Overview */}
-            <div className="overflow-hidden rounded-[18px] border border-[#1A1A1A] bg-[#0B0B0F] backdrop-blur-xl">
-              <div className="p-3 lg:p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-sm font-bold text-white">Ad Performance Overview</h2>
-                  <button className="text-[10px] text-white/30 hover:text-white/50">Last 30 Days</button>
-                </div>
-                <div className="h-44">
-                  <ResponsiveContainer width="99%" height="100%">
-                    <PieChart>
-                      <Pie data={donutData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} paddingAngle={3} dataKey="value" stroke="none">
-                        {donutData.map((_entry, index) => (
-                          <Cell key={`donut-${index}`} fill={DONUT_COLORS[index]} />
-                        ))}
-                      </Pie>
-                      <text x="50%" y="44%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-sm font-bold">
-                        4.92M
-                      </text>
-                      <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-white/30 text-[8px]">
-                        Impressions
-                      </text>
-                      <Tooltip
-                        content={({ active, payload }) => {
-                          if (!active || !payload?.length) return null
-                          const d = payload[0]
-                          const total = donutData.reduce((s, e) => s + e.value, 0)
-                          const pct = ((d.value as number) / total * 100).toFixed(0)
-                          return (
-                            <div className="rounded-lg border border-[#1A1A1A] bg-[#0B0B0F]/95 px-3 py-2 shadow-xl backdrop-blur-xl">
-                              <p className="text-xs font-semibold text-white">{d.name}</p>
-                              <p className="text-[10px] text-white/40">{(d.value as number).toLocaleString()} ({pct}%)</p>
-                            </div>
-                          )
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                {/* Legend */}
-                <div className="mt-2 space-y-1.5">
-                  {donutData.map((item, i) => {
-                    const total = donutData.reduce((s, e) => s + e.value, 0)
-                    const pct = ((item.value / total) * 100).toFixed(0)
-                    return (
-                      <div key={item.name} className="flex items-center justify-between text-[10px]">
-                        <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full" style={{ background: DONUT_COLORS[i] }} />
-                          <span className="text-white/50">{item.name}</span>
-                        </div>
-                        <span className="font-medium text-white/70">{pct}% • {(item.value / 1000000).toFixed(2)}M</span>
-                      </div>
-                    )
-                  })}
-                </div>
+            <div className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-4 backdrop-blur-xl">
+              <h2 className="mb-3 text-sm font-bold text-white">Performance Overview</h2>
+              <div className="h-44">
+                <ResponsiveContainer width="99%" height="100%">
+                  <PieChart>
+                    <Pie data={donutData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} paddingAngle={3} dataKey="value" stroke="none">
+                      {donutData.map((_entry, idx) => (
+                        <Cell key={idx} fill={DONUT_COLORS[idx]} />
+                      ))}
+                    </Pie>
+                    <text x="50%" y="44%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-xs font-bold">2.3K</text>
+                    <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-white/30 text-[7px] uppercase font-bold">Impressions</text>
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </motion.div>
         </div>
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            OVERLAY ADS LIST TABLE
-            ═══════════════════════════════════════════════════════════════════ */}
+        {/* FULL WIDTH TABLE */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.4 }}
-          className="overflow-hidden rounded-[18px] border border-[#1A1A1A] bg-[#0B0B0F] backdrop-blur-xl"
+          className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl"
         >
           <div className="p-3 lg:p-4">
-            {/* Table header */}
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-base font-bold text-white">Overlay Ads List</h2>
+              <h2 className="text-base font-bold text-white">Active Overlay Campaigns</h2>
               <div className="flex items-center gap-2">
                 <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1) }}>
-                  <SelectTrigger className="h-8 w-28 rounded-[18px] border-[#1A1A1A] bg-[#050505] text-xs text-white/60 [&_svg]:text-white/30">
+                  <SelectTrigger className="h-8 w-28 rounded-lg border-white/10 bg-[#0a0a0a] text-xs text-white/60 [&_svg]:text-white/30">
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
-                  <SelectContent className="border-[#1A1A1A] bg-[#0B0B0F]">
+                  <SelectContent className="border-white/10 bg-[#111111]">
                     <SelectItem value="all" className="text-xs text-white focus:bg-white/5">All Status</SelectItem>
                     <SelectItem value="active" className="text-xs text-white focus:bg-white/5">Active</SelectItem>
                     <SelectItem value="paused" className="text-xs text-white focus:bg-white/5">Paused</SelectItem>
-                    <SelectItem value="draft" className="text-xs text-white focus:bg-white/5">Draft</SelectItem>
                   </SelectContent>
                 </Select>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/30" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
-                    placeholder="Search ads..."
-                    className="h-8 w-40 rounded-[18px] border border-[#1A1A1A] bg-[#050505] pl-8 pr-3 text-xs text-white placeholder:text-white/25 outline-none focus:border-[#FF0000]/40"
-                  />
-                </div>
               </div>
             </div>
 
-            {/* Table */}
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[700px]">
+              <table className="w-full min-w-[800px]">
                 <thead>
-                  <tr className="border-b border-[#1A1A1A]">
-                    {['Preview', 'Ad Name', 'Type', 'Placement', 'Impressions', 'CTR', 'Revenue', 'Status', 'Actions'].map((h) => (
-                      <th key={h} className="pb-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-white/25">{h}</th>
-                    ))}
+                  <tr className="border-b border-white/5 text-[10px] font-semibold uppercase tracking-wider text-white/25">
+                    <th className="pb-2 text-left">Creative Preview</th>
+                    <th className="pb-2 text-left">Ad Name</th>
+                    <th className="pb-2 text-left">Placement</th>
+                    <th className="pb-2 text-left">Impressions</th>
+                    <th className="pb-2 text-left">CTR</th>
+                    <th className="pb-2 text-left">Revenue</th>
+                    <th className="pb-2 text-left">Status</th>
+                    <th className="pb-2 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#1A1A1A]">
-                  {paginatedAds.map((ad, i) => (
-                    <motion.tr
-                      key={ad.id}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.45 + i * 0.04, duration: 0.3 }}
-                      className="group transition-colors hover:bg-white/[0.02]"
-                    >
-                      {/* Preview */}
-                      <td className="py-2 pr-3">
-                        <div className={`relative h-10 w-14 overflow-hidden rounded-md bg-gradient-to-br ${ad.gradient}`}>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            {ad.type === 'Image' ? (
-                              <ImageIcon className="h-3.5 w-3.5 text-white/20" />
-                            ) : (
-                              <Code className="h-3.5 w-3.5 text-white/20" />
-                            )}
-                          </div>
+                <tbody className="divide-y divide-white/5">
+                  {filteredAds.map((ad, i) => (
+                    <motion.tr key={ad.id} className="group hover:bg-white/[0.02] transition-colors">
+                      <td className="py-2.5">
+                        <div className="h-9 w-16 overflow-hidden rounded bg-black/60 border border-white/5">
+                          <img src={ad.imageUrl} alt={ad.name} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = premiumPlaceholderImages[i % 10] }} />
                         </div>
                       </td>
-
-                      {/* Ad Name */}
-                      <td className="py-2 pr-3">
-                        <span className="text-xs font-medium text-white">{ad.name}</span>
+                      <td className="py-2.5">
+                        <span className="text-xs font-semibold text-white group-hover:text-xtube-red transition-colors">{ad.name}</span>
+                        <p className="text-[9px] text-white/25 uppercase font-mono">Position: {ad.position}</p>
                       </td>
-
-                      {/* Type */}
-                      <td className="py-2 pr-3">
-                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold ${typeStyles[ad.type]}`}>
-                          {ad.type}
-                        </span>
-                      </td>
-
-                      {/* Placement */}
-                      <td className="py-2 pr-3">
-                        <span className="text-[10px] text-white/50">{ad.placement}</span>
-                      </td>
-
-                      {/* Impressions */}
-                      <td className="py-2 pr-3">
-                        <span className="text-xs font-medium text-white/80">{ad.impressions}</span>
-                      </td>
-
-                      {/* CTR */}
-                      <td className="py-2 pr-3">
-                        <span className="text-xs font-medium text-[#00FF85]">{ad.ctr}</span>
-                      </td>
-
-                      {/* Revenue */}
-                      <td className="py-2 pr-3">
-                        <span className="text-xs font-semibold text-white">{ad.revenue}</span>
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-2 pr-3">
+                      <td className="py-2.5 text-xs text-white/40">{ad.placement}</td>
+                      <td className="py-2.5 text-xs text-white/70">{ad.impressions}</td>
+                      <td className="py-2.5 text-xs font-bold text-xtube-red">{ad.ctr}</td>
+                      <td className="py-2.5 text-xs font-semibold text-emerald-400">{ad.revenue}</td>
+                      <td className="py-2.5">
                         <button
                           onClick={() => toggleAdStatus(ad.id, ad.status !== 'Active')}
-                          className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold transition-all hover:scale-105 active:scale-95 ${statusStyles[ad.status]}`}
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold transition-all hover:scale-105 active:scale-95 ${statusStyles[ad.status]}`}
                         >
-                          <span className={`mr-1 h-1.5 w-1.5 rounded-full ${
-                            ad.status === 'Active' ? 'bg-[#00FF85]' : ad.status === 'Paused' ? 'bg-[#F59E0B]' : 'bg-white/30'
-                          }`} />
+                          <span className={`h-1.5 w-1.5 rounded-full ${ad.status === 'Active' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                           {ad.status}
                         </button>
                       </td>
-
-                      {/* Actions */}
-                      <td className="py-2">
-                        <div className="flex items-center gap-1">
-                          <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-white/5 hover:text-white" title="Edit">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-white/5 hover:text-[#3B82F6]" title="Analytics">
-                            <BarChart3 className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm('Are you sure you want to delete this overlay ad?')) {
-                                deleteAd(ad.id)
-                              }
-                            }}
-                            className="rounded-md p-1.5 text-white/30 transition-colors hover:bg-[#FF0000]/10 hover:text-[#FF0000]"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
+                      <td className="py-2.5 text-right">
+                        <button
+                          onClick={() => { if (confirm('Delete overlay?')) deleteAd(ad.id) }}
+                          className="rounded p-1 text-white/30 hover:bg-xtube-red/10 hover:text-xtube-red opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </td>
                     </motion.tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-
-            {/* Pagination */}
-            <div className="mt-4 flex items-center justify-between border-t border-[#1A1A1A] pt-4">
-              <p className="text-[10px] text-white/30">
-                Showing {((currentPage - 1) * adsPerPage) + 1}–{Math.min(currentPage * adsPerPage, filteredAds.length)} of {filteredAds.length} ads
-              </p>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="flex h-7 w-7 items-center justify-center rounded-md border border-[#1A1A1A] bg-transparent text-white/40 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`flex h-7 w-7 items-center justify-center rounded-md border text-xs font-medium transition-colors ${
-                      currentPage === page
-                        ? 'border-[#FF0000]/40 bg-[#FF0000]/10 text-white'
-                        : 'border-[#1A1A1A] bg-transparent text-white/40 hover:bg-white/5 hover:text-white'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  className="flex h-7 w-7 items-center justify-center rounded-md border border-[#1A1A1A] bg-transparent text-white/40 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <Select value={String(adsPerPage)} onValueChange={() => {}}>
-                <SelectTrigger className="h-7 w-20 rounded-[18px] border-[#1A1A1A] bg-[#050505] text-[10px] text-white/60 [&_svg]:text-white/30">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="border-[#1A1A1A] bg-[#0B0B0F]">
-                  <SelectItem value="10" className="text-[10px] text-white focus:bg-white/5">10/page</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </motion.div>
