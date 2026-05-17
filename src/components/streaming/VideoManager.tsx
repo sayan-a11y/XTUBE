@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search,
@@ -19,6 +19,10 @@ import {
   LayoutGrid,
   List,
   Play,
+  Pause,
+  Volume2,
+  Settings,
+  Maximize,
   Calendar,
   HardDrive,
   Tag,
@@ -44,12 +48,9 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
 import { useAppStore } from '@/lib/store'
@@ -148,13 +149,20 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
   const [generatedThumbnails, setGeneratedThumbnails] = useState<Array<{ id: number; dataUrl: string }>>([])
   const [selectedThumbnailIndex, setSelectedThumbnailIndex] = useState<number>(0)
 
+  // Custom Video Player States
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [isMuted, setIsMuted] = useState(true)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const [form, setForm] = useState({
     title: '',
     description: '',
-    category: categories[0] || 'Sci-Fi',
+    category: categories[0] || 'Travel & Nature',
     quality: '1080p',
     duration: '',
     isFeatured: false,
@@ -162,375 +170,117 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
     isLive: false,
   })
 
-  // Procedural scenic artwork generator
+  // Procedural scenic artwork generator - Renders rich nature landscape concepts matching "Nature Cinematic Trailer"
   const drawScenicArt = useCallback((ctx: CanvasRenderingContext2D, index: number, videoTitle: string) => {
     const w = 320
     const h = 180
     ctx.clearRect(0, 0, w, h)
 
-    if (index === 0) {
-      // 🌅 Sunset Beach & Palms
-      const grad = ctx.createLinearGradient(0, 0, 0, h)
-      grad.addColorStop(0, '#E50914')
-      grad.addColorStop(0.5, '#F97316')
-      grad.addColorStop(1, '#FEF08A')
-      ctx.fillStyle = grad
-      ctx.fillRect(0, 0, w, h)
+    // Base twilight/sunset sky gradients based on seed
+    const skyGradients = [
+      ['#0f172a', '#3b0764', '#701a75', '#f43f5e', '#fb923c'], // Purple Sunset Lake
+      ['#020617', '#0f172a', '#1e293b', '#0369a1', '#38bdf8'], // Twilight Starlit peaks
+      ['#022c22', '#064e3b', '#0f766e', '#14b8a6', '#2dd4bf'], // Deep Emerald Aurora
+      ['#1c1917', '#44403c', '#78716c', '#d97706', '#fef08a'], // Golden Morning Alpine
+      ['#450a0a', '#7f1d1d', '#b91c1c', '#ea580c', '#facc15'], // Volcanic Fiery Canyon
+      ['#0f172a', '#1e1b4b', '#311042', '#701a75', '#ec4899'], // Synthwave Cyber lake
+      ['#020617', '#082f49', '#0369a1', '#0284c7', '#00f2fe'], // Glacier Lagoon
+      ['#0f172a', '#1e293b', '#0f766e', '#16a34a', '#86efac'], // Rainforest Mist Sunrise
+      ['#451a03', '#7c2d12', '#9a3412', '#c2410c', '#fb923c'], // Canyon Grand Tower Sunset
+      ['#020617', '#1e1b4b', '#4c1d95', '#7c3aed', '#a78bfa'], // Nebula Galaxy Horizon
+    ]
 
-      // Sun
-      ctx.fillStyle = '#FFFFFF'
-      ctx.beginPath()
-      ctx.arc(w / 2, h / 2 + 10, 42, 0, Math.PI * 2)
-      ctx.fill()
+    const sky = skyGradients[index % skyGradients.length]
+    const grad = ctx.createLinearGradient(0, 0, 0, h)
+    sky.forEach((color, i) => {
+      grad.addColorStop(i / (sky.length - 1), color)
+    })
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, w, h)
 
-      // Waves
-      ctx.fillStyle = '#1E3A8A'
-      ctx.fillRect(0, h - 45, w, 45)
-      ctx.fillStyle = '#3B82F6'
-      ctx.fillRect(0, h - 35, w, 35)
-
-      // Palms
-      ctx.fillStyle = '#090D16'
-      ctx.beginPath()
-      ctx.moveTo(35, h)
-      ctx.quadraticCurveTo(45, h - 60, 60, h - 100)
-      ctx.lineTo(65, h - 100)
-      ctx.quadraticCurveTo(50, h - 60, 40, h)
-      ctx.closePath()
-      ctx.fill()
-      
-      // Palm leaves
-      ctx.beginPath()
-      ctx.arc(60, h - 100, 18, 0, Math.PI * 2)
-      ctx.fill()
-    } else if (index === 1) {
-      // 🏔️ Snowy Mountains & Moon
-      const grad = ctx.createLinearGradient(0, 0, w, h)
-      grad.addColorStop(0, '#0F172A')
-      grad.addColorStop(1, '#1E293B')
-      ctx.fillStyle = grad
-      ctx.fillRect(0, 0, w, h)
-
-      // Stars
-      ctx.fillStyle = '#FFFFFF'
-      for (let s = 0; s < 45; s++) {
-        ctx.fillRect((s * 17) % w, (s * 11) % 90, 1.5, 1.5)
-      }
-
-      // Planet Saturn
-      ctx.fillStyle = '#FDE047'
-      ctx.beginPath()
-      ctx.arc(w - 60, 40, 10, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.strokeStyle = '#FEF08A'
-      ctx.lineWidth = 2.5
-      ctx.beginPath()
-      ctx.ellipse(w - 60, 40, 22, 3.5, Math.PI / 6, 0, Math.PI * 2)
-      ctx.stroke()
-
-      // Mountains
-      ctx.fillStyle = '#334155'
+    // Draw realistic layered mountains
+    const drawMountainRange = (count: number, peakColor: string, baseColor: string, heightMult: number, seed: number) => {
+      ctx.fillStyle = peakColor
       ctx.beginPath()
       ctx.moveTo(0, h)
-      ctx.lineTo(80, h - 85)
-      ctx.lineTo(160, h)
-      ctx.closePath()
-      ctx.fill()
-
-      ctx.fillStyle = '#1E293B'
-      ctx.beginPath()
-      ctx.moveTo(90, h)
-      ctx.lineTo(200, h - 105)
-      ctx.lineTo(320, h)
-      ctx.closePath()
-      ctx.fill()
-
-      // Snow caps
-      ctx.fillStyle = '#FFFFFF'
-      ctx.beginPath()
-      ctx.moveTo(80, h - 85)
-      ctx.lineTo(65, h - 70)
-      ctx.lineTo(95, h - 70)
-      ctx.closePath()
-      ctx.fill()
-    } else if (index === 2) {
-      // 🌃 Cyberpunk Skyline
-      const grad = ctx.createLinearGradient(0, 0, 0, h)
-      grad.addColorStop(0, '#4A044E')
-      grad.addColorStop(0.6, '#9D174D')
-      grad.addColorStop(1, '#F43F5E')
-      ctx.fillStyle = grad
-      ctx.fillRect(0, 0, w, h)
-
-      // Sun glow
-      ctx.fillStyle = 'rgba(253, 224, 71, 0.4)'
-      ctx.beginPath()
-      ctx.arc(w / 2, h / 2 + 10, 45, 0, Math.PI * 2)
-      ctx.fill()
-
-      // Skyscrapers
-      ctx.fillStyle = '#0F051D'
-      ctx.fillRect(20, h - 100, 35, 100)
-      ctx.fillRect(65, h - 120, 45, 120)
-      ctx.fillRect(120, h - 80, 40, 80)
-      ctx.fillRect(170, h - 130, 42, 130)
-      ctx.fillRect(225, h - 90, 45, 90)
-
-      // Windows
-      ctx.fillStyle = '#FEF08A'
-      for (let r = 0; r < 5; r++) {
-        ctx.fillRect(28, h - 80 + r * 15, 4, 4)
-        ctx.fillRect(75, h - 100 + r * 15, 4, 4)
-        ctx.fillRect(180, h - 110 + r * 16, 4, 4)
+      
+      const segments = 12
+      const step = w / segments
+      for (let s = 0; s <= segments; s++) {
+        const x = s * step
+        // Deterministic pseudo-random peaks
+        const sinVal = Math.sin(s * 1.9 + seed) * Math.cos(s * 0.7 + seed * 1.3)
+        const y = h - (40 + sinVal * 25) * heightMult
+        ctx.lineTo(x, y)
       }
-    } else if (index === 3) {
-      // 🌌 Retro Synthwave Grid
-      const grad = ctx.createLinearGradient(0, 0, 0, h)
-      grad.addColorStop(0, '#0F051D')
-      grad.addColorStop(0.5, '#701A75')
-      grad.addColorStop(1, '#D946EF')
-      ctx.fillStyle = grad
-      ctx.fillRect(0, 0, w, h)
-
-      // Floor
-      ctx.fillStyle = '#2E0854'
-      ctx.fillRect(0, h - 60, w, 60)
-
-      // Sliced Sun
-      const sunGrad = ctx.createLinearGradient(0, 30, 0, h - 50)
-      sunGrad.addColorStop(0, '#FDE047')
-      sunGrad.addColorStop(1, '#F43F5E')
-      ctx.fillStyle = sunGrad
-      for (let s = 0; s < 7; s++) {
-        const top = 30 + s * 13
-        const height = 9 - s * 0.8
-        ctx.fillRect(w / 2 - 45, top, 90, height)
-      }
-
-      // Grid
-      ctx.strokeStyle = '#22D3EE'
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.moveTo(0, h - 60)
-      ctx.lineTo(w, h - 60)
-      ctx.stroke()
-      for (let l = 0; l <= 10; l++) {
-        ctx.beginPath()
-        ctx.moveTo(w / 2 - 100 + l * 20, h - 60)
-        ctx.lineTo(w / 2 - 250 + l * 50, h)
-        ctx.stroke()
-      }
-    } else if (index === 4) {
-      // 🌋 Volcanic Outbreak
-      const grad = ctx.createLinearGradient(0, 0, 0, h)
-      grad.addColorStop(0, '#172554')
-      grad.addColorStop(0.7, '#1E293B')
-      grad.addColorStop(1, '#7C2D12')
-      ctx.fillStyle = grad
-      ctx.fillRect(0, 0, w, h)
-
-      // Lava base
-      ctx.fillStyle = '#EA580C'
-      ctx.fillRect(0, h - 30, w, 30)
-      ctx.fillStyle = '#FACC15'
-      ctx.fillRect(0, h - 20, w, 20)
-
-      // Volcano
-      ctx.fillStyle = '#0F172A'
-      ctx.beginPath()
-      ctx.moveTo(60, h - 30)
-      ctx.lineTo(w / 2, 45)
-      ctx.lineTo(w - 60, h - 30)
+      ctx.lineTo(w, h)
       ctx.closePath()
       ctx.fill()
 
-      // Lava eruption glow
-      const lavaGlow = ctx.createRadialGradient(w / 2, 45, 2, w / 2, 45, 25)
-      lavaGlow.addColorStop(0, '#FFFFFF')
-      lavaGlow.addColorStop(0.3, '#FACC15')
-      lavaGlow.addColorStop(0.7, '#EA580C')
-      lavaGlow.addColorStop(1, 'rgba(234, 88, 12, 0)')
-      ctx.fillStyle = lavaGlow
-      ctx.beginPath()
-      ctx.arc(w / 2, 45, 25, 0, Math.PI * 2)
-      ctx.fill()
-    } else if (index === 5) {
-      // 🌲 Pine Forest Morning
-      const grad = ctx.createLinearGradient(0, 0, 0, h)
-      grad.addColorStop(0, '#FEF08A')
-      grad.addColorStop(0.4, '#A7F3D0')
-      grad.addColorStop(1, '#064E3B')
-      ctx.fillStyle = grad
-      ctx.fillRect(0, 0, w, h)
+      // Gradient overlay down the mountain
+      const mGrad = ctx.createLinearGradient(0, h - 80, 0, h)
+      mGrad.addColorStop(0, 'rgba(255,255,255,0.05)')
+      mGrad.addColorStop(1, baseColor)
+      ctx.fillStyle = mGrad
+      ctx.fillRect(0, h - 80, w, 80)
+    };
 
-      // Soft sun
-      ctx.fillStyle = '#FFFFFF'
-      ctx.beginPath()
-      ctx.arc(50, 50, 18, 0, Math.PI * 2)
-      ctx.fill()
+    // Draw distant mountain range
+    drawMountainRange(1, '#1e293b', '#0f172a', 0.95, index + 3.1)
+    
+    // Draw mid-ground range
+    drawMountainRange(2, '#0f172a', '#020617', 0.7, index * 2.3 + 1.1)
 
-      // Pine silhouettes
-      ctx.fillStyle = '#022C22'
-      for (let p = 0; p < 7; p++) {
-        const x = 30 + p * 45
-        const py = h - 35
-        ctx.beginPath()
-        ctx.moveTo(x, py - 40)
-        ctx.lineTo(x - 12, py)
-        ctx.lineTo(x + 12, py)
-        ctx.closePath()
-        ctx.fill()
+    // Draw Lake water base reflecting sky colors
+    const waterGrad = ctx.createLinearGradient(0, h - 60, 0, h)
+    waterGrad.addColorStop(0, sky[Math.floor(sky.length / 2)])
+    waterGrad.addColorStop(1, sky[sky.length - 1])
+    ctx.fillStyle = waterGrad
+    ctx.fillRect(0, h - 60, w, 60)
+
+    // Water ripple overlay
+    ctx.fillStyle = 'rgba(0,0,0,0.15)'
+    ctx.fillRect(0, h - 60, w, 60)
+
+    // Overlapping tree silhouettes on sides
+    const drawPines = (xOffset: number, count: number, scale: number, flip: boolean) => {
+      ctx.fillStyle = '#020617'
+      for (let i = 0; i < count; i++) {
+        const x = xOffset + (flip ? -i * 12 : i * 12)
+        const size = (16 + Math.sin(i * 1.5) * 5) * scale
+        const baseH = h - 35
         
         ctx.beginPath()
-        ctx.moveTo(x, py - 52)
-        ctx.lineTo(x - 8, py - 20)
-        ctx.lineTo(x + 8, py - 20)
+        ctx.moveTo(x, baseH - size * 2.5)
+        ctx.lineTo(x - size, baseH)
+        ctx.lineTo(x + size, baseH)
         ctx.closePath()
         ctx.fill()
-        ctx.fillRect(x - 2, py, 4, 35)
+        // Trunk
+        ctx.fillRect(x - 2, baseH, 4, 35)
       }
-    } else if (index === 6) {
-      // 💫 Purple Space Gate
-      const grad = ctx.createLinearGradient(0, 0, w, h)
-      grad.addColorStop(0, '#1E1B4B')
-      grad.addColorStop(0.5, '#311042')
-      grad.addColorStop(1, '#030712')
-      ctx.fillStyle = grad
-      ctx.fillRect(0, 0, w, h)
-
-      // Nebula brush
-      const neb = ctx.createRadialGradient(w/2, h/2, 5, w/2, h/2, 80)
-      neb.addColorStop(0, 'rgba(168, 85, 247, 0.4)')
-      neb.addColorStop(1, 'rgba(168, 85, 247, 0)')
-      ctx.fillStyle = neb
-      ctx.beginPath()
-      ctx.arc(w/2, h/2, 80, 0, Math.PI * 2)
-      ctx.fill()
-
-      // Portal Ring
-      ctx.strokeStyle = '#22D3EE'
-      ctx.lineWidth = 3.5
-      ctx.beginPath()
-      ctx.arc(w / 2, h / 2, 38, 0, Math.PI * 2)
-      ctx.stroke()
-
-      // Standee figure
-      ctx.fillStyle = '#030712'
-      ctx.fillRect(w / 2 - 3, h / 2 + 10, 6, 40)
-      ctx.beginPath()
-      ctx.arc(w / 2, h / 2 + 5, 3.5, 0, Math.PI * 2)
-      ctx.fill()
-    } else if (index === 7) {
-      // 🌌 Emerald Aurora Borealis
-      const grad = ctx.createLinearGradient(0, 0, 0, h)
-      grad.addColorStop(0, '#020617')
-      grad.addColorStop(1, '#0F172A')
-      ctx.fillStyle = grad
-      ctx.fillRect(0, 0, w, h)
-
-      // Aurora streaks
-      ctx.strokeStyle = 'rgba(34, 197, 94, 0.45)'
-      ctx.lineWidth = 12
-      ctx.beginPath()
-      ctx.moveTo(0, 40)
-      ctx.bezierCurveTo(80, 10, 160, 90, 240, 30)
-      ctx.lineTo(w, 70)
-      ctx.stroke()
-
-      ctx.strokeStyle = 'rgba(20, 184, 166, 0.35)'
-      ctx.lineWidth = 8
-      ctx.beginPath()
-      ctx.moveTo(0, 60)
-      ctx.bezierCurveTo(90, 30, 150, 100, 250, 50)
-      ctx.lineTo(w, 80)
-      ctx.stroke()
-
-      // Hills
-      ctx.fillStyle = '#020617'
-      ctx.beginPath()
-      ctx.moveTo(0, h)
-      ctx.bezierCurveTo(80, h - 35, 200, h - 45, w, h)
-      ctx.closePath()
-      ctx.fill()
-    } else if (index === 8) {
-      // 🏝️ Ocean Yacht & Cloud
-      const grad = ctx.createLinearGradient(0, 0, 0, h)
-      grad.addColorStop(0, '#38BDF8')
-      grad.addColorStop(0.5, '#7DD3FC')
-      grad.addColorStop(1, '#0284C7')
-      ctx.fillStyle = grad
-      ctx.fillRect(0, 0, w, h)
-
-      // Cloud
-      ctx.fillStyle = '#FFFFFF'
-      ctx.beginPath()
-      ctx.arc(60, 40, 13, 0, Math.PI * 2)
-      ctx.arc(80, 35, 16, 0, Math.PI * 2)
-      ctx.arc(98, 40, 11, 0, Math.PI * 2)
-      ctx.fill()
-
-      // Sandy land
-      ctx.fillStyle = '#FEF08A'
-      ctx.beginPath()
-      ctx.ellipse(w - 70, h - 30, 45, 12, 0, 0, Math.PI * 2)
-      ctx.fill()
-
-      // Palm
-      ctx.fillStyle = '#78350F'
-      ctx.fillRect(w - 74, h - 65, 4, 35)
-      ctx.fillStyle = '#15803D'
-      ctx.beginPath()
-      ctx.arc(w - 72, h - 65, 8, 0, Math.PI * 2)
-      ctx.fill()
-    } else {
-      // 🌅 Canyon Skyline
-      const grad = ctx.createLinearGradient(0, 0, 0, h)
-      grad.addColorStop(0, '#F97316')
-      grad.addColorStop(0.6, '#C2410C')
-      grad.addColorStop(1, '#431407')
-      ctx.fillStyle = grad
-      ctx.fillRect(0, 0, w, h)
-
-      // Sun
-      ctx.fillStyle = '#FEF08A'
-      ctx.beginPath()
-      ctx.arc(w / 2, h - 25, 35, 0, Math.PI * 2)
-      ctx.fill()
-
-      // Cliffs
-      ctx.fillStyle = '#7C2D12'
-      ctx.beginPath()
-      ctx.moveTo(0, h)
-      ctx.lineTo(60, h - 80)
-      ctx.lineTo(95, h)
-      ctx.closePath()
-      ctx.fill()
-
-      ctx.fillStyle = '#451A03'
-      ctx.beginPath()
-      ctx.moveTo(w, h)
-      ctx.lineTo(w - 70, h - 100)
-      ctx.lineTo(w - 115, h)
-      ctx.closePath()
-      ctx.fill()
     }
+    
+    drawPines(20, 4, 1.1, false)
+    drawPines(w - 20, 4, 1.1, true)
 
-    // Bottom timeline overlay bar
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
-    ctx.fillRect(0, h - 30, w, 30)
+    // Soft misty fog layers
+    const fog = ctx.createLinearGradient(0, h - 65, 0, h - 45)
+    fog.addColorStop(0, 'rgba(255,255,255,0.0)')
+    fog.addColorStop(0.5, 'rgba(255,255,255,0.06)')
+    fog.addColorStop(1, 'rgba(255,255,255,0.0)')
+    ctx.fillStyle = fog
+    ctx.fillRect(0, h - 65, w, 20)
 
-    // Title text
-    ctx.fillStyle = '#FFFFFF'
-    ctx.font = 'bold 11px sans-serif'
-    ctx.fillText(videoTitle.substring(0, 24) || 'Xtube Preset Scene', 15, h - 11)
-
-    // Scene and simulated time text
-    ctx.fillStyle = 'rgba(255,255,255,0.5)'
-    ctx.font = '10px monospace'
-    ctx.fillText(`Scene ${index + 1} - 00:${index < 9 ? '0' + (index + 1) : index + 1}:00`, w - 115, h - 11)
+    // Dynamic reflection highlights across center
+    const reflection = ctx.createRadialGradient(w / 2, h - 40, 2, w / 2, h - 40, w / 3)
+    reflection.addColorStop(0, 'rgba(254, 240, 138, 0.25)')
+    reflection.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.fillStyle = reflection
+    ctx.fillRect(w / 4, h - 60, w / 2, 60)
   }, [])
 
-  // Procedural 10-thumbnail generator loop
+  // Procedural 10-thumbnail generator loop representing timestamps 0% to 90%
   const generateProceduralThumbnails = useCallback((videoTitle: string) => {
     const canvas = document.createElement('canvas')
     canvas.width = 320
@@ -543,7 +293,7 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
       drawScenicArt(ctx, i, videoTitle)
       thumbs.push({
         id: i,
-        dataUrl: canvas.toDataURL('image/jpeg', 0.8)
+        dataUrl: canvas.toDataURL('image/jpeg', 0.85)
       })
     }
     return thumbs
@@ -551,7 +301,7 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
 
   // Pre-populate 10 dynamic illustrations immediately on component mount!
   useEffect(() => {
-    const defaultThumbs = generateProceduralThumbnails('Xtube Premium')
+    const defaultThumbs = generateProceduralThumbnails('Nature Cinematic Trailer')
     setGeneratedThumbnails(defaultThumbs)
     setSelectedThumbnailIndex(0)
   }, [generateProceduralThumbnails])
@@ -612,21 +362,9 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
               tempVideo.currentTime = time
               tempVideo.onseeked = () => {
                 ctx.drawImage(tempVideo, 0, 0, 320, 180)
-                
-                // Add overlay bar
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
-                ctx.fillRect(0, 148, 320, 32)
-                ctx.fillStyle = '#FFFFFF'
-                ctx.font = 'bold 11px sans-serif'
-                ctx.fillText(`Frame ${index + 1} - Real Snap`, 15, 168)
-                ctx.fillStyle = 'rgba(255,255,255,0.5)'
-                ctx.font = '10px monospace'
-                const curSecs = Math.floor(time)
-                ctx.fillText(`00:${Math.floor(curSecs / 60).toString().padStart(2, '0')}:${(curSecs % 60).toString().padStart(2, '0')}`, 240, 168)
-
                 realThumbs.push({
                   id: index,
-                  dataUrl: canvas.toDataURL('image/jpeg', 0.8)
+                  dataUrl: canvas.toDataURL('image/jpeg', 0.85)
                 })
                 index++
                 captureFrame()
@@ -661,7 +399,7 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
     let progress = 0
     progressIntervalRef.current = setInterval(() => {
-      progress += Math.random() * 20 + 8
+      progress += Math.random() * 25 + 10
       if (progress >= 100) {
         progress = 100
         if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
@@ -670,8 +408,105 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
       } else {
         setUploadProgress(Math.min(progress, 100))
       }
-    }, 120)
+    }, 100)
   }, [generateProceduralThumbnails])
+
+  // Custom manual thumbnail uploader
+  const handleManualThumbnailUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (files && files.length > 0) {
+      const file = files[0]
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          const customUrl = event.target.result as string
+          setGeneratedThumbnails((prev) => {
+            const next = [...prev]
+            // Add custom thumbnail to the first position
+            next.unshift({ id: Date.now(), dataUrl: customUrl })
+            return next.slice(0, 10) // Keep max 10
+          })
+          setSelectedThumbnailIndex(0)
+        }
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Custom Video Player Controls Handlers
+  const togglePlay = () => {
+    if (!videoRef.current) return
+    if (isPlaying) {
+      videoRef.current.pause()
+      setIsPlaying(false)
+    } else {
+      videoRef.current.play().then(() => setIsPlaying(true)).catch(err => console.error(err))
+    }
+  }
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime)
+    }
+  }
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration)
+    }
+  }
+
+  const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (videoRef.current) {
+      const val = parseFloat(e.target.value)
+      videoRef.current.currentTime = val
+      setCurrentTime(val)
+    }
+  }
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted
+      setIsMuted(!isMuted)
+    }
+  }
+
+  const handleFullscreen = () => {
+    if (videoRef.current) {
+      if (videoRef.current.requestFullscreen) {
+        videoRef.current.requestFullscreen()
+      }
+    }
+  }
+
+  const formatVideoTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60)
+    const s = Math.floor(seconds % 60)
+    return `${m}:${s.toString().padStart(2, '0')}`
+  }
+
+  // Pre-load file automatically if it matches Sintel preview on first load for demonstration
+  useEffect(() => {
+    setUploadedFileName('Nature Cinematic Trailer.mp4')
+    setUploadState('success')
+    setVideoObjectUrl('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4')
+    setVideoMetadata({
+      width: 1920,
+      height: 1080,
+      sizeMB: '45.2 MB',
+      duration: '01:28'
+    })
+    setForm({
+      title: 'Nature Cinematic Trailer',
+      description: 'A cinematic trailer showcasing the beauty of nature, stunning landscapes, and peaceful moments.',
+      category: 'Travel & Nature',
+      quality: '1080p',
+      duration: '01:28',
+      isFeatured: false,
+      isTrending: false,
+      isLive: false,
+    })
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -700,7 +535,7 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
     setUploadedFileName('')
     setVideoObjectUrl('')
     setVideoMetadata(null)
-    const defaultThumbs = generateProceduralThumbnails('Xtube Premium')
+    const defaultThumbs = generateProceduralThumbnails('Nature Cinematic Trailer')
     setGeneratedThumbnails(defaultThumbs)
     setSelectedThumbnailIndex(0)
     if (fileInputRef.current) fileInputRef.current.value = ''
@@ -710,7 +545,7 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
     setForm({
       title: '',
       description: '',
-      category: categories[0] || 'Sci-Fi',
+      category: 'Travel & Nature',
       quality: '1080p',
       duration: '',
       isFeatured: false,
@@ -718,7 +553,7 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
       isLive: false,
     })
     handleResetUpload()
-  }, [categories, handleResetUpload])
+  }, [handleResetUpload])
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault()
@@ -727,7 +562,7 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
       description: form.description,
       category: form.category,
       duration: form.duration || '0:00',
-      isHd: form.quality === '1080p' || form.quality === '4k (2160p)',
+      isHd: form.quality === '1080p' || form.quality === '4K',
       thumbnail: generatedThumbnails[selectedThumbnailIndex]?.dataUrl || '/placeholder.jpg',
       videoUrl: videoObjectUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
       isFeatured: form.isFeatured,
@@ -737,26 +572,24 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
     handleClearForm()
   }, [form, generatedThumbnails, selectedThumbnailIndex, videoObjectUrl, onUpload, handleClearForm])
 
+  // Custom manual file upload selector triggers
+  const manualFileRef = useRef<HTMLInputElement>(null)
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
-      className="space-y-5 p-4 md:p-6 bg-[#0c0c0e]/95 border border-white/5 rounded-2xl backdrop-blur-xl"
+      className="space-y-5 p-4 md:p-6 bg-[#0c0c0e]/95 border border-white/5 rounded-2xl backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] max-w-[1800px] mx-auto"
     >
       {/* ─── Header ─── */}
       <div className="flex items-center justify-between border-b border-white/5 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-xtube-red/10 border border-xtube-red/20 shadow-[0_0_15px_rgba(229,9,20,0.15)]">
-            <Radio className="h-5 w-5 text-xtube-red animate-pulse" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-white tracking-wide">Upload Content</h2>
-            <p className="text-xs text-white/40 mt-0.5">Upload a video — preview is auto-generated</p>
-          </div>
+        <div>
+          <h2 className="text-xl font-bold text-white tracking-wide">Upload Video</h2>
+          <p className="text-xs text-white/40 mt-0.5">Upload a video — preview is auto-generated</p>
         </div>
         <button 
-          onClick={handleClearForm} 
+          onClick={() => useAppStore.getState().setAdminSection('all-videos')} 
           className="rounded-full p-2 text-white/40 hover:bg-white/5 hover:text-white transition-colors"
         >
           <X className="h-5 w-5" />
@@ -764,20 +597,20 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
       </div>
 
       {/* ─── Tabs ─── */}
-      <div className="flex border-b border-white/5">
-        <button className="flex items-center gap-2 border-b-2 border-xtube-red px-6 py-3 text-sm font-semibold text-white transition-colors">
-          <Film className="h-4 w-4 text-xtube-red" />
+      <div className="flex border-b border-white/5 bg-[#121214] p-1 rounded-lg w-max">
+        <button className="flex items-center gap-2 border-b-2 border-xtube-red px-6 py-2.5 text-sm font-semibold text-xtube-red bg-[#16161a] rounded-md transition-colors">
+          <Film className="h-4 w-4" />
           Video
         </button>
       </div>
 
-      {/* ─── Grid layout (Highly responsive for Laptop, PC, Tablet) ─── */}
+      {/* ─── Grid layout (Same-To-Same 2 Column Layout) ─── */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
         
         {/* Left Column: 1. Upload Video */}
         <div className="space-y-4 lg:col-span-6">
           <div className="flex items-center justify-between">
-            <h3 className="flex items-center gap-2 text-xs font-bold tracking-wider text-white/70 uppercase">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
               <CloudUpload className="h-4 w-4 text-xtube-red" />
               1. Upload Video
             </h3>
@@ -786,7 +619,7 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
                 <button 
                   type="button"
                   onClick={handleBrowseClick}
-                  className="text-xs font-semibold text-xtube-red hover:underline hover:text-xtube-red-hover"
+                  className="text-xs font-semibold text-xtube-red hover:underline"
                 >
                   Change File
                 </button>
@@ -807,8 +640,8 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
             <div className="flex items-center justify-between rounded-xl border border-white/5 bg-[#141416] p-3 transition-all duration-300">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-[72px] overflow-hidden rounded-md bg-xtube-card border border-white/5 flex items-center justify-center">
-                  {generatedThumbnails[0] ? (
-                    <img src={generatedThumbnails[0].dataUrl} className="h-full w-full object-cover" alt="Snapshot" />
+                  {generatedThumbnails[selectedThumbnailIndex] ? (
+                    <img src={generatedThumbnails[selectedThumbnailIndex].dataUrl} className="h-full w-full object-cover" alt="Snapshot" />
                   ) : (
                     <Film className="h-5 w-5 text-white/20" />
                   )}
@@ -830,16 +663,75 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
             </div>
           )}
 
-          {/* Interactive Player / Dropzone Area */}
-          <div className="relative overflow-hidden rounded-xl border border-white/5 bg-[#141416] p-1.5 aspect-video flex items-center justify-center transition-all duration-300">
+          {/* Interactive Player Area */}
+          <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#141416] p-1.5 aspect-video flex items-center justify-center transition-all duration-300">
             {uploadState === 'success' && videoObjectUrl ? (
-              <video 
-                src={videoObjectUrl} 
-                className="h-full w-full rounded-lg object-cover" 
-                controls 
-                autoPlay 
-                muted
-              />
+              <div className="relative h-full w-full rounded-lg overflow-hidden flex items-center justify-center bg-black">
+                <video 
+                  ref={videoRef}
+                  src={videoObjectUrl} 
+                  className="h-full w-full object-cover" 
+                  onTimeUpdate={handleTimeUpdate}
+                  onLoadedMetadata={handleLoadedMetadata}
+                  autoPlay
+                  muted={isMuted}
+                  loop
+                  playsInline
+                />
+                
+                {/* Custom Player Premium Controls Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/10 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-3 space-y-2.5 pointer-events-auto">
+                  
+                  {/* Timeline Seekbar Slider */}
+                  <div className="flex items-center gap-2 w-full px-1">
+                    <span className="text-[10px] font-mono text-white/80">{formatVideoTime(currentTime)}</span>
+                    <div className="relative flex-1 flex items-center group/seek h-4 cursor-pointer">
+                      <input 
+                        type="range"
+                        min="0"
+                        max={duration || 100}
+                        value={currentTime}
+                        onChange={handleSeekChange}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      />
+                      <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-xtube-red rounded-full"
+                          style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+                        />
+                      </div>
+                      <div 
+                        className="h-3 w-3 bg-xtube-red rounded-full absolute top-1/2 -translate-y-1/2 -translate-x-1/2 shadow-lg scale-0 group-hover/seek:scale-100 transition-transform pointer-events-none"
+                        style={{ left: `${(currentTime / (duration || 1)) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-mono text-white/80">{formatVideoTime(duration)}</span>
+                  </div>
+
+                  {/* Bottom Controls Bar */}
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-3">
+                      <button type="button" onClick={togglePlay} className="text-white hover:text-xtube-red transition-colors">
+                        {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" fill="white" />}
+                      </button>
+                      
+                      <button type="button" onClick={toggleMute} className="text-white hover:text-xtube-red transition-colors">
+                        <Volume2 className={`h-4 w-4 ${isMuted ? 'opacity-40' : ''}`} />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <button type="button" className="text-white/80 hover:text-white transition-colors">
+                        <Settings className="h-4 w-4" />
+                      </button>
+                      
+                      <button type="button" onClick={handleFullscreen} className="text-white/80 hover:text-white transition-colors">
+                        <Maximize className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ) : uploadState === 'uploading' ? (
               <div className="flex w-full max-w-xs flex-col items-center gap-3 p-6 text-center">
                 <Upload className="h-8 w-8 animate-bounce text-xtube-red" />
@@ -867,41 +759,53 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
                   <p className="text-sm font-medium text-white">Drag & drop your video here</p>
                   <p className="text-xs text-white/40 mt-1">or click to <span className="text-xtube-red hover:underline">browse files</span></p>
                 </div>
-                
-                <div className="flex items-center gap-2 w-full max-w-[200px] my-1">
-                  <div className="h-px bg-white/5 flex-1" />
-                  <span className="text-[10px] uppercase font-bold text-white/20">OR</span>
-                  <div className="h-px bg-white/5 flex-1" />
-                </div>
-                
-                <button 
-                  type="button" 
-                  onClick={(e) => { e.stopPropagation(); }}
-                  className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/60 hover:bg-white/10 hover:text-white transition-colors"
-                >
-                  <Link className="h-3.5 w-3.5" />
-                  Paste video URL
-                </button>
               </div>
             )}
           </div>
 
+          {/* Divider */}
+          <div className="flex items-center gap-3">
+            <div className="h-[1px] flex-1 bg-white/5" />
+            <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">OR</span>
+            <div className="h-[1px] flex-1 bg-white/5" />
+          </div>
+
+          {/* Paste video URL Button */}
+          <button 
+            type="button" 
+            className="flex items-center justify-center gap-2 w-full rounded-xl border border-white/5 bg-[#141416] hover:bg-white/5 h-11 text-xs font-semibold text-white/80 transition-colors"
+          >
+            <Link className="h-3.5 w-3.5 text-white/40" />
+            Paste video URL
+          </button>
+
           {/* Dynamic Thumbnails Container */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-white/70 tracking-wide uppercase">Thumbnails (10 auto-generated)</label>
-              <button 
-                type="button"
-                className="text-xs font-semibold text-xtube-red hover:underline"
-              >
-                Upload Manually
-              </button>
+              <label className="text-xs font-bold text-white/70 tracking-wide uppercase">Thumbnail</label>
+              
+              <div className="relative">
+                <input 
+                  type="file" 
+                  ref={manualFileRef} 
+                  accept="image/jpeg,image/png,image/webp" 
+                  className="hidden" 
+                  onChange={handleManualThumbnailUpload}
+                />
+                <button 
+                  type="button"
+                  onClick={() => manualFileRef.current?.click()}
+                  className="text-xs font-semibold text-xtube-red hover:underline"
+                >
+                  Upload Manually
+                </button>
+              </div>
             </div>
 
-            {/* Grid of 10 Thumbnails (2 rows of 5 columns) */}
-            <div className="grid grid-cols-5 gap-3">
+            {/* Grid of 4 Thumbnails (Horizontally responsive layout) */}
+            <div className="grid grid-cols-4 gap-3">
               {generatedThumbnails.length === 0 ? (
-                Array.from({ length: 10 }).map((_, idx) => (
+                Array.from({ length: 4 }).map((_, idx) => (
                   <div 
                     key={idx} 
                     className="aspect-video rounded-lg border border-white/5 bg-[#141416] flex items-center justify-center"
@@ -910,7 +814,7 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
                   </div>
                 ))
               ) : (
-                generatedThumbnails.map((thumb, idx) => (
+                generatedThumbnails.slice(0, 4).map((thumb, idx) => (
                   <motion.div
                     key={thumb.id}
                     whileHover={{ scale: 1.03 }}
@@ -924,7 +828,7 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
                   >
                     <img src={thumb.dataUrl} className="h-full w-full object-cover" alt={`Frame ${idx + 1}`} />
                     {selectedThumbnailIndex === idx && (
-                      <div className="absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-xtube-red shadow-lg border border-white/10">
+                      <div className="absolute bottom-2 left-2 flex h-5 w-5 items-center justify-center rounded bg-xtube-red shadow-lg border border-white/10">
                         <Check className="h-3 w-3 text-white stroke-[3.5px]" />
                       </div>
                     )}
@@ -934,7 +838,7 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
             </div>
             
             {/* Info label */}
-            <div className="flex items-start gap-2 rounded-lg bg-white/[0.02] border border-white/5 p-3 text-xs text-white/40">
+            <div className="flex items-start gap-2.5 rounded-lg bg-red-500/[0.02] border border-red-500/10 p-3 text-xs text-xtube-red/80">
               <Info className="h-4 w-4 text-xtube-red flex-shrink-0 mt-0.5" />
               <p>Video thumbnail and duration are auto-generated after upload.</p>
             </div>
@@ -943,7 +847,7 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
 
         {/* Right Column: 2. Video Details */}
         <div className="space-y-4 lg:col-span-6">
-          <h3 className="flex items-center gap-2 text-xs font-bold tracking-wider text-white/70 uppercase">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
             <Pencil className="h-4 w-4 text-xtube-red" />
             2. Video Details
           </h3>
@@ -952,43 +856,44 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
             
             {/* Video Title Input */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold text-white/70">Title *</Label>
-                <span className="text-[10px] text-white/30">{form.title.length}/100</span>
+              <Label className="text-xs font-semibold text-white/70">Title *</Label>
+              <div className="relative flex items-center">
+                <Input 
+                  value={form.title} 
+                  onChange={(e) => setForm({ ...form, title: e.target.value.slice(0, 100) })} 
+                  placeholder="Enter video title" 
+                  className="border-white/10 bg-[#141416] text-white placeholder:text-white/20 focus:border-xtube-red/40 focus:ring-xtube-red/20 h-11 pr-14 rounded-lg" 
+                  required 
+                />
+                <span className="absolute right-3 text-[10px] text-white/30">{form.title.length}/100</span>
               </div>
-              <Input 
-                value={form.title} 
-                onChange={(e) => setForm({ ...form, title: e.target.value.slice(0, 100) })} 
-                placeholder="Enter video title" 
-                className="border-white/10 bg-[#141416] text-white placeholder:text-white/20 focus:border-xtube-red/40 focus:ring-xtube-red/20 h-10 rounded-lg" 
-                required 
-              />
             </div>
 
             {/* Video Description Textarea */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold text-white/70">Description</Label>
-                <span className="text-[10px] text-white/30">{form.description.length}/500</span>
+              <Label className="text-xs font-semibold text-white/70">Description</Label>
+              <div className="relative flex flex-col">
+                <Textarea 
+                  value={form.description} 
+                  onChange={(e) => setForm({ ...form, description: e.target.value.slice(0, 500) })} 
+                  placeholder="Describe your video content here..." 
+                  className="min-h-[120px] border-white/10 bg-[#141416] text-white placeholder:text-white/20 focus:border-xtube-red/40 focus:ring-xtube-red/20 pb-8 resize-none rounded-lg" 
+                />
+                <span className="absolute bottom-2 right-3 text-[10px] text-white/30">{form.description.length}/500</span>
               </div>
-              <Textarea 
-                value={form.description} 
-                onChange={(e) => setForm({ ...form, description: e.target.value.slice(0, 500) })} 
-                placeholder="Describe your video content here..." 
-                className="min-h-[100px] border-white/10 bg-[#141416] text-white placeholder:text-white/20 focus:border-xtube-red/40 focus:ring-xtube-red/20 resize-none rounded-lg" 
-              />
             </div>
 
             {/* Category and Quality Dropdowns */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-white/70">Category</Label>
                 <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                  <SelectTrigger className="border-white/10 bg-[#141416] text-white focus:ring-xtube-red/20 h-10 rounded-lg">
+                  <SelectTrigger className="border-white/10 bg-[#141416] text-white focus:ring-xtube-red/20 h-11 rounded-lg">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent className="border-white/10 bg-[#111111] text-white">
-                    {categories.filter(c => c !== 'All Categories').map((cat) => (
+                    <SelectItem value="Travel & Nature">Travel & Nature</SelectItem>
+                    {categories.filter(c => c !== 'All Categories' && c !== 'Travel & Nature').map((cat) => (
                       <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                     ))}
                   </SelectContent>
@@ -998,15 +903,16 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-white/70">Quality</Label>
                 <Select value={form.quality} onValueChange={(v) => setForm({ ...form, quality: v })}>
-                  <SelectTrigger className="border-white/10 bg-[#141416] text-white focus:ring-xtube-red/20 h-10 rounded-lg">
+                  <SelectTrigger className="border-white/10 bg-[#141416] text-white focus:ring-xtube-red/20 h-11 rounded-lg">
                     <SelectValue placeholder="Select quality" />
                   </SelectTrigger>
                   <SelectContent className="border-white/10 bg-[#111111] text-white">
-                    <SelectItem value="1080p">1080p (Full HD)</SelectItem>
-                    <SelectItem value="720p">720p (HD)</SelectItem>
-                    <SelectItem value="4k (2160p)">4k (Ultra HD)</SelectItem>
-                    <SelectItem value="480p">480p (SD)</SelectItem>
-                    <SelectItem value="360p">360p (SD)</SelectItem>
+                    <SelectItem value="1080p">1080p</SelectItem>
+                    <SelectItem value="720p">720p</SelectItem>
+                    <SelectItem value="4K">4K</SelectItem>
+                    <SelectItem value="1440p">1440p</SelectItem>
+                    <SelectItem value="480p">480p</SelectItem>
+                    <SelectItem value="360p">360p</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1020,23 +926,23 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
                   value={form.duration} 
                   onChange={(e) => setForm({ ...form, duration: e.target.value })} 
                   placeholder="e.g. 01:28" 
-                  className="border-white/10 bg-[#141416] text-white placeholder:text-white/20 focus:border-xtube-red/40 focus:ring-xtube-red/20 pr-10 h-10 rounded-lg" 
+                  className="border-white/10 bg-[#141416] text-white placeholder:text-white/20 focus:border-xtube-red/40 focus:ring-xtube-red/20 pr-10 h-11 rounded-lg" 
                 />
                 <Clock className="absolute right-3 h-4 w-4 text-white/30" />
               </div>
             </div>
 
             {/* Featured, Trending, Live Checkbox Flags */}
-            <div className="flex items-center gap-6 rounded-lg border border-white/5 bg-white/[0.01] p-3 h-11">
+            <div className="flex items-center gap-6 py-2">
               <div className="flex items-center gap-2">
                 <input 
                   type="checkbox" 
                   id="featured" 
                   checked={form.isFeatured}
                   onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })}
-                  className="h-4 w-4 rounded border-white/10 bg-[#141416] text-xtube-red focus:ring-xtube-red/20 focus:ring-offset-[#111] cursor-pointer" 
+                  className="h-4.5 w-4.5 rounded border-white/20 bg-[#141416] text-xtube-red focus:ring-xtube-red/20 focus:ring-offset-[#111] cursor-pointer" 
                 />
-                <label htmlFor="featured" className="text-xs font-semibold text-white/70 cursor-pointer">Featured</label>
+                <label htmlFor="featured" className="text-xs font-semibold text-white/50 cursor-pointer select-none">Featured</label>
               </div>
 
               <div className="flex items-center gap-2">
@@ -1045,9 +951,9 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
                   id="trending" 
                   checked={form.isTrending}
                   onChange={(e) => setForm({ ...form, isTrending: e.target.checked })}
-                  className="h-4 w-4 rounded border-white/10 bg-[#141416] text-xtube-red focus:ring-xtube-red/20 focus:ring-offset-[#111] cursor-pointer" 
+                  className="h-4.5 w-4.5 rounded border-white/20 bg-[#141416] text-xtube-red focus:ring-xtube-red/20 focus:ring-offset-[#111] cursor-pointer" 
                 />
-                <label htmlFor="trending" className="text-xs font-semibold text-white/70 cursor-pointer">Trending</label>
+                <label htmlFor="trending" className="text-xs font-semibold text-white/50 cursor-pointer select-none">Trending</label>
               </div>
 
               <div className="flex items-center gap-2">
@@ -1056,33 +962,33 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
                   id="live" 
                   checked={form.isLive}
                   onChange={(e) => setForm({ ...form, isLive: e.target.checked })}
-                  className="h-4 w-4 rounded border-white/10 bg-[#141416] text-xtube-red focus:ring-xtube-red/20 focus:ring-offset-[#111] cursor-pointer" 
+                  className="h-4.5 w-4.5 rounded border-white/20 bg-[#141416] text-xtube-red focus:ring-xtube-red/20 focus:ring-offset-[#111] cursor-pointer" 
                 />
-                <label htmlFor="live" className="text-xs font-semibold text-white/70 cursor-pointer">Live</label>
+                <label htmlFor="live" className="text-xs font-semibold text-white/50 cursor-pointer select-none">Live</label>
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-3 pt-2">
+            {/* Action Buttons Row */}
+            <div className="flex items-center gap-4 pt-2">
               <button 
                 type="button" 
                 onClick={handleClearForm}
-                className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#141416] h-11 px-4 text-xs font-semibold text-white hover:bg-white/5 transition-all"
+                className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#141416] h-12 px-6 text-xs font-semibold text-white hover:bg-white/5 transition-all"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
+                <RotateCcw className="h-4 w-4" />
                 Clear
               </button>
               
               <button 
                 type="submit" 
                 disabled={uploadState !== 'success' || !form.title}
-                className={`flex items-center justify-center gap-2 flex-1 rounded-xl h-11 px-6 text-xs font-semibold text-white transition-all ${
+                className={`flex items-center justify-center gap-2 flex-1 rounded-xl h-12 px-6 text-xs font-semibold text-white transition-all ${
                   uploadState === 'success' && form.title
-                    ? 'bg-xtube-red hover:bg-xtube-red-hover hover:shadow-[0_0_20px_rgba(229,9,20,0.35)]'
+                    ? 'bg-gradient-to-r from-[#E50914] to-[#C20710] hover:shadow-[0_0_25px_rgba(229,9,20,0.45)]'
                     : 'bg-white/5 text-white/30 cursor-not-allowed border border-white/5'
                 }`}
               >
-                <Upload className="h-3.5 w-3.5" />
+                <Upload className="h-4 w-4" />
                 Upload Video
               </button>
             </div>
@@ -1720,6 +1626,7 @@ export function VideoManager({ videos, onUpload, onDelete, onTogglePublish, load
   }, [])
 
   const defaultCats = categories.length > 0 ? categories : [
+    'Travel & Nature',
     'Sci-Fi',
     'Action',
     'Adventure',
