@@ -70,6 +70,7 @@ interface AdminDashboardProps {
   data: DashboardData | null
   loading?: boolean
   recentVideos?: any[]
+  ads?: any[]
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -222,29 +223,7 @@ function SectionCard({
 
 // Hardcoded recentVideos array has been removed for live database prop feeding.
 
-const catalogCategories = [
-  { name: 'Electronics', icon: Headphones, items: 128, color: 'from-blue-500/20 to-blue-600/5', iconColor: 'text-blue-400', glow: 'group-hover:shadow-blue-500/20' },
-  { name: 'Fashion', icon: Shirt, items: 96, color: 'from-purple-500/20 to-purple-600/5', iconColor: 'text-purple-400', glow: 'group-hover:shadow-purple-500/20' },
-  { name: 'Lifestyle', icon: Coffee, items: 64, color: 'from-emerald-500/20 to-emerald-600/5', iconColor: 'text-emerald-400', glow: 'group-hover:shadow-emerald-500/20' },
-  { name: 'Home & Living', icon: Sofa, items: 72, color: 'from-orange-500/20 to-orange-600/5', iconColor: 'text-orange-400', glow: 'group-hover:shadow-orange-500/20' },
-  { name: 'Sports', icon: Dumbbell, items: 58, color: 'from-pink-500/20 to-pink-600/5', iconColor: 'text-pink-400', glow: 'group-hover:shadow-pink-500/20' },
-  { name: 'Automotive', icon: Car, items: 42, color: 'from-cyan-500/20 to-cyan-600/5', iconColor: 'text-cyan-400', glow: 'group-hover:shadow-cyan-500/20' },
-]
-
-const videoAdsData = [
-  { type: 'Pre-roll', totalAds: 32, impressions: 1250000, clicks: 45600, ctr: 3.65, revenue: 12450.30 },
-  { type: 'Mid-roll', totalAds: 68, impressions: 2150000, clicks: 86400, ctr: 4.01, revenue: 9245.60 },
-  { type: 'Post-roll', totalAds: 12, impressions: 850000, clicks: 25300, ctr: 2.98, revenue: 4125.40 },
-  { type: 'Overlay', totalAds: 24, impressions: 1850000, clicks: 65200, ctr: 3.52, revenue: 5524.30 },
-]
-
-const topPerformingAds = [
-  { rank: 1, name: 'Summer Sale Pre-roll', type: 'Pre-roll', impressions: 725600, ctr: 6.64, revenue: 8245.30 },
-  { rank: 2, name: 'New Arrivals Mid-roll', type: 'Mid-roll', impressions: 512400, ctr: 5.58, revenue: 3245.60 },
-  { rank: 3, name: 'Special Offer Post-roll', type: 'Post-roll', impressions: 325800, ctr: 5.74, revenue: 2125.40 },
-  { rank: 4, name: 'Subscribe Overlay', type: 'Overlay', impressions: 285600, ctr: 5.36, revenue: 1854.20 },
-  { rank: 5, name: 'Brand Promo Pre-roll', type: 'Pre-roll', impressions: 198400, ctr: 4.94, revenue: 1245.10 },
-]
+// Global mock constants have been removed to enable real-time dynamic Supabase calculations.
 
 // ─── Loading Skeleton ────────────────────────────────────────────────────────
 
@@ -300,7 +279,7 @@ function StatusBadge({ status }: { status: 'Published' | 'Processing' | 'Draft' 
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export const AdminDashboard = memo(function AdminDashboard({ data, loading, recentVideos = [] }: AdminDashboardProps) {
+export const AdminDashboard = memo(function AdminDashboard({ data, loading, recentVideos = [], ads = [] }: AdminDashboardProps) {
   if (loading || !data) {
     return <LoadingSkeleton />
   }
@@ -398,6 +377,145 @@ export const AdminDashboard = memo(function AdminDashboard({ data, loading, rece
   const totalTrafficViews = useMemo(() => {
     return computedTrafficSource.reduce((s, item) => s + item.value, 0)
   }, [computedTrafficSource])
+
+  const computedCatalogCategories = useMemo(() => {
+    const stats = data?.categoryStats || []
+    
+    const iconMap: Record<string, any> = {
+      electronics: { icon: Headphones, color: 'from-blue-500/20 to-blue-600/5', iconColor: 'text-blue-400', glow: 'group-hover:shadow-blue-500/20' },
+      fashion: { icon: Shirt, color: 'from-purple-500/20 to-purple-600/5', iconColor: 'text-purple-400', glow: 'group-hover:shadow-purple-500/20' },
+      lifestyle: { icon: Coffee, color: 'from-emerald-500/20 to-emerald-600/5', iconColor: 'text-emerald-400', glow: 'group-hover:shadow-emerald-500/20' },
+      'home & living': { icon: Sofa, color: 'from-orange-500/20 to-orange-600/5', iconColor: 'text-orange-400', glow: 'group-hover:shadow-orange-500/20' },
+      sports: { icon: Dumbbell, color: 'from-pink-500/20 to-pink-600/5', iconColor: 'text-pink-400', glow: 'group-hover:shadow-pink-500/20' },
+      automotive: { icon: Car, color: 'from-cyan-500/20 to-cyan-600/5', iconColor: 'text-cyan-400', glow: 'group-hover:shadow-cyan-500/20' },
+    }
+    
+    const colors = [
+      'from-blue-500/20 to-blue-600/5',
+      'from-purple-500/20 to-purple-600/5',
+      'from-emerald-500/20 to-emerald-600/5',
+      'from-orange-500/20 to-orange-600/5',
+      'from-pink-500/20 to-pink-600/5',
+      'from-cyan-500/20 to-cyan-600/5'
+    ]
+    const iconColors = [
+      'text-blue-400',
+      'text-purple-400',
+      'text-emerald-400',
+      'text-orange-400',
+      'text-pink-400',
+      'text-cyan-400'
+    ]
+    const glows = [
+      'group-hover:shadow-blue-500/20',
+      'group-hover:shadow-purple-500/20',
+      'group-hover:shadow-emerald-500/20',
+      'group-hover:shadow-orange-500/20',
+      'group-hover:shadow-pink-500/20',
+      'group-hover:shadow-cyan-500/20'
+    ]
+    
+    if (stats.length === 0) {
+      return [
+        { name: 'Electronics', icon: Headphones, items: 0, color: 'from-blue-500/20 to-blue-600/5', iconColor: 'text-blue-400', glow: 'group-hover:shadow-blue-500/20' },
+        { name: 'Fashion', icon: Shirt, items: 0, color: 'from-purple-500/20 to-purple-600/5', iconColor: 'text-purple-400', glow: 'group-hover:shadow-purple-500/20' },
+        { name: 'Lifestyle', icon: Coffee, items: 0, color: 'from-emerald-500/20 to-emerald-600/5', iconColor: 'text-emerald-400', glow: 'group-hover:shadow-emerald-500/20' },
+      ]
+    }
+    
+    return stats.map((s, i) => {
+      const nameLower = s.category.toLowerCase()
+      const preset = iconMap[nameLower] || {
+        icon: Film,
+        color: colors[i % colors.length],
+        iconColor: iconColors[i % iconColors.length],
+        glow: glows[i % glows.length]
+      }
+      return {
+        name: s.category,
+        icon: preset.icon || Film,
+        items: s.count || 0,
+        color: preset.color,
+        iconColor: preset.iconColor,
+        glow: preset.glow
+      }
+    })
+  }, [data])
+
+  const totalCatalogItems = data?.totalVideos || 0
+  const activeCatalogItems = useMemo(() => {
+    const count = recentVideos.filter(v => v.isPublished).length
+    if (count === 0 && totalCatalogItems > 0) {
+      return totalCatalogItems
+    }
+    return count
+  }, [recentVideos, totalCatalogItems])
+  
+  const inactiveCatalogItems = Math.max(0, totalCatalogItems - activeCatalogItems)
+
+  const activePreRoll = useMemo(() => (ads || []).find(a => a.position === 'pre-roll' && a.isActive), [ads])
+  const activeMidRoll = useMemo(() => (ads || []).find(a => a.position === 'mid-roll' && a.isActive), [ads])
+  const activePostRoll = useMemo(() => (ads || []).find(a => a.position === 'post-roll' && a.isActive), [ads])
+  const activeOverlay = useMemo(() => (ads || []).find(a => a.position === 'overlay' && a.isActive), [ads])
+
+  const computedVideoAdsData = useMemo(() => {
+    const types = ['Pre-roll', 'Mid-roll', 'Post-roll', 'Overlay']
+    const positionMap: Record<string, string> = {
+      'Pre-roll': 'pre-roll',
+      'Mid-roll': 'mid-roll',
+      'Post-roll': 'post-roll',
+      'Overlay': 'overlay'
+    }
+    
+    return types.map(t => {
+      const pos = positionMap[t]
+      const matchingAds = (ads || []).filter(a => a.position === pos)
+      
+      const totalAds = matchingAds.length
+      const impressions = matchingAds.reduce((s, a) => s + (a.impressions || 0), 0)
+      const clicks = matchingAds.reduce((s, a) => s + (a.clicks || 0), 0)
+      const ctrVal = impressions > 0 ? Number(((clicks / impressions) * 100).toFixed(2)) : 0.00
+      const revenue = matchingAds.reduce((s, a) => s + (a.revenue || 0), 0)
+      
+      return {
+        type: t,
+        totalAds,
+        impressions,
+        clicks,
+        ctr: ctrVal,
+        revenue
+      }
+    })
+  }, [ads])
+
+  const computedTopPerformingAds = useMemo(() => {
+    const videoPlacements = ['pre-roll', 'mid-roll', 'post-roll', 'overlay']
+    const videoAds = (ads || []).filter(a => videoPlacements.includes(a.position || ''))
+    
+    const sorted = [...videoAds].sort((a, b) => (b.impressions || 0) - (a.impressions || 0))
+    
+    const displayTypeMap: Record<string, string> = {
+      'pre-roll': 'Pre-roll',
+      'mid-roll': 'Mid-roll',
+      'post-roll': 'Post-roll',
+      'overlay': 'Overlay'
+    }
+    
+    return sorted.slice(0, 5).map((ad, index) => {
+      const impressions = ad.impressions || 0
+      const clicks = ad.clicks || 0
+      const ctrVal = impressions > 0 ? Number(((clicks / impressions) * 100).toFixed(2)) : 0.00
+      
+      return {
+        rank: index + 1,
+        name: ad.name || ad.title || 'Untitled Ad',
+        type: displayTypeMap[ad.position || ''] || 'Pre-roll',
+        impressions,
+        ctr: ctrVal,
+        revenue: ad.revenue || 0
+      }
+    })
+  }, [ads])
 
   const statCards: Array<Omit<StatCardProps, 'delay'>> = [
     { title: 'Total Videos', value: formatNumber(data.totalVideos), icon: Film, change: 12.5, gradientIdx: 0 },
@@ -699,13 +817,21 @@ export const AdminDashboard = memo(function AdminDashboard({ data, loading, rece
                 <div className="relative h-1 rounded-full bg-white/10">
                   <div className="absolute left-0 top-0 h-full w-[25%] rounded-full bg-xtube-red" />
                   {/* Pre-roll marker */}
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 h-2 w-[3%] rounded-sm bg-orange-400" title="Pre-roll Ad" />
+                  {activePreRoll && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 h-2 w-[3%] rounded-sm bg-orange-400 animate-pulse" title={`Pre-roll: ${activePreRoll.name || activePreRoll.title}`} />
+                  )}
                   {/* Mid-roll marker */}
-                  <div className="absolute left-[25%] top-1/2 -translate-y-1/2 h-2 w-[5%] rounded-sm bg-purple-400" title="Mid-roll Ad" />
+                  {activeMidRoll && (
+                    <div className="absolute left-[25%] top-1/2 -translate-y-1/2 h-2 w-[5%] rounded-sm bg-purple-400 animate-pulse" title={`Mid-roll: ${activeMidRoll.name || activeMidRoll.title}`} />
+                  )}
                   {/* Overlay marker */}
-                  <div className="absolute left-[6%] top-1/2 -translate-y-1/2 h-2 w-[3%] rounded-sm bg-emerald-400" title="Overlay Ad" />
+                  {activeOverlay && (
+                    <div className="absolute left-[6%] top-1/2 -translate-y-1/2 h-2 w-[3%] rounded-sm bg-emerald-400 animate-pulse" title={`Overlay: ${activeOverlay.name || activeOverlay.title}`} />
+                  )}
                   {/* Post-roll marker */}
-                  <div className="absolute right-[6%] top-1/2 -translate-y-1/2 h-2 w-[3%] rounded-sm bg-blue-400" title="Post-roll Ad" />
+                  {activePostRoll && (
+                    <div className="absolute right-[6%] top-1/2 -translate-y-1/2 h-2 w-[3%] rounded-sm bg-blue-400 animate-pulse" title={`Post-roll: ${activePostRoll.name || activePostRoll.title}`} />
+                  )}
                 </div>
 
                 {/* Controls */}
@@ -723,23 +849,36 @@ export const AdminDashboard = memo(function AdminDashboard({ data, loading, rece
               </div>
 
               {/* Ad overlay labels */}
-              <div className="absolute top-3 left-3 space-y-1.5">
-                <div className="flex items-center gap-1.5 rounded-md bg-orange-400/20 px-2 py-0.5 backdrop-blur-sm border border-orange-400/30">
-                  <span className="text-[9px] font-bold text-orange-300">PRE-ROLL AD</span>
-                  <span className="text-[8px] text-orange-300/60">00:00-00:15</span>
-                </div>
-                <div className="flex items-center gap-1.5 rounded-md bg-purple-400/20 px-2 py-0.5 backdrop-blur-sm border border-purple-400/30">
-                  <span className="text-[9px] font-bold text-purple-300">MID-ROLL AD</span>
-                  <span className="text-[8px] text-purple-300/60">02:15-02:45</span>
-                </div>
-                <div className="flex items-center gap-1.5 rounded-md bg-blue-400/20 px-2 py-0.5 backdrop-blur-sm border border-blue-400/30">
-                  <span className="text-[9px] font-bold text-blue-300">POST-ROLL AD</span>
-                  <span className="text-[8px] text-blue-300/60">05:20-05:35</span>
-                </div>
-                <div className="flex items-center gap-1.5 rounded-md bg-emerald-400/20 px-2 py-0.5 backdrop-blur-sm border border-emerald-400/30">
-                  <span className="text-[9px] font-bold text-emerald-300">OVERLAY AD</span>
-                  <span className="text-[8px] text-emerald-300/60">00:30-00:45</span>
-                </div>
+              <div className="absolute top-3 left-3 space-y-1.5 max-h-[75%] overflow-y-auto no-scrollbar">
+                {activePreRoll && (
+                  <div className="flex items-center gap-1.5 rounded-md bg-orange-400/20 px-2 py-0.5 backdrop-blur-sm border border-orange-400/30">
+                    <span className="text-[9px] font-bold text-orange-300">PRE-ROLL AD</span>
+                    <span className="text-[8px] text-orange-300/80 truncate max-w-[100px]">{activePreRoll.name || activePreRoll.title}</span>
+                  </div>
+                )}
+                {activeMidRoll && (
+                  <div className="flex items-center gap-1.5 rounded-md bg-purple-400/20 px-2 py-0.5 backdrop-blur-sm border border-purple-400/30">
+                    <span className="text-[9px] font-bold text-purple-300">MID-ROLL AD</span>
+                    <span className="text-[8px] text-purple-300/80 truncate max-w-[100px]">{activeMidRoll.name || activeMidRoll.title}</span>
+                  </div>
+                )}
+                {activePostRoll && (
+                  <div className="flex items-center gap-1.5 rounded-md bg-blue-400/20 px-2 py-0.5 backdrop-blur-sm border border-blue-400/30">
+                    <span className="text-[9px] font-bold text-blue-300">POST-ROLL AD</span>
+                    <span className="text-[8px] text-blue-300/80 truncate max-w-[100px]">{activePostRoll.name || activePostRoll.title}</span>
+                  </div>
+                )}
+                {activeOverlay && (
+                  <div className="flex items-center gap-1.5 rounded-md bg-emerald-400/20 px-2 py-0.5 backdrop-blur-sm border border-emerald-400/30">
+                    <span className="text-[9px] font-bold text-emerald-300">OVERLAY AD</span>
+                    <span className="text-[8px] text-emerald-300/80 truncate max-w-[100px]">{activeOverlay.name || activeOverlay.title}</span>
+                  </div>
+                )}
+                {!activePreRoll && !activeMidRoll && !activePostRoll && !activeOverlay && (
+                  <div className="rounded-md bg-white/5 px-2 py-0.5 border border-white/10">
+                    <span className="text-[9px] font-medium text-white/40">No active video ads</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -756,7 +895,7 @@ export const AdminDashboard = memo(function AdminDashboard({ data, loading, rece
           }
         >
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {catalogCategories.map((cat, i) => (
+            {computedCatalogCategories.map((cat, i) => (
               <motion.div
                 key={cat.name}
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -773,17 +912,17 @@ export const AdminDashboard = memo(function AdminDashboard({ data, loading, rece
           {/* Catalog Stats */}
           <div className="mt-4 flex items-center gap-4 border-t border-white/5 pt-3">
             <div>
-              <span className="text-lg font-bold text-white">460</span>
+              <span className="text-lg font-bold text-white">{totalCatalogItems}</span>
               <span className="ml-1.5 text-xs text-white/40">Total Items</span>
             </div>
             <div className="h-4 w-px bg-white/10" />
             <div>
-              <span className="text-lg font-bold text-emerald-400">412</span>
+              <span className="text-lg font-bold text-emerald-400">{activeCatalogItems}</span>
               <span className="ml-1.5 text-xs text-white/40">Active</span>
             </div>
             <div className="h-4 w-px bg-white/10" />
             <div>
-              <span className="text-lg font-bold text-white/30">48</span>
+              <span className="text-lg font-bold text-white/30">{inactiveCatalogItems}</span>
               <span className="ml-1.5 text-xs text-white/40">Inactive</span>
             </div>
           </div>
@@ -817,7 +956,7 @@ export const AdminDashboard = memo(function AdminDashboard({ data, loading, rece
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {videoAdsData.map((ad, i) => {
+                {computedVideoAdsData.map((ad, i) => {
                   const typeColors: Record<string, string> = {
                     'Pre-roll': 'bg-orange-400/10 text-orange-400 border-orange-400/20',
                     'Mid-roll': 'bg-purple-400/10 text-purple-400 border-purple-400/20',
@@ -873,45 +1012,51 @@ export const AdminDashboard = memo(function AdminDashboard({ data, loading, rece
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {topPerformingAds.map((ad, i) => {
-                  const rankStyles = ad.rank === 1
-                    ? 'bg-xtube-red/10 text-xtube-red'
-                    : ad.rank === 2
-                      ? 'bg-amber-500/10 text-amber-400'
-                      : ad.rank === 3
-                        ? 'bg-blue-500/10 text-blue-400'
-                        : 'bg-white/5 text-white/40'
+                {computedTopPerformingAds.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-6 text-center text-xs text-white/30">No active video ads campaigns</td>
+                  </tr>
+                ) : (
+                  computedTopPerformingAds.map((ad, i) => {
+                    const rankStyles = ad.rank === 1
+                      ? 'bg-xtube-red/10 text-xtube-red'
+                      : ad.rank === 2
+                        ? 'bg-amber-500/10 text-amber-400'
+                        : ad.rank === 3
+                          ? 'bg-blue-500/10 text-blue-400'
+                          : 'bg-white/5 text-white/40'
 
-                  const typeColors: Record<string, string> = {
-                    'Pre-roll': 'text-orange-400',
-                    'Mid-roll': 'text-purple-400',
-                    'Post-roll': 'text-blue-400',
-                    'Overlay': 'text-emerald-400',
-                  }
+                    const typeColors: Record<string, string> = {
+                      'Pre-roll': 'text-orange-400',
+                      'Mid-roll': 'text-purple-400',
+                      'Post-roll': 'text-blue-400',
+                      'Overlay': 'text-emerald-400',
+                    }
 
-                  return (
-                    <motion.tr
-                      key={ad.rank}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.7 + i * 0.05, duration: 0.3 }}
-                      className="group transition-colors hover:bg-white/[0.02]"
-                    >
-                      <td className="py-2.5 pr-3">
-                        <span className={`inline-flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold ${rankStyles}`}>
-                          {ad.rank}
-                        </span>
-                      </td>
-                      <td className="py-2.5 pr-3 text-xs font-medium text-white group-hover:text-xtube-red transition-colors">{ad.name}</td>
-                      <td className="py-2.5 pr-3 text-[10px] font-semibold">
-                        <span className={typeColors[ad.type]}>{ad.type}</span>
-                      </td>
-                      <td className="py-2.5 pr-3 text-xs text-white/60">{formatNumber(ad.impressions)}</td>
-                      <td className="py-2.5 pr-3 text-xs font-semibold text-xtube-red">{ad.ctr}%</td>
-                      <td className="py-2.5 text-xs font-medium text-emerald-400">${ad.revenue.toLocaleString()}</td>
-                    </motion.tr>
-                  )
-                })}
+                    return (
+                      <motion.tr
+                        key={ad.rank}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.7 + i * 0.05, duration: 0.3 }}
+                        className="group transition-colors hover:bg-white/[0.02]"
+                      >
+                        <td className="py-2.5 pr-3">
+                          <span className={`inline-flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold ${rankStyles}`}>
+                            {ad.rank}
+                          </span>
+                        </td>
+                        <td className="py-2.5 pr-3 text-xs font-medium text-white group-hover:text-xtube-red transition-colors">{ad.name}</td>
+                        <td className="py-2.5 pr-3 text-[10px] font-semibold">
+                          <span className={typeColors[ad.type]}>{ad.type}</span>
+                        </td>
+                        <td className="py-2.5 pr-3 text-xs text-white/60">{formatNumber(ad.impressions)}</td>
+                        <td className="py-2.5 pr-3 text-xs font-semibold text-xtube-red">{ad.ctr}%</td>
+                        <td className="py-2.5 text-xs font-medium text-emerald-400">${ad.revenue.toLocaleString()}</td>
+                      </motion.tr>
+                    )
+                  })
+                )}
               </tbody>
             </table>
           </div>
