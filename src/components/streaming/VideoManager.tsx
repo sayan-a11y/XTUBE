@@ -87,37 +87,7 @@ function getRandomFileSize(): string {
   return sizes[Math.floor(Math.random() * sizes.length)]
 }
 
-// ─── Mock Video Data ─────────────────────────────────────────────────────────
-
-const mockVideos = [
-  { id: '1', title: 'The Last Horizon', category: 'Sci-Fi', views: 2840000, duration: '2:15:30', isPublished: true, createdAt: '2026-05-28T10:00:00Z', thumbnail: '' },
-  { id: '2', title: 'Midnight Streets', category: 'Action', views: 1560000, duration: '1:48:20', isPublished: true, createdAt: '2026-05-25T10:00:00Z', thumbnail: '' },
-  { id: '3', title: 'Beyond Mountains', category: 'Adventure', views: 980000, duration: '2:02:45', isPublished: true, createdAt: '2026-05-22T10:00:00Z', thumbnail: '' },
-  { id: '4', title: 'Love in Paris', category: 'Romance', views: 2100000, duration: '1:35:10', isPublished: true, createdAt: '2026-05-20T10:00:00Z', thumbnail: '' },
-  { id: '5', title: 'Deep Blue World', category: 'Documentary', views: 720000, duration: '1:22:05', isPublished: true, createdAt: '2026-05-18T10:00:00Z', thumbnail: '' },
-  { id: '6', title: "Dragon's Legacy", category: 'Fantasy', views: 3450000, duration: '2:28:15', isPublished: true, createdAt: '2026-05-16T10:00:00Z', thumbnail: '' },
-  { id: '7', title: 'Speed Knights', category: 'Sports', views: 890000, duration: '1:55:40', isPublished: true, createdAt: '2026-05-14T10:00:00Z', thumbnail: '' },
-  { id: '8', title: 'Space Odyssey', category: 'Sci-Fi', views: 4120000, duration: '2:45:20', isPublished: true, createdAt: '2026-05-12T10:00:00Z', thumbnail: '' },
-  { id: '9', title: 'Hidden Forest', category: 'Nature', views: 650000, duration: '1:12:30', isPublished: false, createdAt: '2026-05-10T10:00:00Z', thumbnail: '' },
-  { id: '10', title: 'Nightlife Party', category: 'Music', views: 1340000, duration: '1:08:55', isPublished: true, createdAt: '2026-05-08T10:00:00Z', thumbnail: '' },
-  { id: '11', title: 'War of Kingdoms', category: 'History', views: 1890000, duration: '2:18:10', isPublished: true, createdAt: '2026-05-06T10:00:00Z', thumbnail: '' },
-  { id: '12', title: 'Little Dreamer', category: 'Animation', views: 520000, duration: '1:42:25', isPublished: false, createdAt: '2026-05-04T10:00:00Z', thumbnail: '' },
-]
-
-const categories = [
-  'All Categories',
-  'Sci-Fi',
-  'Action',
-  'Adventure',
-  'Romance',
-  'Documentary',
-  'Fantasy',
-  'Sports',
-  'Nature',
-  'Music',
-  'History',
-  'Animation',
-]
+// Hardcoded mock videos and mock categories have been completely removed for live database sync.
 
 const categoryColors: Record<string, string> = {
   'Sci-Fi': 'bg-purple-500/15 text-purple-400 border-purple-500/20',
@@ -156,7 +126,7 @@ type SortOption = 'newest' | 'oldest' | 'most-viewed' | 'least-viewed' | 'title-
    Upload View
    ──────────────────────────────────────────── */
 
-function UploadView({ onUpload }: { onUpload: (data: Record<string, unknown>) => void }) {
+function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, unknown>) => void; categories: string[] }) {
   const [isDragOver, setIsDragOver] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'success'>('idle')
@@ -555,11 +525,13 @@ function AllVideosView({
   onDelete,
   onTogglePublish,
   loading,
+  categories,
 }: {
   videos: VideoManagerProps['videos']
   onDelete: VideoManagerProps['onDelete']
   onTogglePublish: VideoManagerProps['onTogglePublish']
   loading?: boolean
+  categories: string[]
 }) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
@@ -568,22 +540,9 @@ function AllVideosView({
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(12)
 
-  // Merge real videos with mock data for display
+  // Direct connection to live database videos (all mock data fallback is purged)
   const allVideos = useMemo(() => {
-    if (videos.length >= 12) return videos
-    return mockVideos.map((mv, i) => ({
-      ...mv,
-      ...(videos[i] ? {
-        id: videos[i].id,
-        title: videos[i].title,
-        category: videos[i].category,
-        views: videos[i].views,
-        duration: videos[i].duration,
-        isPublished: videos[i].isPublished,
-        createdAt: videos[i].createdAt,
-        thumbnail: videos[i].thumbnail,
-      } : {}),
-    }))
+    return videos
   }, [videos])
 
   // Filter and sort videos
@@ -913,9 +872,42 @@ function AllVideosView({
 
 export function VideoManager({ videos, onUpload, onDelete, onTogglePublish, loading }: VideoManagerProps) {
   const { adminSection } = useAppStore()
+  const [categories, setCategories] = useState<string[]>([])
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch('/api/categories')
+        if (res.ok) {
+          const data = await res.json()
+          if (data && data.categories) {
+            const names = data.categories.map((c: any) => c.name)
+            setCategories(names)
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching categories in VideoManager:', err)
+      }
+    }
+    fetchCategories()
+  }, [])
+
+  const defaultCats = categories.length > 0 ? categories : [
+    'Sci-Fi',
+    'Action',
+    'Adventure',
+    'Romance',
+    'Documentary',
+    'Fantasy',
+    'Sports',
+    'Nature',
+    'Music',
+    'History',
+    'Animation',
+  ]
 
   if (adminSection === 'video-upload') {
-    return <UploadView onUpload={onUpload} />
+    return <UploadView onUpload={onUpload} categories={defaultCats} />
   }
 
   return (
@@ -924,6 +916,7 @@ export function VideoManager({ videos, onUpload, onDelete, onTogglePublish, load
       onDelete={onDelete}
       onTogglePublish={onTogglePublish}
       loading={loading}
+      categories={['All Categories', ...defaultCats]}
     />
   )
 }

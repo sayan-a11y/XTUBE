@@ -642,7 +642,7 @@ export function AdminPanel() {
     const content = (() => {
       switch (adminSection) {
         case 'dashboard':
-          return <AdminDashboard data={dashboardData} loading={dataLoading} />
+          return <AdminDashboard data={dashboardData} loading={dataLoading} recentVideos={adminVideos} />
         case 'all-videos':
         return (
           <VideoManager
@@ -739,7 +739,7 @@ export function AdminPanel() {
             />
           )
         }
-        return <AdminDashboard data={dashboardData} loading={dataLoading} />
+        return <AdminDashboard data={dashboardData} loading={dataLoading} recentVideos={adminVideos} />
     }
     })()
 

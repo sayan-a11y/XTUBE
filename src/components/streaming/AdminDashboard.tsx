@@ -69,6 +69,7 @@ interface DashboardData {
 interface AdminDashboardProps {
   data: DashboardData | null
   loading?: boolean
+  recentVideos?: any[]
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -250,13 +251,7 @@ const userDeviceData = [
   { name: 'TV', value: 4610 },
 ]
 
-const recentVideos = [
-  { id: '1', title: 'Nature Cinematic Trailer', duration: '01:28', size: '125 MB', uploaded: 'Jun 10, 2025', status: 'Published' as const, thumbnail: '/api/placeholder/120/68' },
-  { id: '2', title: 'City Life Documentary', duration: '05:42', size: '520 MB', uploaded: 'Jun 10, 2025', status: 'Published' as const, thumbnail: '/api/placeholder/120/68' },
-  { id: '3', title: 'Adventure in Mountains', duration: '03:15', size: '300 MB', uploaded: 'Jun 09, 2025', status: 'Published' as const, thumbnail: '/api/placeholder/120/68' },
-  { id: '4', title: 'Future of Technology', duration: '07:05', size: '750 MB', uploaded: 'Jun 09, 2025', status: 'Processing' as const, thumbnail: '/api/placeholder/120/68' },
-  { id: '5', title: 'Relaxing Ocean Waves', duration: '02:45', size: '180 MB', uploaded: 'Jun 08, 2025', status: 'Published' as const, thumbnail: '/api/placeholder/120/68' },
-]
+// Hardcoded recentVideos array has been removed for live database prop feeding.
 
 const catalogCategories = [
   { name: 'Electronics', icon: Headphones, items: 128, color: 'from-blue-500/20 to-blue-600/5', iconColor: 'text-blue-400', glow: 'group-hover:shadow-blue-500/20' },
@@ -336,10 +331,22 @@ function StatusBadge({ status }: { status: 'Published' | 'Processing' | 'Draft' 
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export const AdminDashboard = memo(function AdminDashboard({ data, loading }: AdminDashboardProps) {
+export const AdminDashboard = memo(function AdminDashboard({ data, loading, recentVideos = [] }: AdminDashboardProps) {
   if (loading || !data) {
     return <LoadingSkeleton />
   }
+
+  const mappedRecentVideos = useMemo(() => {
+    return recentVideos.map((v) => ({
+      id: v.id,
+      title: v.title,
+      duration: v.duration || '0:00',
+      size: '150 MB',
+      uploaded: new Date(v.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      status: (v.isPublished ? 'Published' : 'Draft') as 'Published' | 'Draft' | 'Processing',
+      thumbnail: v.thumbnail,
+    }))
+  }, [recentVideos])
 
   const statCards: Array<Omit<StatCardProps, 'delay'>> = [
     { title: 'Total Videos', value: formatNumber(data.totalVideos), icon: Film, change: 12.5, gradientIdx: 0 },
@@ -528,60 +535,68 @@ export const AdminDashboard = memo(function AdminDashboard({ data, loading }: Ad
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {recentVideos.map((video, i) => (
-                <motion.tr
-                  key={video.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 + i * 0.04, duration: 0.3 }}
-                  className="group transition-colors hover:bg-white/[0.02]"
-                >
-                  <td className="py-3 pr-4">
-                    <div className="h-10 w-[72px] overflow-hidden rounded-md bg-xtube-card">
-                      <div className="h-full w-full bg-gradient-to-br from-white/5 to-white/[0.02] flex items-center justify-center">
-                        <Film className="h-4 w-4 text-white/20" />
+              {mappedRecentVideos.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-sm text-white/30">
+                    No recently uploaded videos found.
+                  </td>
+                </tr>
+              ) : (
+                mappedRecentVideos.map((video, i) => (
+                  <motion.tr
+                    key={video.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.5 + i * 0.04, duration: 0.3 }}
+                    className="group transition-colors hover:bg-white/[0.02]"
+                  >
+                    <td className="py-3 pr-4">
+                      <div className="h-10 w-[72px] overflow-hidden rounded-md bg-xtube-card">
+                        <div className="h-full w-full bg-gradient-to-br from-white/5 to-white/[0.02] flex items-center justify-center">
+                          <Film className="h-4 w-4 text-white/20" />
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <span className="text-sm font-medium text-white group-hover:text-xtube-red transition-colors">{video.title}</span>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <span className="flex items-center gap-1 text-xs text-white/50">
-                      <Clock className="h-3 w-3" />
-                      {video.duration}
-                    </span>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <span className="flex items-center gap-1 text-xs text-white/50">
-                      <HardDrive className="h-3 w-3" />
-                      {video.size}
-                    </span>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <span className="flex items-center gap-1 text-xs text-white/50">
-                      <Calendar className="h-3 w-3" />
-                      {video.uploaded}
-                    </span>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <StatusBadge status={video.status} />
-                  </td>
-                  <td className="py-3">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white" aria-label="View">
-                        <ViewIcon className="h-3.5 w-3.5" />
-                      </button>
-                      <button className="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white" aria-label="Edit">
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button className="rounded-md p-1.5 text-white/40 transition-colors hover:bg-xtube-red/10 hover:text-xtube-red" aria-label="Delete">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <span className="text-sm font-medium text-white group-hover:text-xtube-red transition-colors">{video.title}</span>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <span className="flex items-center gap-1 text-xs text-white/50">
+                        <Clock className="h-3 w-3" />
+                        {video.duration}
+                      </span>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <span className="flex items-center gap-1 text-xs text-white/50">
+                        <HardDrive className="h-3 w-3" />
+                        {video.size}
+                      </span>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <span className="flex items-center gap-1 text-xs text-white/50">
+                        <Calendar className="h-3 w-3" />
+                        {video.uploaded}
+                      </span>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <StatusBadge status={video.status} />
+                    </td>
+                    <td className="py-3">
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button className="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white" aria-label="View">
+                          <ViewIcon className="h-3.5 w-3.5" />
+                        </button>
+                        <button className="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white" aria-label="Edit">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button className="rounded-md p-1.5 text-white/40 transition-colors hover:bg-xtube-red/10 hover:text-xtube-red" aria-label="Delete">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))
+              )}
             </tbody>
           </table>
           {/* Pagination */}
