@@ -239,50 +239,114 @@ export function OverlayAdsPage() {
     setUploadStage('uploading')
     setUploadProgress(0)
 
-    const xhr = new XMLHttpRequest()
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('category', 'ad')
-
     const startTime = Date.now()
 
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percent = (event.loaded / event.total) * 100
-        setUploadProgress(percent)
-        setUploadedSize(`${((event.loaded / (1024 * 1024))).toFixed(2)} MB`)
+    // 1. Try Direct R2 upload bypass first if enabled
+    const startDirectUpload = async () => {
+      try {
+        const initRes = await fetch('/api/upload-ad', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'init',
+            fileName: file.name,
+            fileType: file.type,
+            category: 'ad',
+          }),
+        })
 
-        const elapsedSeconds = (Date.now() - startTime) / 1000
-        const speedBytesPerSec = elapsedSeconds > 0 ? event.loaded / elapsedSeconds : 0
-        setUploadSpeed(`${(speedBytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`)
-        setUploadRemaining('Uploading...')
+        if (initRes.ok) {
+          const { direct, uploadUrl, publicUrl } = await initRes.json()
+          if (direct && uploadUrl) {
+            const xhr = new XMLHttpRequest()
+            xhr.open('PUT', uploadUrl, true)
+            xhr.setRequestHeader('Content-Type', file.type || 'image/jpeg')
+
+            xhr.upload.onprogress = (event) => {
+              if (event.lengthComputable) {
+                const percent = (event.loaded / event.total) * 100
+                setUploadProgress(percent)
+                setUploadedSize(`${((event.loaded / (1024 * 1024))).toFixed(2)} MB`)
+
+                const elapsedSeconds = (Date.now() - startTime) / 1000
+                const speedBytesPerSec = elapsedSeconds > 0 ? event.loaded / elapsedSeconds : 0
+                setUploadSpeed(`${(speedBytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`)
+                setUploadRemaining('Uploading...')
+              }
+            }
+
+            xhr.onload = () => {
+              if (xhr.status === 200 || xhr.status === 201) {
+                setMediaUrl(publicUrl)
+                setExtractedThumbnails([publicUrl])
+                setUploadStage('success')
+              } else {
+                fallbackUpload()
+              }
+            }
+
+            xhr.onerror = () => {
+              fallbackUpload()
+            }
+
+            xhr.send(file)
+            return true
+          }
+        }
+      } catch (err) {
+        console.warn('Direct upload failed to initialize, trying fallback...', err)
       }
+      return false
     }
 
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const response = JSON.parse(xhr.responseText)
-          setMediaUrl(response.url)
-          setExtractedThumbnails([response.url])
-          setUploadStage('success')
-        } catch (e) {
-          alert('Failed to parse upload response')
+    const fallbackUpload = () => {
+      const xhr = new XMLHttpRequest()
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('category', 'ad')
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = (event.loaded / event.total) * 100
+          setUploadProgress(percent)
+          setUploadedSize(`${((event.loaded / (1024 * 1024))).toFixed(2)} MB`)
+
+          const elapsedSeconds = (Date.now() - startTime) / 1000
+          const speedBytesPerSec = elapsedSeconds > 0 ? event.loaded / elapsedSeconds : 0
+          setUploadSpeed(`${(speedBytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`)
+          setUploadRemaining('Uploading...')
+        }
+      }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const response = JSON.parse(xhr.responseText)
+            setMediaUrl(response.url)
+            setExtractedThumbnails([response.url])
+            setUploadStage('success')
+          } catch (e) {
+            alert('Failed to parse upload response')
+            setUploadStage('idle')
+          }
+        } else {
+          alert(`Upload failed: ${xhr.statusText || xhr.status}`)
           setUploadStage('idle')
         }
-      } else {
-        alert(`Upload failed: ${xhr.statusText}`)
+      }
+
+      xhr.onerror = () => {
+        alert('Network upload error')
         setUploadStage('idle')
       }
+
+      xhr.open('POST', '/api/upload-ad')
+      xhr.send(formData)
     }
 
-    xhr.onerror = () => {
-      alert('Network upload error')
-      setUploadStage('idle')
-    }
-
-    xhr.open('POST', '/api/upload-ad')
-    xhr.send(formData)
+    startDirectUpload().then((success) => {
+      if (!success) fallbackUpload()
+    })
   }, [overlayName])
 
   const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true) }, [])
