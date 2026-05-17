@@ -128,7 +128,21 @@ interface CommentData {
   }>
 }
 
-export function XtubeHomeClient() {
+export interface XtubeHomeClientProps {
+  initialVideos?: VideoData[]
+  initialCategories?: CategoryData[]
+  initialAds?: AdData[]
+  initialHeroAds?: HeroAdData[]
+  initialFooterAds?: FooterAdData[]
+}
+
+export function XtubeHomeClient({
+  initialVideos = [],
+  initialCategories = [],
+  initialAds = [],
+  initialHeroAds = [],
+  initialFooterAds = [],
+}: XtubeHomeClientProps) {
   const {
     currentView,
     selectedVideoId,
@@ -150,14 +164,14 @@ export function XtubeHomeClient() {
   }, [])
 
   // Data state
-  const [videos, setVideos] = useState<VideoData[]>([])
-  const [categories, setCategories] = useState<CategoryData[]>([])
-  const [ads, setAds] = useState<AdData[]>([])
-  const [heroAds, setHeroAds] = useState<HeroAdData[]>([])
-  const [footerAds, setFooterAds] = useState<FooterAdData[]>([])
+  const [videos, setVideos] = useState<VideoData[]>(initialVideos)
+  const [categories, setCategories] = useState<CategoryData[]>(initialCategories)
+  const [ads, setAds] = useState<AdData[]>(initialAds)
+  const [heroAds, setHeroAds] = useState<HeroAdData[]>(initialHeroAds)
+  const [footerAds, setFooterAds] = useState<FooterAdData[]>(initialFooterAds)
   const [currentVideo, setCurrentVideo] = useState<VideoData | null>(null)
   const [videoComments, setVideoComments] = useState<CommentData[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(initialVideos.length === 0)
   const [seeded, setSeeded] = useState(false)
 
   // ─── Fetch Videos ──────────────────────────────────────────────────────────

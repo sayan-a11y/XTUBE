@@ -67,13 +67,13 @@ export async function GET(request: NextRequest) {
       include: { videoAds: true },
     })
 
-    // Increment impressions
-    await Promise.all(
+    // Increment impressions in the background
+    Promise.all(
       ads.map((ad) =>
         db.ad.update({
           where: { id: ad.id },
           data: { impressions: { increment: 1 } },
-        })
+        }).catch((err) => console.error('Failed to increment ad impressions:', err))
       )
     )
 

@@ -22,20 +22,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Video not found' }, { status: 404 })
     }
 
-    // Increment views
-    await db.video.update({
+    // Increment views in background
+    db.video.update({
       where: { id },
       data: { views: { increment: 1 } },
-    })
+    }).catch((err) => console.error('Failed to increment video views:', err))
 
-    // Record analytics
-    await db.analytics.create({
+    // Record analytics in background
+    db.analytics.create({
       data: {
         device: 'desktop',
         views: 1,
         watchTime: 0,
       },
-    })
+    }).catch((err) => console.error('Failed to create analytics:', err))
 
     return NextResponse.json({ video: { ...video, views: video.views + 1 } })
   } catch (error) {
