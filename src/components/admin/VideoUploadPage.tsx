@@ -504,9 +504,9 @@ export function VideoUploadPage() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.3 }}
-      className="h-full overflow-y-auto no-scrollbar"
+      className="w-full"
     >
-      <div className="min-h-full p-3 lg:p-5 xl:p-6">
+      <div className="w-full p-3 md:p-4 lg:p-6">
         {/* ── Header Section ── */}
         <div className="mb-4">
           <div className="flex items-start justify-between">
@@ -531,11 +531,11 @@ export function VideoUploadPage() {
         </div>
 
         {/* ── Two Column Layout ── */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px]">
+        <div className="grid grid-cols-1 gap-5 lg:gap-6 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px] w-full">
           {/* ═══════════════════════════════════════════════════════════════════
               LEFT COLUMN — Upload & Interactive Preview
               ═══════════════════════════════════════════════════════════════════ */}
-          <div className="space-y-4">
+          <div className="space-y-4 max-w-2xl lg:max-w-none mx-auto w-full">
             {/* Section Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -821,12 +821,12 @@ export function VideoUploadPage() {
                   <span className="text-sm font-semibold text-white">Video Quality</span>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {qualityOptions.map((opt) => (
                     <button
                       key={opt.value}
                       onClick={() => setSelectedQuality(opt.value)}
-                      className={`relative flex-1 rounded-lg border px-3 py-2 text-center transition-all ${
+                      className={`relative rounded-lg border px-3 py-2 text-center transition-all ${
                         selectedQuality === opt.value
                           ? 'border-xtube-red/40 bg-xtube-red/10 text-white'
                           : 'border-white/10 bg-white/[0.02] text-white/50 hover:border-white/20'
@@ -834,7 +834,7 @@ export function VideoUploadPage() {
                     >
                       <span className="text-xs font-semibold">{opt.label}</span>
                       {opt.desc && (
-                        <span className="ml-1 text-[8px] text-xtube-red">{opt.desc}</span>
+                        <span className="block sm:inline sm:ml-1 text-[8px] text-xtube-red font-medium">{opt.desc}</span>
                       )}
                     </button>
                   ))}
@@ -857,7 +857,7 @@ export function VideoUploadPage() {
               </div>
 
               {/* Grid of 10 Thumbnails */}
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
                 {generatedThumbnails.length > 0 ? (
                   generatedThumbnails.map((thumb) => (
                     <motion.button
@@ -930,7 +930,7 @@ export function VideoUploadPage() {
           {/* ═══════════════════════════════════════════════════════════════════
               RIGHT COLUMN — Video Details
               ═══════════════════════════════════════════════════════════════════ */}
-          <div className="space-y-4">
+          <div className="space-y-4 max-w-2xl lg:max-w-none mx-auto w-full">
             {/* Section Header */}
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold text-xtube-red">2.</span>

@@ -474,12 +474,12 @@ export function AdminPanel() {
   // Compute sidebar width based on screen size
   const sidebarExpandedWidth = isLaptop ? 220 : 260
 
-  // Auto-collapse sidebar on tablet
+  // Auto-collapse sidebar on tablet (only on breakpoint change or load)
   useEffect(() => {
-    if (isTablet && !adminSidebarCollapsed) {
+    if (isTablet) {
       setAdminSidebarCollapsed(true)
     }
-  }, [isTablet, adminSidebarCollapsed, setAdminSidebarCollapsed])
+  }, [isTablet, setAdminSidebarCollapsed])
 
   // Expandable groups state
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['video-group', 'ads-group']))
