@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { broadcastRealtimeEvent } from '@/lib/realtime'
+import { deleteObject } from '@/lib/storage/r2-client'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -67,7 +68,53 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
+
+    // 1. Fetch the video details first to obtain URLs
+    const video = await db.video.findUnique({
+      where: { id },
+    })
+
+    if (!video) {
+      return NextResponse.json({ error: 'Video not found' }, { status: 404 })
+    }
+
+    // 2. Delete the record from Supabase database
     await db.video.delete({ where: { id } })
+
+    // 3. Delete files from Cloudflare R2 / Local Storage automatically
+    const publicUrl = process.env.R2_PUBLIC_URL || ''
+
+    if (video.videoUrl) {
+      let videoKey = ''
+      if (video.videoUrl.startsWith(publicUrl)) {
+        videoKey = video.videoUrl.replace(publicUrl, '').replace(/^\//, '')
+      } else if (video.videoUrl.startsWith('/')) {
+        videoKey = video.videoUrl.replace(/^\//, '')
+      }
+
+      if (videoKey) {
+        console.log(`[Storage Cleanup] Deleting video object: ${videoKey}`)
+        await deleteObject(videoKey).catch((err) =>
+          console.error(`[Storage Cleanup Error] Failed to delete video file ${videoKey}:`, err)
+        )
+      }
+    }
+
+    if (video.thumbnailUrl) {
+      let thumbnailKey = ''
+      if (video.thumbnailUrl.startsWith(publicUrl)) {
+        thumbnailKey = video.thumbnailUrl.replace(publicUrl, '').replace(/^\//, '')
+      } else if (video.thumbnailUrl.startsWith('/')) {
+        thumbnailKey = video.thumbnailUrl.replace(/^\//, '')
+      }
+
+      if (thumbnailKey) {
+        console.log(`[Storage Cleanup] Deleting thumbnail object: ${thumbnailKey}`)
+        await deleteObject(thumbnailKey).catch((err) =>
+          console.error(`[Storage Cleanup Error] Failed to delete thumbnail file ${thumbnailKey}:`, err)
+        )
+      }
+    }
 
     // Broadcast the deletion in real-time
     broadcastRealtimeEvent('video:deleted', { id })
