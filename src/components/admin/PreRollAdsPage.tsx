@@ -176,6 +176,7 @@ export function PreRollAdsPage() {
 
   // Captured Base64/Object URLs
   const [mediaUrl, setMediaUrl] = useState<string | null>(null)
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
   const [extractedThumbnails, setExtractedThumbnails] = useState<string[]>([])
   const [isExtractingThumbnails, setIsExtractingThumbnails] = useState(false)
 
@@ -235,12 +236,14 @@ export function PreRollAdsPage() {
   const processSelectedFile = useCallback((file: File) => {
     // Generate object URL for immediate local preview and thumbnail extraction
     const objectUrl = URL.createObjectURL(file)
+    setLocalPreviewUrl(objectUrl)
     setMediaUrl(objectUrl)
 
     const isVideo = file.type.startsWith('video/')
     const format = file.name.split('.').pop()?.toUpperCase() || ''
 
     if (isVideo) {
+      setAdTab('video')
       const tempVid = document.createElement('video')
       tempVid.src = objectUrl
       tempVid.preload = 'metadata'
@@ -316,6 +319,7 @@ export function PreRollAdsPage() {
       }
     } else {
       // Image file
+      setAdTab('image')
       setFileDetails({
         name: file.name,
         size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
@@ -390,6 +394,7 @@ export function PreRollAdsPage() {
     setSelectedThumbnail(0)
     setFileDetails(null)
     setMediaUrl(null)
+    setLocalPreviewUrl(null)
     setExtractedThumbnails([])
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
@@ -797,10 +802,10 @@ export function PreRollAdsPage() {
 
                 {/* Simulated Device Frame / Player */}
                 <div className="relative aspect-video overflow-hidden rounded-lg bg-black group border border-white/5 shadow-2xl">
-                  {adTab === 'video' && mediaUrl ? (
+                  {adTab === 'video' && (localPreviewUrl || mediaUrl) ? (
                     <video
                       ref={videoPlayerRef}
-                      src={mediaUrl}
+                      src={localPreviewUrl || mediaUrl || ''}
                       className="h-full w-full object-contain"
                       muted={isMuted}
                       playsInline
@@ -810,7 +815,7 @@ export function PreRollAdsPage() {
                     />
                   ) : (
                     <img
-                      src={extractedThumbnails[selectedThumbnail] || mediaUrl || premiumPlaceholderImages[selectedThumbnail % 10]}
+                      src={extractedThumbnails[selectedThumbnail] || localPreviewUrl || mediaUrl || premiumPlaceholderImages[selectedThumbnail % 10]}
                       alt="Ad Preview Content"
                       className="h-full w-full object-cover"
                     />

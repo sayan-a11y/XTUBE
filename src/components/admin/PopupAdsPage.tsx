@@ -176,6 +176,7 @@ export function PopupAdsPage() {
   } | null>(null)
 
   const [mediaUrl, setMediaUrl] = useState<string | null>(null)
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null)
   const [extractedThumbnails, setExtractedThumbnails] = useState<string[]>([])
   const [isExtractingThumbnails, setIsExtractingThumbnails] = useState(false)
 
@@ -234,12 +235,14 @@ export function PopupAdsPage() {
   const processSelectedFile = useCallback((file: File) => {
     // Generate object URL for immediate local preview and thumbnail extraction
     const objectUrl = URL.createObjectURL(file)
+    setLocalPreviewUrl(objectUrl)
     setMediaUrl(objectUrl)
 
     const isVideo = file.type.startsWith('video/')
     const format = file.name.split('.').pop()?.toUpperCase() || ''
 
     if (isVideo) {
+      setAdTab('video')
       const tempVid = document.createElement('video')
       tempVid.src = objectUrl
       tempVid.preload = 'metadata'
@@ -315,6 +318,7 @@ export function PopupAdsPage() {
       }
     } else {
       // Image file
+      setAdTab('image')
       setFileDetails({
         name: file.name,
         size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
@@ -389,6 +393,7 @@ export function PopupAdsPage() {
     setSelectedThumbnail(0)
     setFileDetails(null)
     setMediaUrl(null)
+    setLocalPreviewUrl(null)
     setExtractedThumbnails([])
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
@@ -862,9 +867,9 @@ export function PopupAdsPage() {
                           </button>
 
                           <div className="aspect-video rounded-lg overflow-hidden bg-white/5 border border-white/5">
-                            {adTab === 'video' && mediaUrl ? (
+                            {adTab === 'video' && (localPreviewUrl || mediaUrl) ? (
                               <video
-                                src={mediaUrl}
+                                src={localPreviewUrl || mediaUrl || ''}
                                 autoPlay
                                 muted
                                 loop
@@ -873,7 +878,7 @@ export function PopupAdsPage() {
                               />
                             ) : (
                               <img
-                                src={extractedThumbnails[selectedThumbnail] || mediaUrl || premiumPlaceholderImages[selectedThumbnail % 10]}
+                                src={extractedThumbnails[selectedThumbnail] || localPreviewUrl || mediaUrl || premiumPlaceholderImages[selectedThumbnail % 10]}
                                 alt="creative"
                                 className="h-full w-full object-cover"
                               />
