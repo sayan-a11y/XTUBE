@@ -494,10 +494,24 @@ export function HeroFooterAdsPage() {
     }))
   }, [footerAds])
 
-  const donutData = useMemo(() => [
-    { name: 'Video Footer Ads', value: footerAds.filter(a => a.adType === 'video' || a.mediaFormat === 'mp4').reduce((s, a) => s + (a.impressions || 0), 0) || 1200 },
-    { name: 'Image Footer Ads', value: footerAds.filter(a => a.adType !== 'video' && a.mediaFormat !== 'mp4').reduce((s, a) => s + (a.impressions || 0), 0) || 450 }
-  ], [footerAds])
+  const donutData = useMemo(() => {
+    const vidVal = footerAds.filter(a => a.adType === 'video' || a.mediaFormat === 'mp4').reduce((s, a) => s + (a.impressions || 0), 0)
+    const imgVal = footerAds.filter(a => a.adType !== 'video' && a.mediaFormat !== 'mp4').reduce((s, a) => s + (a.impressions || 0), 0)
+    if (vidVal === 0 && imgVal === 0) {
+      return [{ name: 'No Footer Ads', value: 1 }]
+    }
+    return [
+      { name: 'Video Footer Ads', value: vidVal },
+      { name: 'Image Footer Ads', value: imgVal }
+    ]
+  }, [footerAds])
+
+  const totalFooterImpressions = useMemo(() => {
+    const sum = footerAds.reduce((s, a) => s + (a.impressions || 0), 0)
+    if (sum >= 1000000) return `${(sum / 1000000).toFixed(1)}M`
+    if (sum >= 1000) return `${(sum / 1000).toFixed(1)}K`
+    return String(sum)
+  }, [footerAds])
 
   const filteredAds = mappedAds.filter((ad) => {
     if (statusFilter !== 'all' && ad.status.toLowerCase() !== statusFilter) return false
@@ -908,7 +922,7 @@ export function HeroFooterAdsPage() {
                         <Cell key={idx} fill={DONUT_COLORS[idx]} />
                       ))}
                     </Pie>
-                    <text x="50%" y="44%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-xs font-bold">1.6K</text>
+                    <text x="50%" y="44%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-xs font-bold">{totalFooterImpressions}</text>
                     <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-white/30 text-[7px] uppercase font-bold">Impressions</text>
                   </PieChart>
                 </ResponsiveContainer>

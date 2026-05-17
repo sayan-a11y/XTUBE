@@ -410,10 +410,24 @@ export function BannerAdsPage() {
     mediaUrl: ad.mediaUrl,
   })), [allAds])
 
-  const donutData = useMemo(() => [
-    { name: 'Image Banners', value: allAds.filter(a => a.type !== 'video' && a.mediaFormat !== 'mp4').reduce((s, a) => s + a.impressions, 0) || 3100 },
-    { name: 'Video Banners', value: allAds.filter(a => a.type === 'video' || a.mediaFormat === 'mp4').reduce((s, a) => s + a.impressions, 0) || 600 },
-  ], [allAds])
+  const donutData = useMemo(() => {
+    const imgVal = allAds.filter(a => a.type !== 'video' && a.mediaFormat !== 'mp4').reduce((s, a) => s + (a.impressions || 0), 0)
+    const vidVal = allAds.filter(a => a.type === 'video' || a.mediaFormat === 'mp4').reduce((s, a) => s + (a.impressions || 0), 0)
+    if (imgVal === 0 && vidVal === 0) {
+      return [{ name: 'No Active Banners', value: 1 }]
+    }
+    return [
+      { name: 'Image Banners', value: imgVal },
+      { name: 'Video Banners', value: vidVal }
+    ]
+  }, [allAds])
+
+  const totalBannerImpressions = useMemo(() => {
+    const sum = allAds.reduce((s, a) => s + (a.impressions || 0), 0)
+    if (sum >= 1000000) return `${(sum / 1000000).toFixed(1)}M`
+    if (sum >= 1000) return `${(sum / 1000).toFixed(1)}K`
+    return String(sum)
+  }, [allAds])
 
   const filteredAds = mappedAds.filter((ad) => {
     if (statusFilter !== 'all' && ad.status.toLowerCase() !== statusFilter) return false
@@ -851,7 +865,7 @@ export function BannerAdsPage() {
                         <Cell key={idx} fill={DONUT_COLORS[idx]} />
                       ))}
                     </Pie>
-                    <text x="50%" y="44%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-xs font-bold">3.7K</text>
+                    <text x="50%" y="44%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-xs font-bold">{totalBannerImpressions}</text>
                     <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-white/30 text-[7px] uppercase font-bold">Impressions</text>
                   </PieChart>
                 </ResponsiveContainer>

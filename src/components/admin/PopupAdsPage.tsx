@@ -403,10 +403,24 @@ export function PopupAdsPage() {
     mediaUrl: ad.mediaUrl,
   })), [allAds])
 
-  const donutData = useMemo(() => [
-    { name: 'Image Popups', value: allAds.filter(a => a.type !== 'video' && a.mediaFormat !== 'mp4').reduce((s, a) => s + a.impressions, 0) || 2700 },
-    { name: 'Video Popups', value: allAds.filter(a => a.type === 'video' || a.mediaFormat === 'mp4').reduce((s, a) => s + a.impressions, 0) || 350 },
-  ], [allAds])
+  const donutData = useMemo(() => {
+    const imgVal = allAds.filter(a => a.type !== 'video' && a.mediaFormat !== 'mp4').reduce((s, a) => s + (a.impressions || 0), 0)
+    const vidVal = allAds.filter(a => a.type === 'video' || a.mediaFormat === 'mp4').reduce((s, a) => s + (a.impressions || 0), 0)
+    if (imgVal === 0 && vidVal === 0) {
+      return [{ name: 'No Active Popups', value: 1 }]
+    }
+    return [
+      { name: 'Image Popups', value: imgVal },
+      { name: 'Video Popups', value: vidVal }
+    ]
+  }, [allAds])
+
+  const totalPopupImpressions = useMemo(() => {
+    const sum = allAds.reduce((s, a) => s + (a.impressions || 0), 0)
+    if (sum >= 1000000) return `${(sum / 1000000).toFixed(1)}M`
+    if (sum >= 1000) return `${(sum / 1000).toFixed(1)}K`
+    return String(sum)
+  }, [allAds])
 
   const filteredAds = mappedAds.filter((ad) => {
     if (statusFilter !== 'all' && ad.status.toLowerCase() !== statusFilter) return false
@@ -854,7 +868,7 @@ export function PopupAdsPage() {
                         <Cell key={idx} fill={DONUT_COLORS[idx]} />
                       ))}
                     </Pie>
-                    <text x="50%" y="44%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-xs font-bold">3.0K</text>
+                    <text x="50%" y="44%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-xs font-bold">{totalPopupImpressions}</text>
                     <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-white/30 text-[7px] uppercase font-bold">Popups</text>
                   </PieChart>
                 </ResponsiveContainer>

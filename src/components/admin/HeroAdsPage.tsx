@@ -393,10 +393,24 @@ export function HeroAdsPage() {
   const avgCtr = totalAds > 0 ? heroAds.reduce((sum, ad) => sum + ad.ctr, 0) / totalAds : 0
   const totalClicks = heroAds.reduce((sum, ad) => sum + ad.clicks, 0)
 
-  const donutData = [
-    { name: 'Image Ads', value: heroAds.filter((ad) => ad.adType === 'image').length || 4 },
-    { name: 'Video Ads', value: heroAds.filter((ad) => ad.adType === 'video').length || 2 },
-  ]
+  const donutData = useMemo(() => {
+    const imgVal = heroAds.filter((ad) => ad.adType === 'image').reduce((s, a) => s + (a.clicks || 0), 0)
+    const vidVal = heroAds.filter((ad) => ad.adType === 'video').reduce((s, a) => s + (a.clicks || 0), 0)
+    if (imgVal === 0 && vidVal === 0) {
+      return [{ name: 'No Hero Ads', value: 1 }]
+    }
+    return [
+      { name: 'Image Ads', value: imgVal },
+      { name: 'Video Ads', value: vidVal }
+    ]
+  }, [heroAds])
+
+  const totalHeroClicks = useMemo(() => {
+    const sum = heroAds.reduce((s, a) => s + (a.clicks || 0), 0)
+    if (sum >= 1000000) return `${(sum / 1000000).toFixed(1)}M`
+    if (sum >= 1000) return `${(sum / 1000).toFixed(1)}K`
+    return String(sum)
+  }, [heroAds])
 
   const filteredAds = heroAds.filter((ad) => {
     if (statusFilter !== 'all') {
@@ -737,7 +751,7 @@ export function HeroAdsPage() {
                         <Cell key={idx} fill={DONUT_COLORS[idx]} />
                       ))}
                     </Pie>
-                    <text x="50%" y="44%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-xs font-bold">2.4K</text>
+                    <text x="50%" y="44%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-xs font-bold">{totalHeroClicks}</text>
                     <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-white/30 text-[7px] uppercase font-bold">Clicks</text>
                   </PieChart>
                 </ResponsiveContainer>
