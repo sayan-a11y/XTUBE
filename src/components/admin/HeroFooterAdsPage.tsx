@@ -791,7 +791,7 @@ export function HeroFooterAdsPage() {
 
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   {[
-                    { label: 'Active Placement', value: sectionLabel.toUpperCase() },
+                    { label: 'Active Placement', value: (sectionTab === 'hero' ? 'Hero Placement' : 'Footer Placement').toUpperCase() },
                     { label: 'Target size', value: sectionTab === 'hero' ? '1920×600 px' : '970×250 px' },
                     { label: 'Auto Rotate', value: '30s rotation enabled' },
                     { label: 'Redirect Link', value: adLink || '—' },
