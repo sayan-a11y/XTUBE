@@ -70,16 +70,7 @@ const CATEGORIES = [
 
 export async function POST() {
   try {
-    // Seed categories
-    for (const cat of CATEGORIES) {
-      await db.category.upsert({
-        where: { slug: cat.slug },
-        update: {},
-        create: cat,
-      })
-    }
-
-    // Seed default user
+    // Only seed default Guest user
     await db.user.upsert({
       where: { id: 'default-user' },
       update: {},
@@ -90,7 +81,7 @@ export async function POST() {
       },
     })
 
-    // Seed admin user
+    // Only seed default Admin user
     await db.user.upsert({
       where: { id: 'admin-user' },
       update: {},
@@ -102,103 +93,9 @@ export async function POST() {
       },
     })
 
-    // Check if videos already exist
-    const existingVideos = await db.video.count()
-    if (existingVideos === 0) {
-      // Seed videos
-      for (let i = 0; i < SAMPLE_VIDEOS.length; i++) {
-        const v = SAMPLE_VIDEOS[i]
-        await db.video.create({
-          data: {
-            title: v.title,
-            description: `Watch ${v.title} on Xtube. High quality streaming with adaptive bitrate support.`,
-            thumbnail: SAMPLE_THUMBNAILS[i % SAMPLE_THUMBNAILS.length],
-            videoUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8', // Free HLS test stream
-            category: v.category,
-            duration: v.duration,
-            isHd: v.isHd,
-            views: Math.floor(Math.random() * 500000) + 1000,
-          },
-        })
-      }
-    }
-
-    // Seed ads
-    const existingAds = await db.ad.count()
-    if (existingAds === 0) {
-      await db.ad.createMany({
-        data: [
-          {
-            type: 'banner',
-            position: 'hero',
-            title: 'Premium Streaming - Watch in 4K',
-            imageUrl: 'https://picsum.photos/seed/ad1/1280/400',
-            linkUrl: '#',
-            impressions: 15420,
-            clicks: 890,
-            revenue: 267.50,
-          },
-          {
-            type: 'banner',
-            position: 'sidebar',
-            title: 'Upgrade to Xtube Pro',
-            imageUrl: 'https://picsum.photos/seed/ad2/300/250',
-            linkUrl: '#',
-            impressions: 8200,
-            clicks: 420,
-            revenue: 125.00,
-          },
-          {
-            type: 'popup',
-            position: 'entry',
-            title: 'Special Offer - First Month Free',
-            imageUrl: 'https://picsum.photos/seed/ad3/600/400',
-            linkUrl: '#',
-            impressions: 3200,
-            clicks: 180,
-            revenue: 54.00,
-          },
-          {
-            type: 'overlay',
-            position: 'footer',
-            title: 'Download Our App',
-            imageUrl: 'https://picsum.photos/seed/ad4/468/60',
-            linkUrl: '#',
-            impressions: 22100,
-            clicks: 1100,
-            revenue: 330.00,
-          },
-        ],
-      })
-    }
-
-    // Seed analytics
-    const existingAnalytics = await db.analytics.count()
-    if (existingAnalytics === 0) {
-      const analyticsData: any[] = []
-      for (let i = 29; i >= 0; i--) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        const devices = ['desktop', 'mobile', 'tablet']
-        for (const device of devices) {
-          analyticsData.push({
-            date,
-            device,
-            country: 'US',
-            views: Math.floor(Math.random() * 5000) + 500,
-            watchTime: Math.floor(Math.random() * 50000) + 5000,
-            revenue: Math.round((Math.random() * 50 + 10) * 100) / 100,
-            adClicks: Math.floor(Math.random() * 200) + 20,
-            newUsers: Math.floor(Math.random() * 100) + 5,
-          })
-        }
-      }
-      await db.analytics.createMany({ data: analyticsData })
-    }
-
-    return NextResponse.json({ success: true, message: 'Database seeded successfully' })
+    return NextResponse.json({ success: true, message: 'Database initialized with admin and guest users' })
   } catch (error) {
     console.error('Error seeding database:', error)
-    return NextResponse.json({ error: 'Failed to seed database' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to initialize database' }, { status: 500 })
   }
 }
