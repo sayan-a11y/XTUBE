@@ -176,6 +176,16 @@ export function VideoUploadPage() {
   const [durationVal, setDurationVal] = useState(0)
   const [isMuted, setIsMuted] = useState(true)
   const [videoObjectUrl, setVideoObjectUrl] = useState<string>('')
+  const [showControls, setShowControls] = useState(false)
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -195,12 +205,18 @@ export function VideoUploadPage() {
     setVideoObjectUrl(localUrl)
     setGeneratedThumbnails([])
 
-    // Load video element in background to extract duration, resolution & 10 real thumbnails
+    // Load video element in DOM background to extract duration, resolution & 10 real thumbnails (Safari/Tablet compatibility)
     const tempVideo = document.createElement('video')
+    tempVideo.style.position = 'absolute'
+    tempVideo.style.width = '0'
+    tempVideo.style.height = '0'
+    tempVideo.style.opacity = '0'
+    tempVideo.style.pointerEvents = 'none'
     tempVideo.preload = 'metadata'
     tempVideo.src = localUrl
     tempVideo.muted = true
     tempVideo.playsInline = true
+    document.body.appendChild(tempVideo)
 
     tempVideo.onloadedmetadata = () => {
       const dur = tempVideo.duration || 0
@@ -269,9 +285,22 @@ export function VideoUploadPage() {
           try {
             tempVideo.src = ''
             tempVideo.load()
+            if (tempVideo.parentNode) {
+              tempVideo.parentNode.removeChild(tempVideo)
+            }
           } catch (e) {}
         }
       }
+
+      tempVideo.onerror = () => {
+        console.error('Failed to load video metadata.')
+        try {
+          if (tempVideo.parentNode) {
+            tempVideo.parentNode.removeChild(tempVideo)
+          }
+        } catch (e) {}
+      }
+
       captureFrame()
     }
   }, [])
@@ -458,6 +487,36 @@ export function VideoUploadPage() {
     if (videoRef.current.requestFullscreen) {
       videoRef.current.requestFullscreen()
     }
+  }, [])
+
+  const handlePlayerClick = useCallback((e: React.MouseEvent) => {
+    // Prevent event bubbling if clicking child controls
+    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('input')) {
+      return
+    }
+    
+    // Toggle play/pause
+    togglePlay()
+    
+    // Toggle controls visible
+    setShowControls(true)
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current)
+    }
+    controlsTimeoutRef.current = setTimeout(() => {
+      setShowControls(false)
+    }, 3000)
+  }, [togglePlay])
+
+  const handlePlayerMouseEnter = useCallback(() => {
+    setShowControls(true)
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current)
+    }
+  }, [])
+
+  const handlePlayerMouseLeave = useCallback(() => {
+    setShowControls(false)
   }, [])
 
   // ─── Drag & Drop ───────────────────────────────────────────────────────
@@ -648,18 +707,26 @@ export function VideoUploadPage() {
             {/* ── Custom Premium Local Video Player Preview ── */}
             <div className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl">
               {file && videoObjectUrl ? (
-                <div className="relative aspect-video bg-black group/player">
+                <div 
+                  onClick={handlePlayerClick}
+                  onMouseEnter={handlePlayerMouseEnter}
+                  onMouseLeave={handlePlayerMouseLeave}
+                  className="relative aspect-video bg-black group/player cursor-pointer"
+                >
                   <video
                     ref={videoRef}
                     src={videoObjectUrl}
                     className="h-full w-full object-contain"
                     onTimeUpdate={handleTimeUpdate}
                     onEnded={() => setIsPlaying(false)}
+                    onLoadedMetadata={(e) => {
+                      e.currentTarget.currentTime = 0.1
+                    }}
                     muted={isMuted}
                     playsInline
                   />
                   {/* Controls overlay */}
-                  <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/30 to-transparent p-4 opacity-0 group-hover/player:opacity-100 transition-opacity duration-200">
+                  <div className={`absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/30 to-transparent p-4 transition-opacity duration-200 ${showControls ? 'opacity-100' : 'opacity-0 lg:group-hover/player:opacity-100'}`}>
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
                         <button
