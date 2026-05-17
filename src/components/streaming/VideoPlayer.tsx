@@ -37,6 +37,12 @@ import {
   Captions,
   AudioLines,
   RectangleHorizontal,
+
+  Wifi,
+  Loader2,
+  X,
+  Film,
+  Zap,
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import { Comments } from '@/components/streaming/Comments'
@@ -51,6 +57,7 @@ interface VideoPlayerProps {
     description: string
     videoUrl: string
     thumbnail: string
+    thumbnailUrls?: string
     views: number
     duration: string
     category: string
@@ -218,6 +225,30 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
   // Current auto quality level (for display, avoids ref access in render)
   const [currentAutoQuality, setCurrentAutoQuality] = useState<string>('Auto')
 
+  // ─── OTT Enhancement: New State ────────────────────────────────────────────
+
+  // Continue watching
+  const [resumePosition, setResumePosition] = useState<number | null>(null)
+  const [showResumePrompt, setShowResumePrompt] = useState(false)
+
+  // Mid-roll ads
+  const [midrollTimings, setMidrollTimings] = useState<number[]>([])
+  const [playedMidrolls, setPlayedMidrolls] = useState<Set<number>>(new Set())
+  const [showAdOverlay, setShowAdOverlay] = useState(false)
+  const [adCountdown, setAdCountdown] = useState(0)
+  const [currentAdType, setCurrentAdType] = useState<'pre' | 'mid' | 'post' | null>(null)
+
+  // Buffer & quality
+  const [bufferHealth, setBufferHealth] = useState<'good' | 'fair' | 'poor'>('good')
+  const [networkSpeed, setNetworkSpeed] = useState<number>(0)
+
+  // Thumbnail preview
+  const [thumbnailUrls, setThumbnailUrls] = useState<string[]>([])
+  const [previewThumbnail, setPreviewThumbnail] = useState<string | null>(null)
+
+  // Seeking loader
+  const [isSeeking, setIsSeeking] = useState(false)
+
   // ─── Double-tap gesture handler ────────────────────────────────────────────
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -346,6 +377,12 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
   const isDraggingRef = useRef(false) // ref for instant access in RAF
   const progressRectRef = useRef<DOMRect | null>(null) // cached rect for performance
   const pendingSeekTimeRef = useRef<number>(0) // tracks final seek position during drag (avoids stale closure)
+
+  // OTT Enhancement refs
+  const adCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const progressSaveRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const preRollPlayedRef = useRef(false)
+  const postRollTriggeredRef = useRef(false)
 
   const getPointerPosition = useCallback((clientX: number): number => {
     const rect = progressRectRef.current

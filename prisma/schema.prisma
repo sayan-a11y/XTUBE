@@ -16,9 +16,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  comments Comment[]
-  bookmarks Bookmark[]
-  history   History[]
+  comments   Comment[]
+  bookmarks  Bookmark[]
+  history    History[]
+  watchProgress WatchProgress[]
 }
 
 model Video {
@@ -35,10 +36,37 @@ model Video {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  comments  Comment[]
-  bookmarks Bookmark[]
-  history   History[]
-  ads       VideoAd[]
+  // ─── OTT Streaming Fields ────────────────────────────────────────────────
+  durationSeconds  Int      @default(0)   // exact duration in seconds
+  hlsUrl           String?                // HLS master manifest URL (.m3u8)
+  dashUrl          String?                // DASH manifest URL (.mpd)
+  qualityLevels    String  @default("[]") // JSON: available quality levels ["480p","720p","1080p","2K","4K"]
+  fileSize         Int     @default(0)    // original file size in bytes
+  bitrate          Int     @default(0)    // average bitrate in kbps
+  codec            String  @default("h264") // video codec
+  audioCodec       String  @default("aac")  // audio codec
+  frameRate        Float   @default(30)     // frames per second
+  resolution       String  @default("1080p") // max resolution
+
+  // ─── Thumbnail & Preview ─────────────────────────────────────────────────
+  thumbnailUrls   String  @default("[]") // JSON: array of auto-generated thumbnail URLs
+  previewUrl      String?               // WebVTT preview sprite sheet URL
+
+  // ─── Storage ─────────────────────────────────────────────────────────────
+  storageProvider String  @default("local") // local, r2, s3
+  storageKey      String?                  // storage object key for provider
+
+  // ─── Mid-roll Ads Timing ────────────────────────────────────────────────
+  midrollTimings  String  @default("[]") // JSON: [1800, 3600, 5400] seconds (30min intervals)
+
+  // ─── Subtitles ───────────────────────────────────────────────────────────
+  subtitleTracks  String  @default("[]") // JSON: [{lang:"en", label:"English", url:"..."}]
+
+  comments    Comment[]
+  bookmarks   Bookmark[]
+  history     History[]
+  ads         VideoAd[]
+  watchProgress WatchProgress[]
 
   @@index([category])
   @@index([views])
@@ -75,7 +103,7 @@ model Comment {
 
 model Ad {
   id          String   @id @default(cuid())
-  type        String   // banner, popup, overlay
+  type        String   // banner, popup, overlay, video
   position    String   // hero, sidebar, footer, entry, exit, timed
   title       String
   imageUrl    String
@@ -89,6 +117,13 @@ model Ad {
   frequency   Int      @default(1) // how often to show
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // ─── Ad Streaming Fields ────────────────────────────────────────────────
+  mediaUrl     String?               // video/GIF ad URL
+  mediaFormat  String  @default("jpg") // mp4, webm, mov, jpg, png, webp, gif
+  adDuration   Int     @default(0)     // video ad duration in seconds
+  skipAfter    Int     @default(5)     // seconds before skip button appears
+  quality      String  @default("720p") // ad quality
 
   videoAds VideoAd[]
 }
@@ -126,6 +161,23 @@ model History {
   video Video @relation(fields: [videoId], references: [id])
 
   @@unique([userId, videoId])
+}
+
+model WatchProgress {
+  id             String   @id @default(cuid())
+  userId         String
+  videoId        String
+  position       Int      @default(0)   // last watched position in seconds
+  duration       Int      @default(0)   // total duration in seconds
+  percentage     Float    @default(0)   // percentage watched (0-100)
+  lastWatchedAt  DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  video Video @relation(fields: [videoId], references: [id])
+
+  @@unique([userId, videoId])
+  @@index([userId])
+  @@index([lastWatchedAt])
 }
 
 model HeroAd {
@@ -232,4 +284,21 @@ model Setting {
   key   String @unique
   value String
   updatedAt DateTime @updatedAt
+}
+
+model UploadSession {
+  id          String   @id @default(cuid())
+  fileName    String
+  fileSize    Int
+  mimeType    String
+  chunkSize   Int      @default(5242880) // 5MB default chunk size
+  totalChunks Int
+  uploadedChunks String @default("[]") // JSON array of uploaded chunk indices
+  status      String   @default("pending") // pending, uploading, processing, completed, failed
+  videoId     String?  // linked video after completion
+  storageKey  String?  // R2/local storage key
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
 }

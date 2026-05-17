@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
 import { processAdminClick, getAdminClickCount } from '@/lib/admin-click'
@@ -131,22 +131,15 @@ export function XtubeLogo({
   const s = sizeMap[size]
 
   // Read stored click count from sessionStorage for pulse animation
-  // This survives page reloads (unlike the Zustand store which resets)
   const storedClickCount = getAdminClickCount()
   const pulseGlow = storedClickCount > 0 && !showAdminModal
 
-  // Debounce ref to prevent double-firing from multiple event types
-  const lastPointerTimeRef = useRef(0)
+  // ─── Debounce to prevent double-firing from click + touchstart ──────────
+  const lastClickTimeRef = useRef(0)
+  const isTouchFiredRef = useRef(false)
 
-  const handlePointerDown = (e: React.PointerEvent) => {
-    // Only primary pointer (left click / single touch)
-    if (e.button !== 0) return
-
-    // Debounce: prevent double-firing (200ms minimum between clicks)
-    const now = Date.now()
-    if (now - lastPointerTimeRef.current < 200) return
-    lastPointerTimeRef.current = now
-
+  // Core handler — processes the admin click logic
+  const handleLogoAction = useCallback(() => {
     // If custom onClick provided, call it instead
     if (onClick) {
       onClick()
@@ -158,6 +151,11 @@ export function XtubeLogo({
 
     // If admin modal is already open, don't process more clicks
     if (useAppStore.getState().showAdminModal) return
+
+    // Debounce: prevent double-fire from both touchstart and click (150ms window)
+    const now = Date.now()
+    if (now - lastClickTimeRef.current < 150) return
+    lastClickTimeRef.current = now
 
     // Determine device type
     const isMobile = window.innerWidth < 768
@@ -177,15 +175,38 @@ export function XtubeLogo({
       // Clicks 1-6 or mobile: refresh the page
       window.location.reload()
     }
-  }
+  }, [onClick, disableAdminClick])
+
+  // onClick handler — most reliable, works on ALL devices
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    // If touch already fired, skip the click event to prevent double-fire
+    if (isTouchFiredRef.current) {
+      isTouchFiredRef.current = false
+      return
+    }
+    handleLogoAction()
+  }, [handleLogoAction])
+
+  // touchstart handler — instant response on touch devices (no 300ms delay)
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault()
+    isTouchFiredRef.current = true
+    handleLogoAction()
+  }, [handleLogoAction])
 
   return (
     <motion.button
-      onPointerDown={handlePointerDown}
+      onClick={handleClick}
+      onTouchStart={handleTouchStart}
       whileHover={{ scale: 1.03 }}
       whileTap={{ scale: 0.97 }}
       className={`flex items-center focus:outline-none ${className}`}
-      style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+      style={{
+        touchAction: 'manipulation',    // removes 300ms delay on mobile
+        WebkitTapHighlightColor: 'transparent', // no blue flash on tap
+        userSelect: 'none',             // prevent text selection on rapid taps
+      }}
       aria-label="Xtube Home"
     >
       {/* Red circle icon with X */}
