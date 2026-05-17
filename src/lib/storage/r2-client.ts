@@ -304,7 +304,7 @@ function getLocalUrl(key: string): string {
 async function r2Fetch(
   method: string,
   key: string,
-  body?: BodyInit | null,
+  body?: any,
   extraHeaders?: Record<string, string>
 ): Promise<Response> {
   const url = `${R2_BASE_URL}/${R2_BUCKET_NAME}/${key}`
