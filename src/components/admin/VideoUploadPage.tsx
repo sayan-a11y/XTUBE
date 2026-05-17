@@ -382,6 +382,25 @@ export function VideoUploadPage() {
           } catch (err: any) {
             retries++
             console.warn(`Chunk ${i} upload attempt ${retries} failed:`, err)
+            try {
+              await fetch('/api/system-logs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  level: 'error',
+                  category: 'upload',
+                  message: `Chunk ${i} upload attempt ${retries} failed: ${err?.message || err}`,
+                  details: {
+                    sessionId,
+                    chunkIndex: i,
+                    retries,
+                    error: err?.stack || err?.message || String(err),
+                  }
+                })
+              })
+            } catch (e) {
+              console.error('Failed to log client error to server:', e)
+            }
             if (retries >= maxRetries) throw err
             // Exponential backoff: wait longer between retries (e.g., 1s, 2s, 4s, 8s)
             await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, retries - 1)))
