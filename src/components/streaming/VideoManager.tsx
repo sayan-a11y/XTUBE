@@ -67,10 +67,12 @@ interface VideoManagerProps {
     duration: string
     isPublished: boolean
     createdAt: string
+    description?: string
   }>
   onUpload: (data: Record<string, unknown>) => void
   onDelete: (id: string) => void
   onTogglePublish: (id: string) => void
+  onUpdate?: (id: string, data: Record<string, any>) => Promise<void>
   loading?: boolean
 }
 
@@ -1017,12 +1019,14 @@ function VideoCard({
   onDelete,
   onTogglePublish,
   onWatch,
+  onEdit,
 }: {
-  video: VideoManagerProps['videos'][0] & { fileSize?: string }
+  video: VideoManagerProps['videos'][0] & { fileSize?: string; description?: string }
   index: number
   onDelete: (id: string) => void
   onTogglePublish: (id: string) => void
   onWatch: (id: string) => void
+  onEdit?: (video: any) => void
 }) {
   const gradientIdx = parseInt(video.id) % thumbnailGradients.length
   const catColor = categoryColors[video.category] || 'bg-xtube-red/15 text-xtube-red border-xtube-red/20'
@@ -1035,22 +1039,30 @@ function VideoCard({
       className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#111111]/90 backdrop-blur-xl transition-all duration-300 hover:border-white/10 hover:shadow-[0_0_25px_rgba(229,9,20,0.12)]"
     >
       {/* Thumbnail */}
-      <div className="relative aspect-video overflow-hidden">
-        {/* Cinematic gradient thumbnail */}
-        <div className={`absolute inset-0 bg-gradient-to-br ${thumbnailGradients[gradientIdx]}`} />
-
-        {/* Decorative film elements */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative">
-            {/* Film reel circles */}
-            <div className="h-16 w-24 rounded-lg border border-white/10 bg-black/30 backdrop-blur-sm flex items-center justify-center">
-              <Film className="h-8 w-8 text-white/20" />
+      <div className="relative aspect-video overflow-hidden bg-black">
+        {video.thumbnail ? (
+          <img
+            src={video.thumbnail}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            alt={video.title}
+          />
+        ) : (
+          <>
+            {/* Cinematic gradient thumbnail fallback */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${thumbnailGradients[gradientIdx]}`} />
+            {/* Decorative film elements */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="relative">
+                <div className="h-16 w-24 rounded-lg border border-white/10 bg-black/30 backdrop-blur-sm flex items-center justify-center">
+                  <Film className="h-8 w-8 text-white/20" />
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
 
         {/* Dark overlay on hover */}
-        <div className="absolute inset-0 bg-black/0 transition-all duration-300 group-hover:bg-black/40" />
+        <div className="absolute inset-0 bg-black/0 transition-all duration-300 group-hover:bg-black/45" />
 
         {/* Play button overlay on hover */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-300 group-hover:opacity-100">
@@ -1081,7 +1093,7 @@ function VideoCard({
               <DropdownMenuItem className="text-white focus:bg-white/5" onClick={() => onWatch(video.id)}>
                 <Play className="mr-2 h-3.5 w-3.5" />Watch
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-white focus:bg-white/5">
+              <DropdownMenuItem className="text-white focus:bg-white/5" onClick={() => onEdit && onEdit(video)}>
                 <Edit className="mr-2 h-3.5 w-3.5" />Edit
               </DropdownMenuItem>
               <DropdownMenuItem className="text-white focus:bg-white/5" onClick={() => onTogglePublish(video.id)}>
@@ -1152,6 +1164,7 @@ function VideoCard({
           <motion.button
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
+            onClick={() => onEdit && onEdit(video)}
             className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-white/10 border border-white/5"
           >
             <Edit className="h-3 w-3" />Edit
@@ -1180,12 +1193,14 @@ function VideoListRow({
   onDelete,
   onTogglePublish,
   onWatch,
+  onEdit,
 }: {
-  video: VideoManagerProps['videos'][0] & { fileSize?: string }
+  video: VideoManagerProps['videos'][0] & { fileSize?: string; description?: string }
   index: number
   onDelete: (id: string) => void
   onTogglePublish: (id: string) => void
   onWatch: (id: string) => void
+  onEdit?: (video: any) => void
 }) {
   const gradientIdx = parseInt(video.id) % thumbnailGradients.length
   const catColor = categoryColors[video.category] || 'bg-xtube-red/15 text-xtube-red border-xtube-red/20'
@@ -1198,11 +1213,17 @@ function VideoListRow({
       className="group flex items-center gap-3 rounded-xl border border-white/5 bg-[#111111]/80 p-3 backdrop-blur-xl transition-all duration-200 hover:border-white/10 hover:bg-[#111111]/95 hover:shadow-[0_0_15px_rgba(229,9,20,0.08)]"
     >
       {/* Thumbnail */}
-      <div className="relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg">
-        <div className={`absolute inset-0 bg-gradient-to-br ${thumbnailGradients[gradientIdx]}`} />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Film className="h-5 w-5 text-white/15" />
-        </div>
+      <div className="relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-black">
+        {video.thumbnail ? (
+          <img src={video.thumbnail} className="h-full w-full object-cover" alt="" />
+        ) : (
+          <>
+            <div className={`absolute inset-0 bg-gradient-to-br ${thumbnailGradients[gradientIdx]}`} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Film className="h-5 w-5 text-white/15" />
+            </div>
+          </>
+        )}
         <div className="absolute bottom-1 right-1 rounded bg-black/80 px-1 py-0.5 text-[9px] font-semibold text-white">
           {video.duration}
         </div>
@@ -1238,7 +1259,7 @@ function VideoListRow({
         <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => onWatch(video.id)} className="flex items-center justify-center rounded-lg bg-white/5 p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white">
           <Play className="h-3.5 w-3.5" />
         </motion.button>
-        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex items-center justify-center rounded-lg bg-white/5 p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white">
+        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => onEdit && onEdit(video)} className="flex items-center justify-center rounded-lg bg-white/5 p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white">
           <Edit className="h-3.5 w-3.5" />
         </motion.button>
         <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => onDelete(video.id)} className="flex items-center justify-center rounded-lg bg-red-500/5 p-2 text-red-400/60 transition-colors hover:bg-red-500/15 hover:text-red-400">
@@ -1257,12 +1278,14 @@ function AllVideosView({
   videos,
   onDelete,
   onTogglePublish,
+  onUpdate,
   loading,
   categories,
 }: {
   videos: VideoManagerProps['videos']
   onDelete: VideoManagerProps['onDelete']
   onTogglePublish: VideoManagerProps['onTogglePublish']
+  onUpdate?: VideoManagerProps['onUpdate']
   loading?: boolean
   categories: string[]
 }) {
@@ -1272,6 +1295,7 @@ function AllVideosView({
   const [sortBy, setSortBy] = useState<SortOption>('newest')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(12)
+  const [editingVideo, setEditingVideo] = useState<any | null>(null)
 
   // Direct connection to live database videos (all mock data fallback is purged)
   const allVideos = useMemo(() => {
@@ -1343,6 +1367,8 @@ function AllVideosView({
       </div>
     )
   }
+
+  const defaultCats = categories.filter(c => c !== 'All Categories')
 
   return (
     <motion.div
@@ -1514,6 +1540,7 @@ function AllVideosView({
               onDelete={onDelete}
               onTogglePublish={onTogglePublish}
               onWatch={handleWatch}
+              onEdit={setEditingVideo}
             />
           ))}
         </div>
@@ -1528,6 +1555,7 @@ function AllVideosView({
               onDelete={onDelete}
               onTogglePublish={onTogglePublish}
               onWatch={handleWatch}
+              onEdit={setEditingVideo}
             />
           ))}
         </div>
@@ -1595,6 +1623,141 @@ function AllVideosView({
           </Select>
         </motion.div>
       )}
+
+      {/* ─── REAL-TIME EDIT VIDEO DETAILS MODAL ─── */}
+      <AnimatePresence>
+        {editingVideo && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setEditingVideo(null)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            />
+            {/* Modal Content */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[#111111]/95 p-6 shadow-2xl backdrop-blur-2xl"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Edit className="h-5 w-5 text-xtube-red" />
+                  Edit Video Details
+                </h3>
+                <button
+                  onClick={() => setEditingVideo(null)}
+                  className="rounded-full p-1 text-white/40 hover:bg-white/5 hover:text-white transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  if (onUpdate) {
+                    await onUpdate(editingVideo.id, {
+                      title: editingVideo.title,
+                      description: editingVideo.description || '',
+                      category: editingVideo.category,
+                      duration: editingVideo.duration,
+                      isPublished: editingVideo.isPublished,
+                    })
+                  }
+                  setEditingVideo(null)
+                }}
+                className="space-y-4"
+              >
+                {/* Title */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-white/70">Title *</label>
+                  <Input
+                    value={editingVideo.title}
+                    onChange={(e) => setEditingVideo({ ...editingVideo, title: e.target.value })}
+                    className="border-white/10 bg-[#141416] text-white focus:border-xtube-red/40 focus:ring-xtube-red/20 rounded-lg h-11"
+                    required
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-white/70">Description</label>
+                  <Textarea
+                    value={editingVideo.description || ''}
+                    onChange={(e) => setEditingVideo({ ...editingVideo, description: e.target.value })}
+                    className="min-h-[100px] border-white/10 bg-[#141416] text-white focus:border-xtube-red/40 focus:ring-xtube-red/20 rounded-lg resize-none p-3"
+                  />
+                </div>
+
+                {/* Category & Duration */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-white/70">Category</label>
+                    <Select
+                      value={editingVideo.category}
+                      onValueChange={(v) => setEditingVideo({ ...editingVideo, category: v })}
+                    >
+                      <SelectTrigger className="border-white/10 bg-[#141416] text-white focus:ring-xtube-red/20 rounded-lg h-11">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="border-white/10 bg-[#111111] text-white">
+                        {defaultCats.map((cat) => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-white/70">Duration</label>
+                    <Input
+                      value={editingVideo.duration}
+                      onChange={(e) => setEditingVideo({ ...editingVideo, duration: e.target.value })}
+                      placeholder="e.g. 02:45"
+                      className="border-white/10 bg-[#141416] text-white focus:border-xtube-red/40 focus:ring-xtube-red/20 rounded-lg h-11"
+                    />
+                  </div>
+                </div>
+
+                {/* Status Toggle */}
+                <div className="flex items-center justify-between py-2.5 border-t border-white/5">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Publish Status</p>
+                    <p className="text-xs text-white/40">Visible to public streaming feed</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={editingVideo.isPublished}
+                    onChange={(e) => setEditingVideo({ ...editingVideo, isPublished: e.target.checked })}
+                    className="h-5 w-5 rounded border-white/20 bg-[#141416] text-xtube-red focus:ring-xtube-red/20 cursor-pointer"
+                  />
+                </div>
+
+                {/* Buttons */}
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingVideo(null)}
+                    className="flex-1 rounded-xl border border-white/10 bg-[#141416] h-11 text-xs font-semibold text-white hover:bg-white/5 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 rounded-xl bg-gradient-to-r from-[#E50914] to-[#C20710] h-11 text-xs font-semibold text-white hover:shadow-[0_0_20px_rgba(229,9,20,0.4)] transition-all"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }
@@ -1603,7 +1766,7 @@ function AllVideosView({
    Main VideoManager Component
    ──────────────────────────────────────────── */
 
-export function VideoManager({ videos, onUpload, onDelete, onTogglePublish, loading }: VideoManagerProps) {
+export function VideoManager({ videos, onUpload, onDelete, onTogglePublish, onUpdate, loading }: VideoManagerProps) {
   const { adminSection } = useAppStore()
   const [categories, setCategories] = useState<string[]>([])
 
@@ -1649,6 +1812,7 @@ export function VideoManager({ videos, onUpload, onDelete, onTogglePublish, load
       videos={videos}
       onDelete={onDelete}
       onTogglePublish={onTogglePublish}
+      onUpdate={onUpdate}
       loading={loading}
       categories={['All Categories', ...defaultCats]}
     />

@@ -568,29 +568,73 @@ export function AdminPanel() {
 
   const handleVideoDelete = useCallback(
     async (id: string) => {
+      const originalVideos = [...adminVideos]
+      // Optimistic update: instantly remove from screen (0.0s)
+      setAdminVideos((prev) => prev.filter((v) => v.id !== id))
       try {
         const res = await fetch(`/api/videos/${id}`, { method: 'DELETE' })
-        if (res.ok) fetchAdminData()
+        if (res.ok) {
+          fetchAdminData()
+        } else {
+          setAdminVideos(originalVideos)
+        }
       } catch (err) {
         console.error('Error deleting video:', err)
+        setAdminVideos(originalVideos)
       }
     },
-    [fetchAdminData]
+    [adminVideos, fetchAdminData]
   )
 
   const handleVideoTogglePublish = useCallback(
     async (id: string) => {
       const video = adminVideos.find((v) => v.id === id)
       if (!video) return
+      const originalVideos = [...adminVideos]
+      // Optimistic update: instantly toggle draft/published status (0.0s)
+      setAdminVideos((prev) =>
+        prev.map((v) => (v.id === id ? { ...v, isPublished: !v.isPublished } : v))
+      )
       try {
         const res = await fetch(`/api/videos/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ isPublished: !video.isPublished }),
         })
-        if (res.ok) fetchAdminData()
+        if (res.ok) {
+          fetchAdminData()
+        } else {
+          setAdminVideos(originalVideos)
+        }
       } catch (err) {
         console.error('Error toggling video publish:', err)
+        setAdminVideos(originalVideos)
+      }
+    },
+    [adminVideos, fetchAdminData]
+  )
+
+  const handleVideoUpdate = useCallback(
+    async (id: string, updatedData: Partial<any>) => {
+      const originalVideos = [...adminVideos]
+      // Optimistic update: instantly apply title, category, status (0.0s)
+      setAdminVideos((prev) =>
+        prev.map((v) => (v.id === id ? { ...v, ...updatedData } : v))
+      )
+      try {
+        const res = await fetch(`/api/videos/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedData),
+        })
+        if (res.ok) {
+          fetchAdminData()
+        } else {
+          setAdminVideos(originalVideos)
+        }
+      } catch (err) {
+        console.error('Error updating video details:', err)
+        setAdminVideos(originalVideos)
       }
     },
     [adminVideos, fetchAdminData]
@@ -685,10 +729,12 @@ export function AdminPanel() {
               duration: v.duration,
               isPublished: v.isPublished,
               createdAt: v.createdAt,
+              description: v.description,
             }))}
             onUpload={handleVideoUpload}
             onDelete={handleVideoDelete}
             onTogglePublish={handleVideoTogglePublish}
+            onUpdate={handleVideoUpdate}
             loading={dataLoading}
           />
         )
