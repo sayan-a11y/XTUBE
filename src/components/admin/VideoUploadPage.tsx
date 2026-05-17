@@ -353,269 +353,133 @@ export function VideoUploadPage() {
         return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
       }
 
-      // 2. Upload video
-      if (directUpload && parts && parts.length > 0) {
-        setUploadStatusText(resumed ? 'Resuming parallel video upload directly to R2 Storage...' : 'Uploading video chunks in parallel directly to R2 Storage...')
-        
-        const totalParts = parts.length
-        uploadedPartEtags = new Array(totalParts)
-        const partProgress = new Array(totalParts).fill(0)
+      // Enforce 100% Direct Cloudflare R2 Uploads Only!
+      if (!directUpload || !parts || parts.length === 0) {
+        throw new Error('Cloudflare R2 is not configured on the server. Direct upload requires R2 credentials.')
+      }
 
-        // Build mapping of already uploaded parts from previous session
-        const completedMap = new Map<number, string>()
-        if (resumed && completedParts && completedParts.length > 0) {
-          completedParts.forEach((p: any) => {
-            if (p && typeof p === 'object' && p.partNumber) {
-              completedMap.set(p.partNumber, p.etag || '')
-            } else if (typeof p === 'number') {
-              completedMap.set(p + 1, '')
-            }
-          })
-        }
+      setUploadStatusText(resumed ? 'Resuming parallel video upload directly to R2 Storage...' : 'Uploading video chunks in parallel directly to R2 Storage...')
+      
+      const totalParts = parts.length
+      uploadedPartEtags = new Array(totalParts)
+      const partProgress = new Array(totalParts).fill(0)
 
-        // Spawn up to 4 parallel HTTP connections for ultra-fast speeds!
-        const CONCURRENCY = 4
-        let partIndexToUpload = 0
-
-        const uploadPartWorker = async () => {
-          while (partIndexToUpload < totalParts) {
-            const currentIdx = partIndexToUpload++
-            if (currentIdx >= totalParts) break
-            const part = parts[currentIdx]
-            const partNumber = part.partNumber
-
-            const chunkStart = (partNumber - 1) * chunkSize
-            const chunkEnd = Math.min(file.size, partNumber * chunkSize)
-            const chunkSlice = file.slice(chunkStart, chunkEnd)
-            const currentChunkSize = chunkEnd - chunkStart
-
-            // If this part is already uploaded in the previous session, skip it!
-            if (completedMap.has(partNumber)) {
-              const existingEtag = completedMap.get(partNumber)!
-              console.log(`Part ${partNumber} resumed. Skipping upload. ETag: ${existingEtag}`)
-              partProgress[currentIdx] = currentChunkSize
-              uploadedPartEtags[currentIdx] = { partNumber, etag: existingEtag }
-
-              // Update initial progress bar instantly for resumed parts
-              const totalUploadedBytes = partProgress.reduce((sum, p) => sum + p, 0)
-              const progressPercent = Math.min((totalUploadedBytes / file.size) * 100, 100)
-              setUploadProgress(progressPercent)
-              setUploadedSize(`${formatBytes(totalUploadedBytes)} / ${formatBytes(file.size)}`)
-              continue
-            }
-
-            let retries = 0
-            const maxRetries = 5
-            let completed = false
-
-            while (!completed && retries < maxRetries) {
-              try {
-                // Try Direct Upload to R2 URL first!
-                const xhr = new XMLHttpRequest()
-                xhr.open('PUT', part.uploadUrl, true)
-                xhr.setRequestHeader('Content-Type', file.type || 'video/mp4')
-
-                const uploadPromise = new Promise<{ etag: string }>((resolve, reject) => {
-                  xhr.upload.onprogress = (event) => {
-                    if (event.lengthComputable) {
-                      partProgress[currentIdx] = event.loaded
-                      const totalUploadedBytes = partProgress.reduce((sum, p) => sum + p, 0)
-                      
-                      const progressPercent = Math.min((totalUploadedBytes / file.size) * 100, 100)
-                      setUploadProgress(progressPercent)
-
-                      const elapsedSecs = (Date.now() - startTime) / 1000
-                      const speedMBs = elapsedSecs > 0 ? (totalUploadedBytes / (1024 * 1024)) / elapsedSecs : 0
-                      setUploadSpeed(`${speedMBs.toFixed(2)} MB/s`)
-                      setUploadedSize(`${formatBytes(totalUploadedBytes)} / ${formatBytes(file.size)}`)
-
-                      const remainingBytes = file.size - totalUploadedBytes
-                      const remainingSecs = speedMBs > 0 ? (remainingBytes / (1024 * 1024)) / speedMBs : 0
-                      if (remainingSecs > 60) {
-                        setUploadRemaining(`${Math.ceil(remainingSecs / 60)} mins left`)
-                      } else {
-                        setUploadRemaining(`${Math.ceil(remainingSecs)} secs left`)
-                      }
-                    }
-                  }
-                  xhr.onload = () => {
-                    if (xhr.status === 200 || xhr.status === 201) {
-                      const etag = xhr.getResponseHeader('ETag') || `"${Math.random().toString(36)}"`
-                      resolve({ etag })
-                    } else {
-                      reject(new Error(`Direct part upload failed with status ${xhr.status}`))
-                    }
-                  }
-                  xhr.onerror = () => reject(new Error('CORS or network error on direct R2 upload'))
-                  xhr.send(chunkSlice)
-                })
-
-                const result = await uploadPromise
-                partProgress[currentIdx] = chunkSlice.size
-                uploadedPartEtags[currentIdx] = { partNumber, etag: result.etag }
-                completed = true
-
-              } catch (err: any) {
-                console.warn(`Direct R2 upload failed for Part ${partNumber}. Attempting Server Proxy Fallback...`, err)
-                
-                // Server Proxy Fallback: upload chunk to /api/upload
-                try {
-                  const proxyUrl = `/api/upload?chunkIndex=${partNumber - 1}&sessionId=${sessionId}`
-                  const xhrProxy = new XMLHttpRequest()
-                  xhrProxy.open('PUT', proxyUrl, true)
-                  xhrProxy.setRequestHeader('Content-Type', file.type || 'video/mp4')
-
-                  const proxyUploadPromise = new Promise<{ etag: string }>((resolve, reject) => {
-                    xhrProxy.upload.onprogress = (event) => {
-                      if (event.lengthComputable) {
-                        partProgress[currentIdx] = event.loaded
-                        const totalUploadedBytes = partProgress.reduce((sum, p) => sum + p, 0)
-                        
-                        const progressPercent = Math.min((totalUploadedBytes / file.size) * 100, 100)
-                        setUploadProgress(progressPercent)
-
-                        const elapsedSecs = (Date.now() - startTime) / 1000
-                        const speedMBs = elapsedSecs > 0 ? (totalUploadedBytes / (1024 * 1024)) / elapsedSecs : 0
-                        setUploadSpeed(`${speedMBs.toFixed(2)} MB/s`)
-                        setUploadedSize(`${formatBytes(totalUploadedBytes)} / ${formatBytes(file.size)}`)
-
-                        const remainingBytes = file.size - totalUploadedBytes
-                        const remainingSecs = speedMBs > 0 ? (remainingBytes / (1024 * 1024)) / speedMBs : 0
-                        if (remainingSecs > 60) {
-                          setUploadRemaining(`${Math.ceil(remainingSecs / 60)} mins left`)
-                        } else {
-                          setUploadRemaining(`${Math.ceil(remainingSecs)} secs left`)
-                        }
-                      }
-                    }
-
-                    xhrProxy.onload = () => {
-                      if (xhrProxy.status >= 200 && xhrProxy.status < 300) {
-                        try {
-                          const resObj = JSON.parse(xhrProxy.responseText)
-                          if (resObj.etag) {
-                            resolve({ etag: resObj.etag })
-                          } else {
-                            reject(new Error('Proxy response missing ETag'))
-                          }
-                        } catch (e) {
-                          reject(new Error('Failed to parse proxy response'))
-                        }
-                      } else {
-                        reject(new Error(`Proxy part upload failed with status ${xhrProxy.status}`))
-                      }
-                    }
-
-                    xhrProxy.onerror = () => reject(new Error('Network error on server proxy upload'))
-                    xhrProxy.send(chunkSlice)
-                  })
-
-                  const result = await proxyUploadPromise
-                  partProgress[currentIdx] = chunkSlice.size
-                  uploadedPartEtags[currentIdx] = { partNumber, etag: result.etag }
-                  completed = true
-
-                } catch (proxyErr: any) {
-                  partProgress[currentIdx] = 0
-                  retries++
-                  console.error(`Part ${partNumber} failed completely (Direct & Proxy), attempt ${retries}:`, proxyErr)
-
-                  try {
-                    await fetch('/api/system-logs', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        level: 'error',
-                        category: 'upload',
-                        message: `Part ${partNumber} failed completely (Direct & Proxy) on attempt ${retries}: ${proxyErr?.message || proxyErr}`,
-                        details: {
-                          sessionId,
-                          partNumber,
-                          retries,
-                          error: proxyErr?.stack || proxyErr?.message || String(proxyErr),
-                        }
-                      })
-                    })
-                  } catch (e) {
-                    console.error('Failed to log client error to server:', e)
-                  }
-
-                  if (retries >= maxRetries) throw proxyErr
-                  // Exponential backoff
-                  await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, retries - 1)))
-                }
-              }
-            }
+      // Build mapping of already uploaded parts from previous session
+      const completedMap = new Map<number, string>()
+      if (resumed && completedParts && completedParts.length > 0) {
+        completedParts.forEach((p: any) => {
+          if (p && typeof p === 'object' && p.partNumber) {
+            completedMap.set(p.partNumber, p.etag || '')
+          } else if (typeof p === 'number') {
+            completedMap.set(p + 1, '')
           }
-        }
+        })
+      }
 
-        // Spawn workers
-        const workers = Array.from({ length: Math.min(CONCURRENCY, totalParts) }, () => uploadPartWorker())
-        await Promise.all(workers)
+      // Optimize concurrency dynamically: 2 on tablet/mobile to avoid browser lag, 4 on desktop
+      const isMobileOrTablet = /Mobi|Android|iPhone|iPad|iPod|Tablet|Windows Phone/i.test(
+        typeof navigator !== 'undefined' ? navigator.userAgent : ''
+      )
+      const CONCURRENCY = isMobileOrTablet ? 2 : 4
+      let partIndexToUpload = 0
 
-      } else {
-        // Fallback to local chunked upload loop
-        let uploadedBytes = 0
+      const uploadPartWorker = async () => {
+        while (partIndexToUpload < totalParts) {
+          const currentIdx = partIndexToUpload++
+          if (currentIdx >= totalParts) break
+          const part = parts[currentIdx]
+          const partNumber = part.partNumber
 
-        // Build mapping of already uploaded chunks from previous session
-        const completedSet = new Set<number>()
-        if (resumed && completedParts && completedParts.length > 0) {
-          completedParts.forEach((p: any) => {
-            if (typeof p === 'number') {
-              completedSet.add(p)
-            } else if (p && typeof p === 'object' && p.partNumber !== undefined) {
-              completedSet.add(p.partNumber - 1)
-            }
-          })
-        }
-
-        for (let i = 0; i < totalChunks; i++) {
-          const chunkStart = i * chunkSize
-          const chunkEnd = Math.min(file.size, (i + 1) * chunkSize)
+          const chunkStart = (partNumber - 1) * chunkSize
+          const chunkEnd = Math.min(file.size, partNumber * chunkSize)
           const chunkSlice = file.slice(chunkStart, chunkEnd)
           const currentChunkSize = chunkEnd - chunkStart
 
-          // If this chunk was already uploaded in previous session, skip it!
-          if (completedSet.has(i)) {
-            console.log(`Local fallback resumed: chunk ${i + 1} of ${totalChunks} already uploaded. Skipping.`)
-            uploadedBytes += currentChunkSize
-            const progressPercent = Math.min(((i + 1) / totalChunks) * 100, 100)
-            setUploadProgress(progressPercent)
-            setUploadedSize(`${(uploadedBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`)
+          // If this part is already uploaded in the previous session, skip it!
+          if (completedMap.has(partNumber)) {
+            const existingEtag = completedMap.get(partNumber)!
+            console.log(`Part ${partNumber} resumed. Skipping upload. ETag: ${existingEtag}`)
+            partProgress[currentIdx] = currentChunkSize
+            uploadedPartEtags[currentIdx] = { partNumber, etag: existingEtag }
+
+            // Update initial progress bar instantly for resumed parts
+            const totalUploadedBytes = partProgress.reduce((sum, p) => sum + p, 0)
+            const progressPercent = Math.min((totalUploadedBytes / file.size) * 100, 100)
+            setUploadProgress(prev => Math.max(prev, progressPercent))
+            setUploadedSize(`${formatBytes(totalUploadedBytes)} / ${formatBytes(file.size)}`)
             continue
           }
 
-          const chunkStartTime = Date.now()
-
-          // Upload chunk with retries
           let retries = 0
-          const maxRetries = 5 // Increased to 5 for high reliability on mobile/tablet connections
-          let chunkUploaded = false
+          const maxRetries = 5
+          let completed = false
 
-          while (!chunkUploaded && retries < maxRetries) {
+          while (!completed && retries < maxRetries) {
             try {
-              if (retries > 0) {
-                setUploadStatusText(`Uploading chunk ${i + 1} of ${totalChunks} (Retry ${retries}/${maxRetries})...`)
-              } else {
-                setUploadStatusText(`Uploading chunk ${i + 1} of ${totalChunks}...`)
-              }
+              // Direct upload to R2 using presigned URL
+              const xhr = new XMLHttpRequest()
+              xhr.open('PUT', part.uploadUrl, true)
+              xhr.setRequestHeader('Content-Type', file.type || 'video/mp4')
 
-              const formData = new FormData()
-              formData.append('chunk', chunkSlice, `chunk_${i}`)
+              const uploadPromise = new Promise<{ etag: string }>((resolve, reject) => {
+                xhr.upload.onprogress = (event) => {
+                  if (event.lengthComputable) {
+                    partProgress[currentIdx] = event.loaded
+                    const totalUploadedBytes = partProgress.reduce((sum, p) => sum + p, 0)
+                    
+                    const progressPercent = Math.min((totalUploadedBytes / file.size) * 100, 100)
+                    setUploadProgress(prev => Math.max(prev, progressPercent))
 
-              const res = await fetch(`/api/upload?chunkIndex=${i}&sessionId=${sessionId}`, {
-                method: 'PUT',
-                body: formData,
+                    const elapsedSecs = (Date.now() - startTime) / 1000
+                    const speedMBs = elapsedSecs > 0 ? (totalUploadedBytes / (1024 * 1024)) / elapsedSecs : 0
+                    setUploadSpeed(`${speedMBs.toFixed(2)} MB/s`)
+                    setUploadedSize(`${formatBytes(totalUploadedBytes)} / ${formatBytes(file.size)}`)
+
+                    const remainingBytes = file.size - totalUploadedBytes
+                    const remainingSecs = speedMBs > 0 ? (remainingBytes / (1024 * 1024)) / speedMBs : 0
+                    if (remainingSecs > 60) {
+                      setUploadRemaining(`${Math.ceil(remainingSecs / 60)} mins left`)
+                    } else {
+                      setUploadRemaining(`${Math.ceil(remainingSecs)} secs left`)
+                    }
+                  }
+                }
+
+                xhr.onload = () => {
+                  if (xhr.status === 200 || xhr.status === 201) {
+                    const etag = xhr.getResponseHeader('ETag') || `"${Math.random().toString(36)}"`
+                    resolve({ etag })
+                  } else {
+                    reject(new Error(`Direct part upload failed with status ${xhr.status}`))
+                  }
+                }
+
+                xhr.onerror = () => reject(new Error('CORS or network error on direct R2 upload'))
+                xhr.send(chunkSlice)
               })
 
-              if (!res.ok) {
-                const text = await res.text()
-                throw new Error(`Chunk ${i} failed on server: ${text || res.statusText}`)
-              }
-              chunkUploaded = true
+              const result = await uploadPromise
+              partProgress[currentIdx] = chunkSlice.size
+              uploadedPartEtags[currentIdx] = { partNumber, etag: result.etag }
+              completed = true
+
+              // Record this successfully completed part in the server database in the background (fire-and-forget)
+              fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'record-part',
+                  sessionId,
+                  partNumber,
+                  etag: result.etag
+                })
+              }).catch(e => console.error(`Failed to record part ${partNumber}:`, e))
+
             } catch (err: any) {
+              partProgress[currentIdx] = 0
               retries++
-              console.warn(`Chunk ${i} upload attempt ${retries} failed:`, err)
+              console.error(`Part ${partNumber} failed direct R2 upload, attempt ${retries}:`, err)
+
               try {
                 await fetch('/api/system-logs', {
                   method: 'POST',
@@ -623,10 +487,10 @@ export function VideoUploadPage() {
                   body: JSON.stringify({
                     level: 'error',
                     category: 'upload',
-                    message: `Chunk ${i} upload attempt ${retries} failed: ${err?.message || err}`,
+                    message: `Part ${partNumber} failed direct R2 upload on attempt ${retries}: ${err?.message || err}`,
                     details: {
                       sessionId,
-                      chunkIndex: i,
+                      partNumber,
                       retries,
                       error: err?.stack || err?.message || String(err),
                     }
@@ -635,34 +499,20 @@ export function VideoUploadPage() {
               } catch (e) {
                 console.error('Failed to log client error to server:', e)
               }
-              if (retries >= maxRetries) throw err
-              // Exponential backoff: wait longer between retries (e.g., 1s, 2s, 4s, 8s)
+
+              if (retries >= maxRetries) {
+                throw new Error(`Direct R2 upload failed for Part ${partNumber} after ${maxRetries} attempts. Details: ${err?.message || err}`)
+              }
+              // Exponential backoff
               await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, retries - 1)))
             }
           }
-
-          uploadedBytes += currentChunkSize
-
-          // Calculate Speed & Stats
-          const elapsedSecs = (Date.now() - startTime) / 1000
-          const chunkElapsedSecs = (Date.now() - chunkStartTime) / 1000
-          const progressPercent = Math.min(((i + 1) / totalChunks) * 100, 100)
-          setUploadProgress(progressPercent)
-
-          setUploadedSize(`${(uploadedBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`)
-
-          const speedMBs = (currentChunkSize / (1024 * 1024)) / (chunkElapsedSecs || 0.1)
-          setUploadSpeed(`${speedMBs.toFixed(1)} MB/s`)
-
-          const remainingBytes = file.size - uploadedBytes
-          const remainingSecs = remainingBytes / ((uploadedBytes / elapsedSecs) || 1)
-          if (remainingSecs > 60) {
-            setUploadRemaining(`${Math.ceil(remainingSecs / 60)} mins left`)
-          } else {
-            setUploadRemaining(`${Math.ceil(remainingSecs)} secs left`)
-          }
         }
       }
+
+      // Spawn workers
+      const workers = Array.from({ length: Math.min(CONCURRENCY, totalParts) }, () => uploadPartWorker())
+      await Promise.all(workers)
 
       // 3. Mark session as complete & send form details
       setUploadStage('processing')

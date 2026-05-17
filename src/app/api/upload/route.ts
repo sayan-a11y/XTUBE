@@ -204,6 +204,51 @@ export async function POST(request: NextRequest) {
       }, { status: 201 })
     }
 
+    if (action === 'record-part') {
+      const { sessionId, partNumber, etag } = body
+      if (!sessionId || !partNumber || !etag) {
+        return NextResponse.json(
+          { error: 'sessionId, partNumber, and etag are required' },
+          { status: 400 }
+        )
+      }
+
+      const session = await db.uploadSession.findUnique({
+        where: { id: sessionId },
+      })
+
+      if (!session) {
+        return NextResponse.json(
+          { error: 'Upload session not found' },
+          { status: 404 }
+        )
+      }
+
+      let uploadedChunksParsed: any[] = []
+      try {
+        uploadedChunksParsed = JSON.parse(session.uploadedChunks || '[]')
+      } catch {
+        uploadedChunksParsed = []
+      }
+
+      const filteredParts = uploadedChunksParsed.filter((p: any) => p && p.partNumber !== Number(partNumber))
+      filteredParts.push({ partNumber: Number(partNumber), etag: String(etag).trim() })
+
+      const sortedParts = filteredParts
+        .filter((p: any) => p && typeof p === 'object' && p.partNumber && p.etag)
+        .sort((a: any, b: any) => a.partNumber - b.partNumber)
+
+      await db.uploadSession.update({
+        where: { id: sessionId },
+        data: {
+          uploadedChunks: JSON.stringify(sortedParts),
+          status: 'uploading',
+        },
+      })
+
+      return NextResponse.json({ success: true, uploadedCount: sortedParts.length }, { status: 200 })
+    }
+
     if (action === 'complete') {
       const { sessionId, title, description, category, duration, isHd, resolution } = body
 
@@ -264,16 +309,33 @@ export async function POST(request: NextRequest) {
           storageKeyVal = r2Key
         } else if (isR2 && uploadId) {
           // Cloudflare R2 Multipart Complete
-          const uploadedParts = body.uploadedParts || JSON.parse(session.uploadedChunks || '[]')
-          if (uploadedParts.length === 0) {
+          let uploadedParts = body.uploadedParts
+          if (!uploadedParts || uploadedParts.length === 0) {
+            try {
+              uploadedParts = JSON.parse(session.uploadedChunks || '[]')
+            } catch {
+              uploadedParts = []
+            }
+          }
+
+          // Clean, validate and sort the parts to avoid S3 validation/null errors
+          const cleanedParts = (Array.isArray(uploadedParts) ? uploadedParts : [])
+            .filter((p: any) => p && typeof p === 'object' && p.partNumber && p.etag)
+            .map((p: any) => ({
+              partNumber: Number(p.partNumber),
+              etag: String(p.etag).trim()
+            }))
+            .sort((a: any, b: any) => a.partNumber - b.partNumber)
+
+          if (cleanedParts.length === 0) {
             return NextResponse.json(
-              { error: 'No uploaded parts provided' },
+              { error: 'No uploaded parts found to complete multipart upload.' },
               { status: 400 }
             )
           }
 
           // Complete the multipart upload on Cloudflare R2 (R2 combines parts instantly)
-          const completeResult = await completeMultipartUpload(r2Key, uploadId, uploadedParts)
+          const completeResult = await completeMultipartUpload(r2Key, uploadId, cleanedParts)
           finalVideoUrl = completeResult.url
           storageProvider = 'r2'
           storageKeyVal = r2Key
