@@ -22,6 +22,13 @@ import {
   Calendar,
   HardDrive,
   Tag,
+  Radio,
+  Info,
+  Shield,
+  Link,
+  Check,
+  RotateCcw,
+  Pencil,
 } from 'lucide-react'
 import {
   Select,
@@ -131,25 +138,213 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'success'>('idle')
   const [uploadedFileName, setUploadedFileName] = useState('')
+  const [videoObjectUrl, setVideoObjectUrl] = useState<string>('')
+  
+  // Custom video file details
+  const [videoMetadata, setVideoMetadata] = useState<{
+    width: number
+    height: number
+    sizeMB: string
+    duration: string
+  } | null>(null)
+
+  // 10 automatically generated thumbnails
+  const [generatedThumbnails, setGeneratedThumbnails] = useState<Array<{ id: number; dataUrl: string }>>([])
+  const [selectedThumbnailIndex, setSelectedThumbnailIndex] = useState<number>(0)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const [form, setForm] = useState({
     title: '',
     description: '',
-    category: '',
+    category: categories[0] || 'Sci-Fi',
+    quality: '1080p',
     duration: '',
-    isHD: false,
+    isFeatured: false,
+    isTrending: false,
+    isLive: false,
   })
 
-  const simulateUpload = useCallback((fileName: string) => {
+  // Procedural 10-thumbnail generator
+  const generateProceduralThumbnails = useCallback((videoTitle: string) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 320
+    canvas.height = 180
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return []
+
+    const thumbs: Array<{ id: number; dataUrl: string }> = []
+    
+    // Base colors for 10 highly distinct scenic cinematic gradient palettes
+    const palettes = [
+      ['#E50914', '#141414', '#380000'], // Netflix Red/Dark Crimson
+      ['#00c6ff', '#0072ff', '#1a2a6c'], // Cinematic Sky Blue
+      ['#f7797d', '#FBD786', '#C6FFDD'], // Sunset Golden Glow
+      ['#56ab2f', '#a8ff78', '#112211'], // Mountain Forest Green
+      ['#8A2387', '#E94057', '#F27121'], // Cyberpunk Neon Sunset
+      ['#0f2027', '#203a43', '#2c5364'], // Oceanic Deep Teal
+      ['#ff9966', '#ff5e62', '#2c0c0c'], // Molten Volcanic Fire
+      ['#7F00FF', '#E100FF', '#0b001a'], // Ultraviolet Purple Aurora
+      ['#1d976c', '#93f9b9', '#0d1a12'], // Emerald Forest Dream
+      ['#4e54c8', '#8f94fb', '#111122'], // Classic Cinematic Twilight Indigo
+    ]
+
+    for (let i = 0; i < 10; i++) {
+      const palette = palettes[i % palettes.length]
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, 320, 180)
+      
+      // 1. Draw beautiful linear gradient background
+      const grad = ctx.createLinearGradient(0, 0, 320, 180)
+      grad.addColorStop(0, palette[0])
+      grad.addColorStop(0.5, palette[1])
+      grad.addColorStop(1, palette[2])
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, 320, 180)
+
+      // 2. Add abstract cinematic light rays
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.04)'
+      ctx.beginPath()
+      ctx.moveTo(160, 90)
+      ctx.lineTo(0, 180)
+      ctx.lineTo(80, 180)
+      ctx.closePath()
+      ctx.fill()
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.06)'
+      ctx.beginPath()
+      ctx.moveTo(160, 90)
+      ctx.lineTo(240, 180)
+      ctx.lineTo(320, 180)
+      ctx.closePath()
+      ctx.fill()
+
+      // Draw stylized procedural hills representing film frames
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.35)'
+      ctx.beginPath()
+      ctx.moveTo(0, 180)
+      ctx.bezierCurveTo(80, 120 + i * 4, 160, 150 - i * 6, 320, 180)
+      ctx.closePath()
+      ctx.fill()
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'
+      ctx.beginPath()
+      ctx.moveTo(0, 180)
+      ctx.bezierCurveTo(60, 140 - i * 5, 200, 110 + i * 3, 320, 180)
+      ctx.closePath()
+      ctx.fill()
+
+      // Draw glowing sun / camera lens flare
+      const glow = ctx.createRadialGradient(80 + i * 16, 60, 3, 80 + i * 16, 60, 70)
+      glow.addColorStop(0, 'rgba(255, 255, 255, 0.75)')
+      glow.addColorStop(0.2, 'rgba(255, 255, 255, 0.2)')
+      glow.addColorStop(1, 'rgba(255, 255, 255, 0)')
+      ctx.fillStyle = glow
+      ctx.beginPath()
+      ctx.arc(80 + i * 16, 60, 70, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Draw abstract scenic grid lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      for (let x = 0; x < 320; x += 32) {
+        ctx.moveTo(x, 0)
+        ctx.lineTo(x, 180)
+      }
+      for (let y = 0; y < 180; y += 18) {
+        ctx.moveTo(0, y)
+        ctx.lineTo(320, y)
+      }
+      ctx.stroke()
+
+      // Draw bottom timeline bar
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'
+      ctx.fillRect(0, 148, 320, 32)
+
+      // Title overlay text
+      ctx.fillStyle = 'rgba(255,255,255,0.85)'
+      ctx.font = 'bold 11px sans-serif'
+      ctx.fillText(videoTitle.substring(0, 20) || 'Snapshot', 15, 168)
+
+      // Time duration overlay
+      ctx.fillStyle = 'rgba(255,255,255,0.5)'
+      ctx.font = '10px monospace'
+      ctx.fillText(`00:0${i}:${i*4 + 10}`, 260, 168)
+
+      thumbs.push({
+        id: i,
+        dataUrl: canvas.toDataURL('image/jpeg', 0.8)
+      })
+    }
+
+    return thumbs
+  }, [])
+
+  const simulateUpload = useCallback((fileName: string, fileObj?: File) => {
     setUploadedFileName(fileName)
     setUploadState('uploading')
     setUploadProgress(0)
+
+    // Strip extension for the title!
+    const baseName = fileName.substring(0, fileName.lastIndexOf('.')) || fileName
+    
+    // Automatically set the form title to the base file name!
+    setForm((prev) => ({
+      ...prev,
+      title: baseName,
+    }))
+
+    // Generate 10 procedural thumbnails automatically
+    const thumbs = generateProceduralThumbnails(baseName)
+    setGeneratedThumbnails(thumbs)
+    setSelectedThumbnailIndex(0)
+
+    if (fileObj) {
+      const fileURL = URL.createObjectURL(fileObj)
+      setVideoObjectUrl(fileURL)
+      
+      const sizeMB = (fileObj.size / (1024 * 1024)).toFixed(1) + ' MB'
+      const tempVideo = document.createElement('video')
+      tempVideo.src = fileURL
+      tempVideo.onloadedmetadata = () => {
+        const mins = Math.floor(tempVideo.duration / 60)
+        const secs = Math.floor(tempVideo.duration % 60)
+        const formatted = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+        
+        setVideoMetadata({
+          width: tempVideo.videoWidth || 1920,
+          height: tempVideo.videoHeight || 1080,
+          sizeMB,
+          duration: formatted
+        })
+
+        setForm(prev => ({
+          ...prev,
+          duration: formatted
+        }))
+      }
+    } else {
+      // Stock video URL as fallback for simulation
+      setVideoObjectUrl('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4')
+      setVideoMetadata({
+        width: 1920,
+        height: 1080,
+        sizeMB: '45.2 MB',
+        duration: '01:28'
+      })
+      setForm(prev => ({
+        ...prev,
+        duration: '01:28'
+      }))
+    }
+
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
     let progress = 0
     progressIntervalRef.current = setInterval(() => {
-      progress += Math.random() * 15 + 3
+      progress += Math.random() * 20 + 8
       if (progress >= 100) {
         progress = 100
         if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
@@ -158,8 +353,8 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
       } else {
         setUploadProgress(Math.min(progress, 100))
       }
-    }, 150)
-  }, [])
+    }, 120)
+  }, [generateProceduralThumbnails])
 
   useEffect(() => {
     return () => {
@@ -172,104 +367,420 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation(); setIsDragOver(false)
     const files = e.dataTransfer.files
-    if (files.length > 0) simulateUpload(files[0].name)
+    if (files.length > 0) simulateUpload(files[0].name, files[0])
   }, [simulateUpload])
+
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (files && files.length > 0) simulateUpload(files[0].name)
+    if (files && files.length > 0) simulateUpload(files[0].name, files[0])
   }, [simulateUpload])
+
   const handleBrowseClick = useCallback(() => { fileInputRef.current?.click() }, [])
+  
   const handleResetUpload = useCallback(() => {
-    setUploadState('idle'); setUploadProgress(0); setUploadedFileName('')
+    setUploadState('idle')
+    setUploadProgress(0)
+    setUploadedFileName('')
+    setVideoObjectUrl('')
+    setVideoMetadata(null)
+    setGeneratedThumbnails([])
+    setSelectedThumbnailIndex(0)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
 
+  const handleClearForm = useCallback(() => {
+    setForm({
+      title: '',
+      description: '',
+      category: categories[0] || 'Sci-Fi',
+      quality: '1080p',
+      duration: '',
+      isFeatured: false,
+      isTrending: false,
+      isLive: false,
+    })
+    handleResetUpload()
+  }, [categories, handleResetUpload])
+
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault()
-    onUpload({ title: form.title, description: form.description, category: form.category, duration: form.duration, isHD: form.isHD, fileName: uploadedFileName })
-    setForm({ title: '', description: '', category: '', duration: '', isHD: false })
-    handleResetUpload()
-  }, [form, onUpload, uploadedFileName, handleResetUpload])
+    onUpload({
+      title: form.title,
+      description: form.description,
+      category: form.category,
+      duration: form.duration || '0:00',
+      isHd: form.quality === '1080p' || form.quality === '4k (2160p)',
+      thumbnail: generatedThumbnails[selectedThumbnailIndex]?.dataUrl || '/placeholder.jpg',
+      videoUrl: videoObjectUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+      isFeatured: form.isFeatured,
+      isTrending: form.isTrending,
+      isLive: form.isLive,
+    })
+    handleClearForm()
+  }, [form, generatedThumbnails, selectedThumbnailIndex, videoObjectUrl, onUpload, handleClearForm])
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
-      className="space-y-4 p-3 lg:p-5"
+      className="space-y-5 p-4 md:p-6 bg-[#0c0c0e]/95 border border-white/5 rounded-2xl backdrop-blur-xl"
     >
-      <div>
-        <h2 className="text-xl font-bold text-white">Upload Video</h2>
-        <p className="text-sm text-xtube-text-secondary">Drag and drop your video files or browse to upload</p>
+      {/* ─── Header ─── */}
+      <div className="flex items-center justify-between border-b border-white/5 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-xtube-red/10 border border-xtube-red/20 shadow-[0_0_15px_rgba(229,9,20,0.15)]">
+            <Radio className="h-5 w-5 text-xtube-red animate-pulse" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white tracking-wide">Upload Content</h2>
+            <p className="text-xs text-white/40 mt-0.5">Upload a video — preview is auto-generated</p>
+          </div>
+        </div>
+        <button 
+          onClick={handleClearForm} 
+          className="rounded-full p-2 text-white/40 hover:bg-white/5 hover:text-white transition-colors"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
-      <motion.div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        animate={{ borderColor: isDragOver ? '#E50914' : '#1f1f1f', backgroundColor: isDragOver ? 'rgba(229,9,20,0.05)' : 'rgba(15,15,15,0.8)' }}
-        transition={{ duration: 0.2 }}
-        className="relative flex min-h-[220px] cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed bg-[#0f0f0f]/80 backdrop-blur-xl transition-shadow hover:shadow-[0_0_15px_rgba(229,9,20,0.1)]"
-        onClick={handleBrowseClick}
-      >
-        <input ref={fileInputRef} type="file" accept="video/*" className="hidden" onChange={handleFileSelect} />
-        <AnimatePresence mode="wait">
-          {uploadState === 'idle' && (
-            <motion.div key="idle" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="flex flex-col items-center gap-3">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-xtube-red/10"><CloudUpload className="h-8 w-8 text-xtube-red" /></div>
-              <div className="text-center">
-                <p className="text-lg font-medium text-white">Drag & drop video files here</p>
-                <p className="mt-1 text-sm text-xtube-text-secondary">or <span className="cursor-pointer text-xtube-red underline underline-offset-2 hover:text-xtube-red-hover">browse files</span></p>
-              </div>
-              <p className="text-xs text-xtube-text-secondary">MP4, MOV, AVI up to 2GB</p>
-            </motion.div>
-          )}
-          {uploadState === 'uploading' && (
-            <motion.div key="uploading" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="flex w-full max-w-sm flex-col items-center gap-3 px-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-xtube-red/10"><Upload className="h-8 w-8 animate-bounce text-xtube-red" /></div>
-              <div className="w-full space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="truncate text-white" title={uploadedFileName}>{uploadedFileName}</span>
-                  <span className="ml-2 flex-shrink-0 font-mono text-xtube-red">{Math.round(uploadProgress)}%</span>
-                </div>
-                <Progress value={uploadProgress} className="h-2 bg-xtube-border [&>div]:bg-xtube-red" />
-              </div>
-            </motion.div>
-          )}
-          {uploadState === 'success' && (
-            <motion.div key="success" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="flex flex-col items-center gap-3">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10"><CheckCircle2 className="h-8 w-8 text-green-400" /></div>
-              <div className="text-center">
-                <p className="text-lg font-medium text-white">Upload Complete!</p>
-                <p className="mt-1 text-sm text-xtube-text-secondary">{uploadedFileName}</p>
-              </div>
-              <button onClick={(e) => { e.stopPropagation(); handleResetUpload() }} className="mt-2 text-sm text-xtube-red underline underline-offset-2 hover:text-xtube-red-hover">Upload another file</button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
+      {/* ─── Tabs ─── */}
+      <div className="flex border-b border-white/5">
+        <button className="flex items-center gap-2 border-b-2 border-xtube-red px-6 py-3 text-sm font-semibold text-white transition-colors">
+          <Film className="h-4 w-4 text-xtube-red" />
+          Video
+        </button>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15, duration: 0.35 }}
-        className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 p-6 backdrop-blur-xl transition-shadow hover:border-xtube-red/20 hover:shadow-[0_0_15px_rgba(229,9,20,0.1)]"
-      >
-        <h3 className="mb-5 text-lg font-semibold text-white">Video Details</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2"><Label className="text-white">Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Enter video title" className="border-xtube-border bg-xtube-bg text-white placeholder:text-xtube-text-secondary focus:border-xtube-red/40 focus:ring-xtube-red/20" required /></div>
-          <div className="space-y-2"><Label className="text-white">Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Describe your video..." className="min-h-[100px] border-xtube-border bg-xtube-bg text-white placeholder:text-xtube-text-secondary focus:border-xtube-red/40 focus:ring-xtube-red/20" rows={4} /></div>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <div className="space-y-2"><Label className="text-white">Category</Label><Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}><SelectTrigger className="w-full border-xtube-border bg-xtube-bg text-white focus:ring-xtube-red/20"><SelectValue placeholder="Select category" /></SelectTrigger><SelectContent className="border-xtube-border bg-xtube-card">{categories.filter(c => c !== 'All Categories').map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</SelectContent></Select></div>
-            <div className="space-y-2"><Label className="text-white">Duration</Label><Input value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} placeholder="e.g. 12:30" className="border-xtube-border bg-xtube-bg text-white placeholder:text-xtube-text-secondary focus:border-xtube-red/40 focus:ring-xtube-red/20" /></div>
+      {/* ─── Grid layout (Highly responsive for Laptop, PC, Tablet) ─── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
+        
+        {/* Left Column: 1. Upload Video */}
+        <div className="space-y-4 lg:col-span-6">
+          <div className="flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-xs font-bold tracking-wider text-white/70 uppercase">
+              <CloudUpload className="h-4 w-4 text-xtube-red" />
+              1. Upload Video
+            </h3>
+            {uploadState !== 'idle' && (
+              <div className="flex items-center gap-3">
+                <button 
+                  type="button"
+                  onClick={handleBrowseClick}
+                  className="text-xs font-semibold text-xtube-red hover:underline hover:text-xtube-red-hover"
+                >
+                  Change File
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleResetUpload}
+                  className="text-white/40 hover:text-xtube-red transition-colors"
+                  title="Remove file"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            )}
           </div>
-          <div className="flex items-center justify-between rounded-lg border border-xtube-border bg-xtube-bg/50 p-4">
-            <div><p className="text-sm font-medium text-white">HD Quality</p><p className="text-xs text-xtube-text-secondary">Enable high-definition streaming</p></div>
-            <div className="flex items-center gap-3"><Switch checked={form.isHD} onCheckedChange={(checked) => setForm({ ...form, isHD: checked })} /><span className={`text-sm font-medium ${form.isHD ? 'text-xtube-red' : 'text-xtube-text-secondary'}`}>{form.isHD ? 'HD' : 'SD'}</span></div>
+
+          {/* Uploaded File Bar */}
+          {uploadState !== 'idle' && (
+            <div className="flex items-center justify-between rounded-xl border border-white/5 bg-[#141416] p-3 transition-all duration-300">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-[72px] overflow-hidden rounded-md bg-xtube-card border border-white/5 flex items-center justify-center">
+                  {generatedThumbnails[0] ? (
+                    <img src={generatedThumbnails[0].dataUrl} className="h-full w-full object-cover" alt="Snapshot" />
+                  ) : (
+                    <Film className="h-5 w-5 text-white/20" />
+                  )}
+                </div>
+                <div>
+                  <p className="max-w-[180px] sm:max-w-[260px] truncate text-sm font-medium text-white">{uploadedFileName}</p>
+                  <p className="text-xs text-white/40 mt-0.5">
+                    {videoMetadata ? `${videoMetadata.width} × ${videoMetadata.height} • ${videoMetadata.sizeMB} • ${videoMetadata.duration}` : 'Analyzing File...'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 pr-1">
+                {uploadState === 'uploading' ? (
+                  <span className="font-mono text-xs font-bold text-xtube-red">{Math.round(uploadProgress)}%</span>
+                ) : (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Interactive Player / Dropzone Area */}
+          <div className="relative overflow-hidden rounded-xl border border-white/5 bg-[#141416] p-1.5 aspect-video flex items-center justify-center transition-all duration-300">
+            {uploadState === 'success' && videoObjectUrl ? (
+              <video 
+                src={videoObjectUrl} 
+                className="h-full w-full rounded-lg object-cover" 
+                controls 
+                autoPlay 
+                muted
+              />
+            ) : uploadState === 'uploading' ? (
+              <div className="flex w-full max-w-xs flex-col items-center gap-3 p-6 text-center">
+                <Upload className="h-8 w-8 animate-bounce text-xtube-red" />
+                <div className="w-full space-y-2">
+                  <p className="text-sm text-white">Uploading file...</p>
+                  <Progress value={uploadProgress} className="h-1.5 bg-white/5 [&>div]:bg-xtube-red" />
+                </div>
+              </div>
+            ) : (
+              /* Drag & Drop zone */
+              <div 
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={handleBrowseClick}
+                className={`flex h-full w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed transition-all duration-200 ${
+                  isDragOver ? 'border-xtube-red bg-xtube-red/5' : 'border-white/10 hover:border-xtube-red/20 bg-black/40'
+                }`}
+              >
+                <input ref={fileInputRef} type="file" accept="video/*" className="hidden" onChange={handleFileSelect} />
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-xtube-red/5 border border-xtube-red/10">
+                  <CloudUpload className="h-6 w-6 text-xtube-red" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-white">Drag & drop your video here</p>
+                  <p className="text-xs text-white/40 mt-1">or click to <span className="text-xtube-red hover:underline">browse files</span></p>
+                </div>
+                
+                <div className="flex items-center gap-2 w-full max-w-[200px] my-1">
+                  <div className="h-px bg-white/5 flex-1" />
+                  <span className="text-[10px] uppercase font-bold text-white/20">OR</span>
+                  <div className="h-px bg-white/5 flex-1" />
+                </div>
+                
+                <button 
+                  type="button" 
+                  onClick={(e) => { e.stopPropagation(); }}
+                  className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                >
+                  <Link className="h-3.5 w-3.5" />
+                  Paste video URL
+                </button>
+              </div>
+            )}
           </div>
-          <Button type="submit" className="w-full bg-xtube-red py-6 text-base font-semibold text-white transition-all hover:bg-xtube-red-hover hover:shadow-[0_0_20px_rgba(229,9,20,0.3)]"><Upload className="mr-2 h-5 w-5" />Publish Now</Button>
-        </form>
-      </motion.div>
+
+          {/* Dynamic Thumbnails Container */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-white/70 tracking-wide uppercase">Thumbnail</label>
+              <button 
+                type="button"
+                className="text-xs font-semibold text-xtube-red hover:underline"
+              >
+                Upload Manually
+              </button>
+            </div>
+
+            {/* Horizontal Scroll of 10 Thumbnails */}
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+              {generatedThumbnails.length === 0 ? (
+                Array.from({ length: 4 }).map((_, idx) => (
+                  <div 
+                    key={idx} 
+                    className="h-14 w-[96px] flex-shrink-0 rounded-lg border border-white/5 bg-[#141416] flex items-center justify-center"
+                  >
+                    <Film className="h-4 w-4 text-white/10" />
+                  </div>
+                ))
+              ) : (
+                generatedThumbnails.map((thumb, idx) => (
+                  <motion.div
+                    key={thumb.id}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setSelectedThumbnailIndex(idx)}
+                    className={`relative h-14 w-[96px] flex-shrink-0 cursor-pointer overflow-hidden rounded-lg border-2 transition-all ${
+                      selectedThumbnailIndex === idx 
+                        ? 'border-xtube-red shadow-[0_0_10px_rgba(229,9,20,0.35)]' 
+                        : 'border-white/5 opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <img src={thumb.dataUrl} className="h-full w-full object-cover" alt={`Frame ${idx + 1}`} />
+                    {selectedThumbnailIndex === idx && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-xtube-red">
+                          <Check className="h-3 w-3 text-white stroke-[3px]" />
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                ))
+              )}
+            </div>
+            
+            {/* Info label */}
+            <div className="flex items-start gap-2 rounded-lg bg-white/[0.02] border border-white/5 p-3 text-xs text-white/40">
+              <Info className="h-4 w-4 text-xtube-red flex-shrink-0 mt-0.5" />
+              <p>Video thumbnail and duration are auto-generated after upload.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: 2. Video Details */}
+        <div className="space-y-4 lg:col-span-6">
+          <h3 className="flex items-center gap-2 text-xs font-bold tracking-wider text-white/70 uppercase">
+            <Pencil className="h-4 w-4 text-xtube-red" />
+            2. Video Details
+          </h3>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            
+            {/* Video Title Input */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-white/70">Title *</Label>
+                <span className="text-[10px] text-white/30">{form.title.length}/100</span>
+              </div>
+              <Input 
+                value={form.title} 
+                onChange={(e) => setForm({ ...form, title: e.target.value.slice(0, 100) })} 
+                placeholder="Enter video title" 
+                className="border-white/10 bg-[#141416] text-white placeholder:text-white/20 focus:border-xtube-red/40 focus:ring-xtube-red/20 h-10 rounded-lg" 
+                required 
+              />
+            </div>
+
+            {/* Video Description Textarea */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-white/70">Description</Label>
+                <span className="text-[10px] text-white/30">{form.description.length}/500</span>
+              </div>
+              <Textarea 
+                value={form.description} 
+                onChange={(e) => setForm({ ...form, description: e.target.value.slice(0, 500) })} 
+                placeholder="Describe your video content here..." 
+                className="min-h-[100px] border-white/10 bg-[#141416] text-white placeholder:text-white/20 focus:border-xtube-red/40 focus:ring-xtube-red/20 resize-none rounded-lg" 
+              />
+            </div>
+
+            {/* Category and Quality Dropdowns */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-white/70">Category</Label>
+                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                  <SelectTrigger className="border-white/10 bg-[#141416] text-white focus:ring-xtube-red/20 h-10 rounded-lg">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent className="border-white/10 bg-[#111111] text-white">
+                    {categories.filter(c => c !== 'All Categories').map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-white/70">Quality</Label>
+                <Select value={form.quality} onValueChange={(v) => setForm({ ...form, quality: v })}>
+                  <SelectTrigger className="border-white/10 bg-[#141416] text-white focus:ring-xtube-red/20 h-10 rounded-lg">
+                    <SelectValue placeholder="Select quality" />
+                  </SelectTrigger>
+                  <SelectContent className="border-white/10 bg-[#111111] text-white">
+                    <SelectItem value="1080p">1080p (Full HD)</SelectItem>
+                    <SelectItem value="720p">720p (HD)</SelectItem>
+                    <SelectItem value="4k (2160p)">4k (Ultra HD)</SelectItem>
+                    <SelectItem value="480p">480p (SD)</SelectItem>
+                    <SelectItem value="360p">360p (SD)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Duration Input */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-white/70">Duration</Label>
+              <div className="relative flex items-center">
+                <Input 
+                  value={form.duration} 
+                  onChange={(e) => setForm({ ...form, duration: e.target.value })} 
+                  placeholder="e.g. 01:28" 
+                  className="border-white/10 bg-[#141416] text-white placeholder:text-white/20 focus:border-xtube-red/40 focus:ring-xtube-red/20 pr-10 h-10 rounded-lg" 
+                />
+                <Clock className="absolute right-3 h-4 w-4 text-white/30" />
+              </div>
+            </div>
+
+            {/* Featured, Trending, Live Checkbox Flags */}
+            <div className="flex items-center gap-6 rounded-lg border border-white/5 bg-white/[0.01] p-3 h-11">
+              <div className="flex items-center gap-2">
+                <input 
+                  type="checkbox" 
+                  id="featured" 
+                  checked={form.isFeatured}
+                  onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })}
+                  className="h-4 w-4 rounded border-white/10 bg-[#141416] text-xtube-red focus:ring-xtube-red/20 focus:ring-offset-[#111] cursor-pointer" 
+                />
+                <label htmlFor="featured" className="text-xs font-semibold text-white/70 cursor-pointer">Featured</label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input 
+                  type="checkbox" 
+                  id="trending" 
+                  checked={form.isTrending}
+                  onChange={(e) => setForm({ ...form, isTrending: e.target.checked })}
+                  className="h-4 w-4 rounded border-white/10 bg-[#141416] text-xtube-red focus:ring-xtube-red/20 focus:ring-offset-[#111] cursor-pointer" 
+                />
+                <label htmlFor="trending" className="text-xs font-semibold text-white/70 cursor-pointer">Trending</label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input 
+                  type="checkbox" 
+                  id="live" 
+                  checked={form.isLive}
+                  onChange={(e) => setForm({ ...form, isLive: e.target.checked })}
+                  className="h-4 w-4 rounded border-white/10 bg-[#141416] text-xtube-red focus:ring-xtube-red/20 focus:ring-offset-[#111] cursor-pointer" 
+                />
+                <label htmlFor="live" className="text-xs font-semibold text-white/70 cursor-pointer">Live</label>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3 pt-2">
+              <button 
+                type="button" 
+                onClick={handleClearForm}
+                className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#141416] h-11 px-4 text-xs font-semibold text-white hover:bg-white/5 transition-all"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Clear
+              </button>
+              
+              <button 
+                type="submit" 
+                disabled={uploadState !== 'success' || !form.title}
+                className={`flex items-center justify-center gap-2 flex-1 rounded-xl h-11 px-6 text-xs font-semibold text-white transition-all ${
+                  uploadState === 'success' && form.title
+                    ? 'bg-xtube-red hover:bg-xtube-red-hover hover:shadow-[0_0_20px_rgba(229,9,20,0.35)]'
+                    : 'bg-white/5 text-white/30 cursor-not-allowed border border-white/5'
+                }`}
+              >
+                <Upload className="h-3.5 w-3.5" />
+                Upload Video
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {/* ─── Footer Terms and Conditions Banner ─── */}
+      <div className="flex items-start gap-3 rounded-xl border border-white/5 bg-[#141416] p-3 text-[11px] leading-relaxed text-white/40">
+        <Shield className="h-4 w-4 text-xtube-red flex-shrink-0 mt-0.5" />
+        <p>
+          By uploading, you confirm that you own the rights to this content and agree to our <span className="text-xtube-red hover:underline cursor-pointer">Terms of Service</span> and <span className="text-xtube-red hover:underline cursor-pointer">Community Guidelines</span>.
+        </p>
+      </div>
     </motion.div>
   )
 }
