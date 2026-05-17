@@ -94,8 +94,6 @@ function getRandomFileSize(): string {
   return sizes[Math.floor(Math.random() * sizes.length)]
 }
 
-// Hardcoded mock videos and mock categories have been completely removed for live database sync.
-
 const categoryColors: Record<string, string> = {
   'Sci-Fi': 'bg-purple-500/15 text-purple-400 border-purple-500/20',
   'Action': 'bg-red-500/15 text-red-400 border-red-500/20',
@@ -124,8 +122,6 @@ const thumbnailGradients = [
   'from-indigo-900/40 via-blue-900/30 to-cyan-800/20',
   'from-pink-900/40 via-rose-900/30 to-red-800/20',
 ]
-
-// ─── Sort Types ──────────────────────────────────────────────────────────────
 
 type SortOption = 'newest' | 'oldest' | 'most-viewed' | 'least-viewed' | 'title-az' | 'title-za'
 
@@ -166,7 +162,375 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
     isLive: false,
   })
 
-  // Procedural 10-thumbnail generator
+  // Procedural scenic artwork generator
+  const drawScenicArt = useCallback((ctx: CanvasRenderingContext2D, index: number, videoTitle: string) => {
+    const w = 320
+    const h = 180
+    ctx.clearRect(0, 0, w, h)
+
+    if (index === 0) {
+      // 🌅 Sunset Beach & Palms
+      const grad = ctx.createLinearGradient(0, 0, 0, h)
+      grad.addColorStop(0, '#E50914')
+      grad.addColorStop(0.5, '#F97316')
+      grad.addColorStop(1, '#FEF08A')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, w, h)
+
+      // Sun
+      ctx.fillStyle = '#FFFFFF'
+      ctx.beginPath()
+      ctx.arc(w / 2, h / 2 + 10, 42, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Waves
+      ctx.fillStyle = '#1E3A8A'
+      ctx.fillRect(0, h - 45, w, 45)
+      ctx.fillStyle = '#3B82F6'
+      ctx.fillRect(0, h - 35, w, 35)
+
+      // Palms
+      ctx.fillStyle = '#090D16'
+      ctx.beginPath()
+      ctx.moveTo(35, h)
+      ctx.quadraticCurveTo(45, h - 60, 60, h - 100)
+      ctx.lineTo(65, h - 100)
+      ctx.quadraticCurveTo(50, h - 60, 40, h)
+      ctx.closePath()
+      ctx.fill()
+      
+      // Palm leaves
+      ctx.beginPath()
+      ctx.arc(60, h - 100, 18, 0, Math.PI * 2)
+      ctx.fill()
+    } else if (index === 1) {
+      // 🏔️ Snowy Mountains & Moon
+      const grad = ctx.createLinearGradient(0, 0, w, h)
+      grad.addColorStop(0, '#0F172A')
+      grad.addColorStop(1, '#1E293B')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, w, h)
+
+      // Stars
+      ctx.fillStyle = '#FFFFFF'
+      for (let s = 0; s < 45; s++) {
+        ctx.fillRect((s * 17) % w, (s * 11) % 90, 1.5, 1.5)
+      }
+
+      // Planet Saturn
+      ctx.fillStyle = '#FDE047'
+      ctx.beginPath()
+      ctx.arc(w - 60, 40, 10, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = '#FEF08A'
+      ctx.lineWidth = 2.5
+      ctx.beginPath()
+      ctx.ellipse(w - 60, 40, 22, 3.5, Math.PI / 6, 0, Math.PI * 2)
+      ctx.stroke()
+
+      // Mountains
+      ctx.fillStyle = '#334155'
+      ctx.beginPath()
+      ctx.moveTo(0, h)
+      ctx.lineTo(80, h - 85)
+      ctx.lineTo(160, h)
+      ctx.closePath()
+      ctx.fill()
+
+      ctx.fillStyle = '#1E293B'
+      ctx.beginPath()
+      ctx.moveTo(90, h)
+      ctx.lineTo(200, h - 105)
+      ctx.lineTo(320, h)
+      ctx.closePath()
+      ctx.fill()
+
+      // Snow caps
+      ctx.fillStyle = '#FFFFFF'
+      ctx.beginPath()
+      ctx.moveTo(80, h - 85)
+      ctx.lineTo(65, h - 70)
+      ctx.lineTo(95, h - 70)
+      ctx.closePath()
+      ctx.fill()
+    } else if (index === 2) {
+      // 🌃 Cyberpunk Skyline
+      const grad = ctx.createLinearGradient(0, 0, 0, h)
+      grad.addColorStop(0, '#4A044E')
+      grad.addColorStop(0.6, '#9D174D')
+      grad.addColorStop(1, '#F43F5E')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, w, h)
+
+      // Sun glow
+      ctx.fillStyle = 'rgba(253, 224, 71, 0.4)'
+      ctx.beginPath()
+      ctx.arc(w / 2, h / 2 + 10, 45, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Skyscrapers
+      ctx.fillStyle = '#0F051D'
+      ctx.fillRect(20, h - 100, 35, 100)
+      ctx.fillRect(65, h - 120, 45, 120)
+      ctx.fillRect(120, h - 80, 40, 80)
+      ctx.fillRect(170, h - 130, 42, 130)
+      ctx.fillRect(225, h - 90, 45, 90)
+
+      // Windows
+      ctx.fillStyle = '#FEF08A'
+      for (let r = 0; r < 5; r++) {
+        ctx.fillRect(28, h - 80 + r * 15, 4, 4)
+        ctx.fillRect(75, h - 100 + r * 15, 4, 4)
+        ctx.fillRect(180, h - 110 + r * 16, 4, 4)
+      }
+    } else if (index === 3) {
+      // 🌌 Retro Synthwave Grid
+      const grad = ctx.createLinearGradient(0, 0, 0, h)
+      grad.addColorStop(0, '#0F051D')
+      grad.addColorStop(0.5, '#701A75')
+      grad.addColorStop(1, '#D946EF')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, w, h)
+
+      // Floor
+      ctx.fillStyle = '#2E0854'
+      ctx.fillRect(0, h - 60, w, 60)
+
+      // Sliced Sun
+      const sunGrad = ctx.createLinearGradient(0, 30, 0, h - 50)
+      sunGrad.addColorStop(0, '#FDE047')
+      sunGrad.addColorStop(1, '#F43F5E')
+      ctx.fillStyle = sunGrad
+      for (let s = 0; s < 7; s++) {
+        const top = 30 + s * 13
+        const height = 9 - s * 0.8
+        ctx.fillRect(w / 2 - 45, top, 90, height)
+      }
+
+      // Grid
+      ctx.strokeStyle = '#22D3EE'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(0, h - 60)
+      ctx.lineTo(w, h - 60)
+      ctx.stroke()
+      for (let l = 0; l <= 10; l++) {
+        ctx.beginPath()
+        ctx.moveTo(w / 2 - 100 + l * 20, h - 60)
+        ctx.lineTo(w / 2 - 250 + l * 50, h)
+        ctx.stroke()
+      }
+    } else if (index === 4) {
+      // 🌋 Volcanic Outbreak
+      const grad = ctx.createLinearGradient(0, 0, 0, h)
+      grad.addColorStop(0, '#172554')
+      grad.addColorStop(0.7, '#1E293B')
+      grad.addColorStop(1, '#7C2D12')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, w, h)
+
+      // Lava base
+      ctx.fillStyle = '#EA580C'
+      ctx.fillRect(0, h - 30, w, 30)
+      ctx.fillStyle = '#FACC15'
+      ctx.fillRect(0, h - 20, w, 20)
+
+      // Volcano
+      ctx.fillStyle = '#0F172A'
+      ctx.beginPath()
+      ctx.moveTo(60, h - 30)
+      ctx.lineTo(w / 2, 45)
+      ctx.lineTo(w - 60, h - 30)
+      ctx.closePath()
+      ctx.fill()
+
+      // Lava eruption glow
+      const lavaGlow = ctx.createRadialGradient(w / 2, 45, 2, w / 2, 45, 25)
+      lavaGlow.addColorStop(0, '#FFFFFF')
+      lavaGlow.addColorStop(0.3, '#FACC15')
+      lavaGlow.addColorStop(0.7, '#EA580C')
+      lavaGlow.addColorStop(1, 'rgba(234, 88, 12, 0)')
+      ctx.fillStyle = lavaGlow
+      ctx.beginPath()
+      ctx.arc(w / 2, 45, 25, 0, Math.PI * 2)
+      ctx.fill()
+    } else if (index === 5) {
+      // 🌲 Pine Forest Morning
+      const grad = ctx.createLinearGradient(0, 0, 0, h)
+      grad.addColorStop(0, '#FEF08A')
+      grad.addColorStop(0.4, '#A7F3D0')
+      grad.addColorStop(1, '#064E3B')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, w, h)
+
+      // Soft sun
+      ctx.fillStyle = '#FFFFFF'
+      ctx.beginPath()
+      ctx.arc(50, 50, 18, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Pine silhouettes
+      ctx.fillStyle = '#022C22'
+      for (let p = 0; p < 7; p++) {
+        const x = 30 + p * 45
+        const py = h - 35
+        ctx.beginPath()
+        ctx.moveTo(x, py - 40)
+        ctx.lineTo(x - 12, py)
+        ctx.lineTo(x + 12, py)
+        ctx.closePath()
+        ctx.fill()
+        
+        ctx.beginPath()
+        ctx.moveTo(x, py - 52)
+        ctx.lineTo(x - 8, py - 20)
+        ctx.lineTo(x + 8, py - 20)
+        ctx.closePath()
+        ctx.fill()
+        ctx.fillRect(x - 2, py, 4, 35)
+      }
+    } else if (index === 6) {
+      // 💫 Purple Space Gate
+      const grad = ctx.createLinearGradient(0, 0, w, h)
+      grad.addColorStop(0, '#1E1B4B')
+      grad.addColorStop(0.5, '#311042')
+      grad.addColorStop(1, '#030712')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, w, h)
+
+      // Nebula brush
+      const neb = ctx.createRadialGradient(w/2, h/2, 5, w/2, h/2, 80)
+      neb.addColorStop(0, 'rgba(168, 85, 247, 0.4)')
+      neb.addColorStop(1, 'rgba(168, 85, 247, 0)')
+      ctx.fillStyle = neb
+      ctx.beginPath()
+      ctx.arc(w/2, h/2, 80, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Portal Ring
+      ctx.strokeStyle = '#22D3EE'
+      ctx.lineWidth = 3.5
+      ctx.beginPath()
+      ctx.arc(w / 2, h / 2, 38, 0, Math.PI * 2)
+      ctx.stroke()
+
+      // Standee figure
+      ctx.fillStyle = '#030712'
+      ctx.fillRect(w / 2 - 3, h / 2 + 10, 6, 40)
+      ctx.beginPath()
+      ctx.arc(w / 2, h / 2 + 5, 3.5, 0, Math.PI * 2)
+      ctx.fill()
+    } else if (index === 7) {
+      // 🌌 Emerald Aurora Borealis
+      const grad = ctx.createLinearGradient(0, 0, 0, h)
+      grad.addColorStop(0, '#020617')
+      grad.addColorStop(1, '#0F172A')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, w, h)
+
+      // Aurora streaks
+      ctx.strokeStyle = 'rgba(34, 197, 94, 0.45)'
+      ctx.lineWidth = 12
+      ctx.beginPath()
+      ctx.moveTo(0, 40)
+      ctx.bezierCurveTo(80, 10, 160, 90, 240, 30)
+      ctx.lineTo(w, 70)
+      ctx.stroke()
+
+      ctx.strokeStyle = 'rgba(20, 184, 166, 0.35)'
+      ctx.lineWidth = 8
+      ctx.beginPath()
+      ctx.moveTo(0, 60)
+      ctx.bezierCurveTo(90, 30, 150, 100, 250, 50)
+      ctx.lineTo(w, 80)
+      ctx.stroke()
+
+      // Hills
+      ctx.fillStyle = '#020617'
+      ctx.beginPath()
+      ctx.moveTo(0, h)
+      ctx.bezierCurveTo(80, h - 35, 200, h - 45, w, h)
+      ctx.closePath()
+      ctx.fill()
+    } else if (index === 8) {
+      // 🏝️ Ocean Yacht & Cloud
+      const grad = ctx.createLinearGradient(0, 0, 0, h)
+      grad.addColorStop(0, '#38BDF8')
+      grad.addColorStop(0.5, '#7DD3FC')
+      grad.addColorStop(1, '#0284C7')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, w, h)
+
+      // Cloud
+      ctx.fillStyle = '#FFFFFF'
+      ctx.beginPath()
+      ctx.arc(60, 40, 13, 0, Math.PI * 2)
+      ctx.arc(80, 35, 16, 0, Math.PI * 2)
+      ctx.arc(98, 40, 11, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Sandy land
+      ctx.fillStyle = '#FEF08A'
+      ctx.beginPath()
+      ctx.ellipse(w - 70, h - 30, 45, 12, 0, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Palm
+      ctx.fillStyle = '#78350F'
+      ctx.fillRect(w - 74, h - 65, 4, 35)
+      ctx.fillStyle = '#15803D'
+      ctx.beginPath()
+      ctx.arc(w - 72, h - 65, 8, 0, Math.PI * 2)
+      ctx.fill()
+    } else {
+      // 🌅 Canyon Skyline
+      const grad = ctx.createLinearGradient(0, 0, 0, h)
+      grad.addColorStop(0, '#F97316')
+      grad.addColorStop(0.6, '#C2410C')
+      grad.addColorStop(1, '#431407')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, w, h)
+
+      // Sun
+      ctx.fillStyle = '#FEF08A'
+      ctx.beginPath()
+      ctx.arc(w / 2, h - 25, 35, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Cliffs
+      ctx.fillStyle = '#7C2D12'
+      ctx.beginPath()
+      ctx.moveTo(0, h)
+      ctx.lineTo(60, h - 80)
+      ctx.lineTo(95, h)
+      ctx.closePath()
+      ctx.fill()
+
+      ctx.fillStyle = '#451A03'
+      ctx.beginPath()
+      ctx.moveTo(w, h)
+      ctx.lineTo(w - 70, h - 100)
+      ctx.lineTo(w - 115, h)
+      ctx.closePath()
+      ctx.fill()
+    }
+
+    // Bottom timeline overlay bar
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
+    ctx.fillRect(0, h - 30, w, 30)
+
+    // Title text
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = 'bold 11px sans-serif'
+    ctx.fillText(videoTitle.substring(0, 24) || 'Xtube Preset Scene', 15, h - 11)
+
+    // Scene and simulated time text
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'
+    ctx.font = '10px monospace'
+    ctx.fillText(`Scene ${index + 1} - 00:${index < 9 ? '0' + (index + 1) : index + 1}:00`, w - 115, h - 11)
+  }, [])
+
+  // Procedural 10-thumbnail generator loop
   const generateProceduralThumbnails = useCallback((videoTitle: string) => {
     const canvas = document.createElement('canvas')
     canvas.width = 320
@@ -175,132 +539,34 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
     if (!ctx) return []
 
     const thumbs: Array<{ id: number; dataUrl: string }> = []
-    
-    // Base colors for 10 highly distinct scenic cinematic gradient palettes
-    const palettes = [
-      ['#E50914', '#141414', '#380000'], // Netflix Red/Dark Crimson
-      ['#00c6ff', '#0072ff', '#1a2a6c'], // Cinematic Sky Blue
-      ['#f7797d', '#FBD786', '#C6FFDD'], // Sunset Golden Glow
-      ['#56ab2f', '#a8ff78', '#112211'], // Mountain Forest Green
-      ['#8A2387', '#E94057', '#F27121'], // Cyberpunk Neon Sunset
-      ['#0f2027', '#203a43', '#2c5364'], // Oceanic Deep Teal
-      ['#ff9966', '#ff5e62', '#2c0c0c'], // Molten Volcanic Fire
-      ['#7F00FF', '#E100FF', '#0b001a'], // Ultraviolet Purple Aurora
-      ['#1d976c', '#93f9b9', '#0d1a12'], // Emerald Forest Dream
-      ['#4e54c8', '#8f94fb', '#111122'], // Classic Cinematic Twilight Indigo
-    ]
-
     for (let i = 0; i < 10; i++) {
-      const palette = palettes[i % palettes.length]
-      
-      // Clear canvas
-      ctx.clearRect(0, 0, 320, 180)
-      
-      // 1. Draw beautiful linear gradient background
-      const grad = ctx.createLinearGradient(0, 0, 320, 180)
-      grad.addColorStop(0, palette[0])
-      grad.addColorStop(0.5, palette[1])
-      grad.addColorStop(1, palette[2])
-      ctx.fillStyle = grad
-      ctx.fillRect(0, 0, 320, 180)
-
-      // 2. Add abstract cinematic light rays
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.04)'
-      ctx.beginPath()
-      ctx.moveTo(160, 90)
-      ctx.lineTo(0, 180)
-      ctx.lineTo(80, 180)
-      ctx.closePath()
-      ctx.fill()
-
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.06)'
-      ctx.beginPath()
-      ctx.moveTo(160, 90)
-      ctx.lineTo(240, 180)
-      ctx.lineTo(320, 180)
-      ctx.closePath()
-      ctx.fill()
-
-      // Draw stylized procedural hills representing film frames
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.35)'
-      ctx.beginPath()
-      ctx.moveTo(0, 180)
-      ctx.bezierCurveTo(80, 120 + i * 4, 160, 150 - i * 6, 320, 180)
-      ctx.closePath()
-      ctx.fill()
-
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'
-      ctx.beginPath()
-      ctx.moveTo(0, 180)
-      ctx.bezierCurveTo(60, 140 - i * 5, 200, 110 + i * 3, 320, 180)
-      ctx.closePath()
-      ctx.fill()
-
-      // Draw glowing sun / camera lens flare
-      const glow = ctx.createRadialGradient(80 + i * 16, 60, 3, 80 + i * 16, 60, 70)
-      glow.addColorStop(0, 'rgba(255, 255, 255, 0.75)')
-      glow.addColorStop(0.2, 'rgba(255, 255, 255, 0.2)')
-      glow.addColorStop(1, 'rgba(255, 255, 255, 0)')
-      ctx.fillStyle = glow
-      ctx.beginPath()
-      ctx.arc(80 + i * 16, 60, 70, 0, Math.PI * 2)
-      ctx.fill()
-
-      // Draw abstract scenic grid lines
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)'
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      for (let x = 0; x < 320; x += 32) {
-        ctx.moveTo(x, 0)
-        ctx.lineTo(x, 180)
-      }
-      for (let y = 0; y < 180; y += 18) {
-        ctx.moveTo(0, y)
-        ctx.lineTo(320, y)
-      }
-      ctx.stroke()
-
-      // Draw bottom timeline bar
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'
-      ctx.fillRect(0, 148, 320, 32)
-
-      // Title overlay text
-      ctx.fillStyle = 'rgba(255,255,255,0.85)'
-      ctx.font = 'bold 11px sans-serif'
-      ctx.fillText(videoTitle.substring(0, 20) || 'Snapshot', 15, 168)
-
-      // Time duration overlay
-      ctx.fillStyle = 'rgba(255,255,255,0.5)'
-      ctx.font = '10px monospace'
-      ctx.fillText(`00:0${i}:${i*4 + 10}`, 260, 168)
-
+      drawScenicArt(ctx, i, videoTitle)
       thumbs.push({
         id: i,
         dataUrl: canvas.toDataURL('image/jpeg', 0.8)
       })
     }
-
     return thumbs
-  }, [])
+  }, [drawScenicArt])
+
+  // Pre-populate 10 dynamic illustrations immediately on component mount!
+  useEffect(() => {
+    const defaultThumbs = generateProceduralThumbnails('Xtube Premium')
+    setGeneratedThumbnails(defaultThumbs)
+    setSelectedThumbnailIndex(0)
+  }, [generateProceduralThumbnails])
 
   const simulateUpload = useCallback((fileName: string, fileObj?: File) => {
     setUploadedFileName(fileName)
     setUploadState('uploading')
     setUploadProgress(0)
 
-    // Strip extension for the title!
-    const baseName = fileName.substring(0, fileName.lastIndexOf('.')) || fileName
-    
-    // Automatically set the form title to the base file name!
+    // Parse the file name to set the Title automatically (removing extension!)
+    const cleanTitle = fileName.substring(0, fileName.lastIndexOf('.')) || fileName
     setForm((prev) => ({
       ...prev,
-      title: baseName,
+      title: cleanTitle,
     }))
-
-    // Generate 10 procedural thumbnails automatically
-    const thumbs = generateProceduralThumbnails(baseName)
-    setGeneratedThumbnails(thumbs)
-    setSelectedThumbnailIndex(0)
 
     if (fileObj) {
       const fileURL = URL.createObjectURL(fileObj)
@@ -309,6 +575,9 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
       const sizeMB = (fileObj.size / (1024 * 1024)).toFixed(1) + ' MB'
       const tempVideo = document.createElement('video')
       tempVideo.src = fileURL
+      tempVideo.muted = true
+      tempVideo.playsInline = true
+      
       tempVideo.onloadedmetadata = () => {
         const mins = Math.floor(tempVideo.duration / 60)
         const secs = Math.floor(tempVideo.duration % 60)
@@ -325,9 +594,57 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
           ...prev,
           duration: formatted
         }))
+
+        // ASYNC EXTRACT REAL 10 FRAMES FROM THE USER'S ACTUAL UPLOADED VIDEO FILE!
+        const canvas = document.createElement('canvas')
+        canvas.width = 320
+        canvas.height = 180
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          const duration = tempVideo.duration
+          const interval = duration / 11
+          const realThumbs: Array<{ id: number; dataUrl: string }> = []
+          
+          let index = 0
+          const captureFrame = () => {
+            if (index < 10) {
+              const time = (index + 1) * interval
+              tempVideo.currentTime = time
+              tempVideo.onseeked = () => {
+                ctx.drawImage(tempVideo, 0, 0, 320, 180)
+                
+                // Add overlay bar
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
+                ctx.fillRect(0, 148, 320, 32)
+                ctx.fillStyle = '#FFFFFF'
+                ctx.font = 'bold 11px sans-serif'
+                ctx.fillText(`Frame ${index + 1} - Real Snap`, 15, 168)
+                ctx.fillStyle = 'rgba(255,255,255,0.5)'
+                ctx.font = '10px monospace'
+                const curSecs = Math.floor(time)
+                ctx.fillText(`00:${Math.floor(curSecs / 60).toString().padStart(2, '0')}:${(curSecs % 60).toString().padStart(2, '0')}`, 240, 168)
+
+                realThumbs.push({
+                  id: index,
+                  dataUrl: canvas.toDataURL('image/jpeg', 0.8)
+                })
+                index++
+                captureFrame()
+              }
+            } else {
+              setGeneratedThumbnails(realThumbs)
+              setSelectedThumbnailIndex(0)
+            }
+          }
+          captureFrame()
+        }
       }
     } else {
-      // Stock video URL as fallback for simulation
+      // Regene mock scenic thumbnails with customized file title
+      const thumbs = generateProceduralThumbnails(cleanTitle)
+      setGeneratedThumbnails(thumbs)
+      setSelectedThumbnailIndex(0)
+
       setVideoObjectUrl('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4')
       setVideoMetadata({
         width: 1920,
@@ -383,10 +700,11 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
     setUploadedFileName('')
     setVideoObjectUrl('')
     setVideoMetadata(null)
-    setGeneratedThumbnails([])
+    const defaultThumbs = generateProceduralThumbnails('Xtube Premium')
+    setGeneratedThumbnails(defaultThumbs)
     setSelectedThumbnailIndex(0)
     if (fileInputRef.current) fileInputRef.current.value = ''
-  }, [])
+  }, [generateProceduralThumbnails])
 
   const handleClearForm = useCallback(() => {
     setForm({
@@ -569,9 +887,9 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
           </div>
 
           {/* Dynamic Thumbnails Container */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-white/70 tracking-wide uppercase">Thumbnail</label>
+              <label className="text-xs font-bold text-white/70 tracking-wide uppercase">Thumbnails (10 auto-generated)</label>
               <button 
                 type="button"
                 className="text-xs font-semibold text-xtube-red hover:underline"
@@ -580,13 +898,13 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
               </button>
             </div>
 
-            {/* Horizontal Scroll of 10 Thumbnails */}
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            {/* Grid of 10 Thumbnails (2 rows of 5 columns) */}
+            <div className="grid grid-cols-5 gap-3">
               {generatedThumbnails.length === 0 ? (
-                Array.from({ length: 4 }).map((_, idx) => (
+                Array.from({ length: 10 }).map((_, idx) => (
                   <div 
                     key={idx} 
-                    className="h-14 w-[96px] flex-shrink-0 rounded-lg border border-white/5 bg-[#141416] flex items-center justify-center"
+                    className="aspect-video rounded-lg border border-white/5 bg-[#141416] flex items-center justify-center"
                   >
                     <Film className="h-4 w-4 text-white/10" />
                   </div>
@@ -598,18 +916,16 @@ function UploadView({ onUpload, categories }: { onUpload: (data: Record<string, 
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
                     onClick={() => setSelectedThumbnailIndex(idx)}
-                    className={`relative h-14 w-[96px] flex-shrink-0 cursor-pointer overflow-hidden rounded-lg border-2 transition-all ${
+                    className={`relative aspect-video cursor-pointer overflow-hidden rounded-lg border-2 transition-all ${
                       selectedThumbnailIndex === idx 
-                        ? 'border-xtube-red shadow-[0_0_10px_rgba(229,9,20,0.35)]' 
+                        ? 'border-xtube-red shadow-[0_0_15px_rgba(229,9,20,0.35)]' 
                         : 'border-white/5 opacity-60 hover:opacity-100'
                     }`}
                   >
                     <img src={thumb.dataUrl} className="h-full w-full object-cover" alt={`Frame ${idx + 1}`} />
                     {selectedThumbnailIndex === idx && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-xtube-red">
-                          <Check className="h-3 w-3 text-white stroke-[3px]" />
-                        </div>
+                      <div className="absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-xtube-red shadow-lg border border-white/10">
+                        <Check className="h-3 w-3 text-white stroke-[3.5px]" />
                       </div>
                     )}
                   </motion.div>
