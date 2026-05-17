@@ -46,6 +46,15 @@ const SettingsPage = lazy(() => import('@/components/admin/SettingsPage').then(m
 const CatalogPage = lazy(() => import('@/components/admin/CatalogPage').then(m => ({ default: m.CatalogPage })))
 const VideoAdsAnalytics = lazy(() => import('@/components/admin/VideoAdsAnalytics').then(m => ({ default: m.VideoAdsAnalytics })))
 const VideoUploadPage = lazy(() => import('@/components/admin/VideoUploadPage').then(m => ({ default: m.VideoUploadPage })))
+const PreRollAdsPage = lazy(() => import('@/components/admin/PreRollAdsPage').then(m => ({ default: m.PreRollAdsPage })))
+const MidRollAdsPage = lazy(() => import('@/components/admin/MidRollAdsPage').then(m => ({ default: m.MidRollAdsPage })))
+const PostRollAdsPage = lazy(() => import('@/components/admin/PostRollAdsPage').then(m => ({ default: m.PostRollAdsPage })))
+const OverlayAdsPage = lazy(() => import('@/components/admin/OverlayAdsPage').then(m => ({ default: m.OverlayAdsPage })))
+const PopupAdsPage = lazy(() => import('@/components/admin/PopupAdsPage').then(m => ({ default: m.PopupAdsPage })))
+const BannerAdsPage = lazy(() => import('@/components/admin/BannerAdsPage').then(m => ({ default: m.BannerAdsPage })))
+const HeroFooterAdsPage = lazy(() => import('@/components/admin/HeroFooterAdsPage').then(m => ({ default: m.HeroFooterAdsPage })))
+const HeroAdsPage = lazy(() => import('@/components/admin/HeroAdsPage').then(m => ({ default: m.HeroAdsPage })))
+const AllAdsPage = lazy(() => import('@/components/admin/AllAdsPage').then(m => ({ default: m.AllAdsPage })))
 const LiveTVPage = lazy(() => import('@/components/admin/LiveTVPage').then(m => ({ default: m.LiveTVPage })))
 const TransactionsPage = lazy(() => import('@/components/admin/TransactionsPage').then(m => ({ default: m.TransactionsPage })))
 const ReportsPage = lazy(() => import('@/components/admin/ReportsPage').then(m => ({ default: m.ReportsPage })))
@@ -651,6 +660,24 @@ export function AdminPanel() {
         )
       case 'video-upload':
         return <VideoUploadPage />
+      case 'all-ads':
+        return <AllAdsPage />
+      case 'pre-roll-ads':
+        return <PreRollAdsPage />
+      case 'mid-roll-ads':
+        return <MidRollAdsPage />
+      case 'post-roll-ads':
+        return <PostRollAdsPage />
+      case 'overlay-ads':
+        return <OverlayAdsPage />
+      case 'popup-ads':
+        return <PopupAdsPage />
+      case 'banner-ads':
+        return <BannerAdsPage />
+      case 'hero-footer-ads':
+        return <HeroFooterAdsPage />
+      case 'hero-ads':
+        return <HeroAdsPage />
       case 'catalog':
         return <CatalogPage />
       case 'analytics':
