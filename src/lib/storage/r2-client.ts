@@ -668,24 +668,33 @@ async function completeMultipartUploadLocal(
     throw new Error(`Upload parts directory not found: ${uploadId}`)
   }
 
-  // Concatenate parts in order
+  // Concatenate parts in order using streams to prevent V8 memory crashes (up to 5GB)
   const sortedParts = parts.sort((a, b) => a.partNumber - b.partNumber)
-  const chunks: Buffer[] = []
+  const fullPath = ensureLocalDir(key)
   let totalSize = 0
 
-  for (const part of sortedParts) {
-    const partPath = join(tempDir, `part_${part.partNumber}`)
-    if (!existsSync(partPath)) {
-      throw new Error(`Part ${part.partNumber} not found on disk`)
-    }
-    const chunk = readFileSync(partPath)
-    chunks.push(chunk)
-    totalSize += chunk.length
-  }
+  const writeStream = createWriteStream(fullPath)
 
-  const finalBuffer = Buffer.concat(chunks)
-  const fullPath = ensureLocalDir(key)
-  writeFileSync(fullPath, finalBuffer)
+  await new Promise<void>((resolve, reject) => {
+    writeStream.on('error', reject)
+    writeStream.on('finish', resolve)
+
+    try {
+      for (const part of sortedParts) {
+        const partPath = join(tempDir, `part_${part.partNumber}`)
+        if (!existsSync(partPath)) {
+          throw new Error(`Part ${part.partNumber} not found on disk`)
+        }
+        const chunk = readFileSync(partPath)
+        writeStream.write(chunk)
+        totalSize += chunk.length
+      }
+      writeStream.end()
+    } catch (err) {
+      writeStream.destroy()
+      reject(err)
+    }
+  })
 
   // Clean up temp parts
   try {
