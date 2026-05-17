@@ -1,6 +1,5 @@
 'use client'
 
-import { useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Home,
@@ -34,37 +33,7 @@ const navItems: NavItem[] = [
 ]
 
 export function Sidebar() {
-  const { currentView, sidebarCollapsed, setView, toggleSidebar, incrementAdminClick, adminClickCount } = useAppStore()
-
-  const handleLogoClick = useCallback(() => {
-    // Sidebar is only rendered on md+ (desktop/tablet), so always pass true
-    const store = useAppStore.getState()
-
-    // If already unlocked, navigate home
-    if (store.adminUnlocked) {
-      store.setView('home')
-      store.setSelectedVideoId(null)
-      return
-    }
-
-    // If modal is showing or unlocking, don't process more clicks
-    if (store.adminUnlocking || store.showAdminModal) {
-      return
-    }
-
-    // Track click for admin unlock
-    incrementAdminClick(true)
-
-    // Check if 7th click triggered unlock
-    const newState = useAppStore.getState()
-    if (newState.adminUnlocking || newState.showAdminModal) {
-      return // Modal will open, don't navigate
-    }
-
-    // Clicks 1-6: navigate to home (DON'T reload — counter needs to accumulate to 7)
-    store.setView('home')
-    store.setSelectedVideoId(null)
-  }, [incrementAdminClick])
+  const { currentView, sidebarCollapsed, setView, toggleSidebar } = useAppStore()
 
   // Responsive sidebar width: smaller on tablet (md), full on desktop (lg)
   const expandedWidth = 180 // compact for tablet, works well on desktop too
@@ -82,7 +51,6 @@ export function Sidebar() {
           size="sm"
           showText={!sidebarCollapsed}
           showLive={!sidebarCollapsed}
-          onClick={handleLogoClick}
         />
       </div>
 

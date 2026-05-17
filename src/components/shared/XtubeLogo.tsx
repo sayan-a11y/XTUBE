@@ -1,7 +1,9 @@
 'use client'
 
+import { useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAppStore } from '@/lib/store'
+import { processAdminClick, getAdminClickCount } from '@/lib/admin-click'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -12,8 +14,10 @@ interface XtubeLogoProps {
   showText?: boolean
   /** Show "Live" red text alongside Xtube */
   showLive?: boolean
-  /** Click handler override — if not provided, uses default admin click logic */
+  /** Click handler override — if provided, replaces default admin click logic */
   onClick?: () => void
+  /** Disable admin click logic entirely (for decorative logos inside modals) */
+  disableAdminClick?: boolean
   /** Additional CSS classes */
   className?: string
 }
@@ -119,55 +123,69 @@ export function XtubeLogo({
   showText = true,
   showLive = true,
   onClick,
+  disableAdminClick = false,
   className = '',
 }: XtubeLogoProps) {
-  const adminClickCount = useAppStore((s) => s.adminClickCount)
-  const incrementAdminClick = useAppStore((s) => s.incrementAdminClick)
-  const adminUnlocked = useAppStore((s) => s.adminUnlocked)
-  const adminUnlocking = useAppStore((s) => s.adminUnlocking)
+  const showAdminModal = useAppStore((s) => s.showAdminModal)
 
   const s = sizeMap[size]
-  const pulseGlow = adminClickCount > 0 && !adminUnlocked
 
-  const handleClick = onClick || (() => {
+  // Read stored click count from sessionStorage for pulse animation
+  // This survives page reloads (unlike the Zustand store which resets)
+  const storedClickCount = getAdminClickCount()
+  const pulseGlow = storedClickCount > 0 && !showAdminModal
+
+  // Debounce ref to prevent double-firing from multiple event types
+  const lastPointerTimeRef = useRef(0)
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // Only primary pointer (left click / single touch)
+    if (e.button !== 0) return
+
+    // Debounce: prevent double-firing (200ms minimum between clicks)
+    const now = Date.now()
+    if (now - lastPointerTimeRef.current < 200) return
+    lastPointerTimeRef.current = now
+
+    // If custom onClick provided, call it instead
+    if (onClick) {
+      onClick()
+      return
+    }
+
+    // If admin click is disabled (decorative logo), do nothing
+    if (disableAdminClick) return
+
+    // If admin modal is already open, don't process more clicks
+    if (useAppStore.getState().showAdminModal) return
+
+    // Determine device type
     const isMobile = window.innerWidth < 768
 
-    // If admin is already unlocked, navigate home
-    const store = useAppStore.getState()
-    if (store.adminUnlocked) {
+    // Process the click using sessionStorage-based counter
+    const result = processAdminClick(isMobile)
+
+    if (result === 'admin') {
+      // ★ 7th continuous click! Open admin login modal
+      useAppStore.getState().setShowAdminModal(true)
+    } else if (result === 'navigate') {
+      // Admin already logged in, navigate home
+      const store = useAppStore.getState()
       store.setView('home')
       store.setSelectedVideoId(null)
-      return
+    } else {
+      // Clicks 1-6 or mobile: refresh the page
+      window.location.reload()
     }
-
-    // If modal is about to show, don't do anything else
-    if (store.adminUnlocking || store.showAdminModal) {
-      return
-    }
-
-    // Track click count for admin unlock
-    incrementAdminClick(!isMobile)
-
-    // After incrementing, check the NEW state
-    const newState = useAppStore.getState()
-
-    // If 7th click triggered unlock, modal will open — don't navigate
-    if (newState.adminUnlocking || newState.showAdminModal) {
-      return
-    }
-
-    // For clicks 1-6: navigate to home (DON'T reload — counter needs to accumulate to 7)
-    store.setView('home')
-    store.setSelectedVideoId(null)
-  })
+  }
 
   return (
     <motion.button
-      onClick={handleClick}
+      onPointerDown={handlePointerDown}
       whileHover={{ scale: 1.03 }}
       whileTap={{ scale: 0.97 }}
       className={`flex items-center focus:outline-none ${className}`}
-      style={{ touchAction: 'manipulation' }}
+      style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
       aria-label="Xtube Home"
     >
       {/* Red circle icon with X */}

@@ -221,7 +221,7 @@ export function AdminLoginModal() {
                 className="mb-7 flex flex-col items-center gap-3"
               >
                 <div className="flex items-center gap-2">
-                  <XtubeLogo size="md" showText={true} showLive={false} />
+                  <XtubeLogo size="md" showText={true} showLive={false} disableAdminClick />
                 </div>
                 <div className="flex items-center gap-2">
                   <Fingerprint className="h-4 w-4 text-[#ff0000]" />

@@ -191,7 +191,7 @@ export function AdminLoginScreen() {
             className="mb-8 flex flex-col items-center gap-4"
           >
             {/* Xtube Logo */}
-            <XtubeLogo size="xl" showText={true} showLive={true} />
+            <XtubeLogo size="xl" showText={true} showLive={true} disableAdminClick />
 
             <div className="text-center">
               <motion.p

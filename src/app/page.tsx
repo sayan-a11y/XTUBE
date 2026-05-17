@@ -114,6 +114,16 @@ export default function XtubeHome() {
     adminUnlocked,
   } = useAppStore()
 
+  // ─── Restore admin session on page load ────────────────────────────────────
+
+  useEffect(() => {
+    const token = sessionStorage.getItem('admin_token')
+    if (token && !useAppStore.getState().adminUnlocked) {
+      useAppStore.getState().setAdminUnlocked(true)
+      useAppStore.getState().setAdminLoggedIn(true)
+    }
+  }, [])
+
   // Data state
   const [videos, setVideos] = useState<VideoData[]>([])
   const [categories, setCategories] = useState<CategoryData[]>([])
@@ -636,12 +646,6 @@ export default function XtubeHome() {
                       size="sm"
                       showText={true}
                       showLive={true}
-                      onClick={() => {
-                        // Mobile: navigate home, NEVER unlock admin
-                        const store = useAppStore.getState()
-                        store.setView('home')
-                        store.setSelectedVideoId(null)
-                      }}
                     />
                   </div>
 
