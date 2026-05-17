@@ -1,8 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Megaphone, Volume2, VolumeX, X } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Megaphone, Volume2, VolumeX } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -23,44 +23,38 @@ interface FooterAdsProps {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function FooterAds({ ads }: FooterAdsProps) {
-  const [isVisible, setIsVisible] = useState(true)
   const ad = ads?.[0] ?? null
 
   // ── Empty State ──────────────────────────────────────────────────────────
   if (!ad) {
     return (
-      <div className="w-full px-0 sm:px-6 lg:px-8">
+      <div className="w-full px-0 sm:px-6 lg:px-8 pb-4">
         <div
           className={`
             mx-auto max-w-[1600px]
-            min-h-[80px] md:min-h-[100px] lg:min-h-[120px]
-            rounded-none sm:rounded-xl
-            bg-[#0a0a0a]/60 backdrop-blur-xl
+            min-h-[100px] md:min-h-[120px] lg:min-h-[140px]
+            rounded-none sm:rounded-2xl
+            bg-gradient-to-r from-[#08080c]/80 via-[#0b0b12]/60 to-[#08080c]/80
+            backdrop-blur-2xl
             border-y sm:border border-white/5
-            flex flex-col items-center justify-center gap-1
+            flex flex-col items-center justify-center gap-1.5
             select-none
           `}
         >
           <Megaphone className="h-5 w-5 text-white/10" />
-          <span className="text-white/20 text-xs font-semibold uppercase tracking-wider">Footer Ad Space</span>
-          <span className="text-white/10 text-[10px]">Advertise with premium cinematic placements</span>
+          <span className="text-white/20 text-xs font-semibold uppercase tracking-wider">Premium Cinematic Footer Placement</span>
+          <span className="text-white/10 text-[10px]">Premium ad-network space active</span>
         </div>
       </div>
     )
   }
 
-  return (
-    <AnimatePresence>
-      {isVisible && (
-        <FooterAdCard ad={ad} onClose={() => setIsVisible(false)} />
-      )}
-    </AnimatePresence>
-  )
+  return <FooterAdCard ad={ad} />
 }
 
 // ─── Ad Card ─────────────────────────────────────────────────────────────────
 
-function FooterAdCard({ ad, onClose }: { ad: FooterAdItem; onClose: () => void }) {
+function FooterAdCard({ ad }: { ad: FooterAdItem }) {
   const [isMuted, setIsMuted] = useState(true)
   const videoRef = useRef<HTMLVideoElement>(null)
   const impressionFired = useRef(false)
@@ -149,33 +143,34 @@ function FooterAdCard({ ad, onClose }: { ad: FooterAdItem; onClose: () => void }
   }
 
   return (
-    <div className="w-full px-0 sm:px-6 lg:px-8">
+    <div className="w-full px-0 sm:px-6 lg:px-8 pb-4">
       <motion.div
-        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        initial={{ opacity: 0, y: 30, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 40, scale: 0.95, transition: { duration: 0.2 } }}
-        transition={{ type: 'spring', stiffness: 260, damping: 25 }}
+        transition={{ type: 'spring', stiffness: 240, damping: 24 }}
         whileHover={{ 
-          boxShadow: '0 0 35px rgba(255,30,30,0.18)', 
-          borderColor: 'rgba(255,30,30,0.25)' 
+          scale: 1.01,
+          boxShadow: '0 0 45px rgba(229,9,20,0.22)', 
+          borderColor: 'rgba(229,9,20,0.4)' 
         }}
         onClick={ad.adType !== 'html5' ? handleClick : undefined}
         className={`
           relative
           mx-auto max-w-[1600px]
-          h-[90px] sm:h-[130px] md:h-[150px] lg:h-[180px]
+          h-[115px] sm:h-[155px] md:h-[185px] lg:h-[215px] xl:h-[235px]
           rounded-none sm:rounded-2xl
-          border-y sm:border border-[#ff1e1e]/10
-          bg-[#050508]/95 backdrop-blur-2xl
-          shadow-[0_0_35px_rgba(255,30,30,0.12)]
+          border-y sm:border border-[#e50914]/20
+          bg-gradient-to-r from-[#08080c] via-[#0d0d16] to-[#08080c]
+          shadow-[0_0_35px_rgba(229,9,20,0.14)]
           overflow-hidden
           ${ad.adType !== 'html5' && ad.linkUrl ? 'cursor-pointer' : ''}
           will-change-transform
+          transition-all duration-300
         `}
       >
         {/* Background ambient blurring glow (disabled on mobile/tablet to eliminate performance lag) */}
         {ad.adType === 'video' ? (
-          <div className="hidden md:block absolute inset-0 z-0 select-none pointer-events-none overflow-hidden opacity-20">
+          <div className="hidden md:block absolute inset-0 z-0 select-none pointer-events-none overflow-hidden opacity-15">
             <video
               src={ad.mediaUrl}
               autoPlay
@@ -186,7 +181,7 @@ function FooterAdCard({ ad, onClose }: { ad: FooterAdItem; onClose: () => void }
             />
           </div>
         ) : ad.adType === 'image' || ad.adType === 'gif' ? (
-          <div className="hidden md:block absolute inset-0 z-0 select-none pointer-events-none overflow-hidden opacity-20">
+          <div className="hidden md:block absolute inset-0 z-0 select-none pointer-events-none overflow-hidden opacity-15">
             <img
               src={ad.mediaUrl}
               alt=""
@@ -195,45 +190,33 @@ function FooterAdCard({ ad, onClose }: { ad: FooterAdItem; onClose: () => void }
           </div>
         ) : null}
 
-        {/* Cinematic Linear Gradient overlay to shield text legibility */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/40 to-transparent z-10 pointer-events-none" />
-
-        {/* Interactive Close (X) button (hidden on mobile as requested) */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onClose()
-          }}
-          className="absolute top-2 right-2 sm:top-3 sm:right-3 z-30 hidden sm:flex items-center justify-center h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-black/60 hover:bg-black/90 border border-white/10 text-white/70 hover:text-white transition-all hover:scale-105 active:scale-95 backdrop-blur-md"
-          aria-label="Dismiss Campaign"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+        {/* Cinematic Linear Gradient overlays to shield text legibility and create cinematic depth */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/50 to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10 z-10 pointer-events-none" />
 
         {/* Media elements rendered edge-to-edge */}
         <div className="absolute inset-0 z-0 w-full h-full">
           {renderMedia()}
         </div>
 
-        {/* Left billing details card overlay */}
-        <div className="absolute inset-y-0 left-0 z-20 flex flex-col justify-center px-4 sm:px-6 md:px-8 lg:px-10 max-w-[65%] sm:max-w-[50%] pointer-events-none select-none">
-          <div className="flex items-center gap-2 mb-1 sm:mb-1.5">
-            <span className="bg-[#ff1e1e] text-white text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded shadow-[0_0_10px_rgba(255,30,30,0.4)] tracking-wide uppercase">
+        {/* Left cinematic billboard-style text details card overlay */}
+        <div className="absolute inset-y-0 left-0 z-20 flex flex-col justify-center px-6 sm:px-8 md:px-10 lg:px-12 max-w-[70%] sm:max-w-[55%] pointer-events-none select-none">
+          <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+            <span className="bg-[#e50914] text-white text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded shadow-[0_0_10px_rgba(229,9,20,0.5)] tracking-wider uppercase font-sans">
               AD
             </span>
             {ad.mediaFormat && (
-              <span className="text-white/40 text-[8px] sm:text-[9px] font-bold uppercase tracking-wider">
+              <span className="text-white/40 text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest font-sans">
                 &bull; {ad.mediaFormat}
               </span>
             )}
           </div>
-          <h3 className="text-white text-xs sm:text-sm md:text-base lg:text-lg font-black tracking-tight leading-tight uppercase truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+          <h3 className="text-white text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-black tracking-tight leading-tight uppercase truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)]">
             {ad.title}
           </h3>
           {ad.adType === 'video' && (
-            <p className="hidden sm:line-clamp-1 text-white/50 text-[10px] md:text-xs mt-1 leading-relaxed max-w-sm drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
-              Experience dynamic premium cinema playback. Click to discover more features.
+            <p className="hidden sm:line-clamp-2 text-white/50 text-[10px] md:text-xs mt-1.5 leading-relaxed max-w-sm drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]">
+              Experience premium cinematic playback in high definition. Click to discover exclusive features and campaign information.
             </p>
           )}
         </div>
@@ -246,13 +229,13 @@ function FooterAdCard({ ad, onClose }: { ad: FooterAdItem; onClose: () => void }
               e.stopPropagation()
               toggleMute()
             }}
-            className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 z-30 flex items-center justify-center h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-black/60 hover:bg-black/90 border border-white/10 text-white/70 hover:text-white transition-all hover:scale-105 active:scale-95 backdrop-blur-md"
+            className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-30 flex items-center justify-center h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-black/70 hover:bg-black/95 border border-white/10 text-white/70 hover:text-white transition-all hover:scale-105 active:scale-95 backdrop-blur-md shadow-lg"
             aria-label={isMuted ? 'Unmute ad video' : 'Mute ad video'}
           >
             {isMuted ? (
-              <VolumeX className="h-3.5 w-3.5" />
+              <VolumeX className="h-4 w-4" />
             ) : (
-              <Volume2 className="h-3.5 w-3.5" />
+              <Volume2 className="h-4 w-4" />
             )}
           </button>
         )}
