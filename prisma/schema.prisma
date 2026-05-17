@@ -42,7 +42,7 @@ model Video {
   hlsUrl           String?                // HLS master manifest URL (.m3u8)
   dashUrl          String?                // DASH manifest URL (.mpd)
   qualityLevels    String  @default("[]") // JSON: available quality levels ["480p","720p","1080p","2K","4K"]
-  fileSize         Int     @default(0)    // original file size in bytes
+  fileSize         BigInt  @default(0)    // original file size in bytes
   bitrate          Int     @default(0)    // average bitrate in kbps
   codec            String  @default("h264") // video codec
   audioCodec       String  @default("aac")  // audio codec
@@ -290,7 +290,7 @@ model Setting {
 model UploadSession {
   id          String   @id @default(cuid())
   fileName    String
-  fileSize    Int
+  fileSize    BigInt
   mimeType    String
   chunkSize   Int      @default(5242880) // 5MB default chunk size
   totalChunks Int
