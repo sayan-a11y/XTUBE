@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useRealtimeSync } from '@/hooks/useRealtimeSync'
 import {
   Grid3X3,
   Plus,
@@ -111,9 +112,9 @@ export function CatalogPage() {
   const [formIcon, setFormIcon] = useState('flame')
   const [formOrder, setFormOrder] = useState('1')
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async (silent = false) => {
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       const res = await fetch('/api/categories')
       if (res.ok) {
         const data = await res.json()
@@ -122,13 +123,21 @@ export function CatalogPage() {
     } catch (err) {
       console.error('Failed to fetch categories:', err)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
-  }
+  }, [])
+
+  // Hook up realtime listener for instant category changes
+  useRealtimeSync(useCallback((type) => {
+    if (type.startsWith('category:') || type.includes('category:')) {
+      fetchCategories(true)
+    }
+  }, [fetchCategories]))
 
   useEffect(() => {
     fetchCategories()
-  }, [])
+  }, [fetchCategories])
+
 
   const resetForm = () => {
     setFormName('')

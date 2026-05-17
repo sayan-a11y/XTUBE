@@ -607,6 +607,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
 
     if (value === 'auto') {
       hls.currentLevel = -1
+      hls.nextLevel = -1
     } else {
       const targetHeight = QUALITY_OPTIONS.find((q) => q.value === value)?.height || 0
       // Find closest level to target height
@@ -621,6 +622,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
       })
       if (closestIdx >= 0) {
         hls.currentLevel = closestIdx
+        hls.nextLevel = closestIdx
       }
     }
     setQuality(value)

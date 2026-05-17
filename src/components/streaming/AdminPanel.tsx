@@ -39,26 +39,56 @@ import { AdsManager } from './AdsManager'
 import { AdminLoginScreen } from './AdminLoginScreen'
 import { XtubeLogo } from '@/components/shared/XtubeLogo'
 
-// ─── Dynamic Imports for Admin Sub-pages (Code Splitting) ────────────────────
-const AnalyticsPage = lazy(() => import('@/components/admin/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })))
-const UsersPage = lazy(() => import('@/components/admin/UsersPage').then(m => ({ default: m.UsersPage })))
-const SettingsPage = lazy(() => import('@/components/admin/SettingsPage').then(m => ({ default: m.SettingsPage })))
-const CatalogPage = lazy(() => import('@/components/admin/CatalogPage').then(m => ({ default: m.CatalogPage })))
-const VideoAdsAnalytics = lazy(() => import('@/components/admin/VideoAdsAnalytics').then(m => ({ default: m.VideoAdsAnalytics })))
-const VideoUploadPage = lazy(() => import('@/components/admin/VideoUploadPage').then(m => ({ default: m.VideoUploadPage })))
-const PreRollAdsPage = lazy(() => import('@/components/admin/PreRollAdsPage').then(m => ({ default: m.PreRollAdsPage })))
-const MidRollAdsPage = lazy(() => import('@/components/admin/MidRollAdsPage').then(m => ({ default: m.MidRollAdsPage })))
-const PostRollAdsPage = lazy(() => import('@/components/admin/PostRollAdsPage').then(m => ({ default: m.PostRollAdsPage })))
-const OverlayAdsPage = lazy(() => import('@/components/admin/OverlayAdsPage').then(m => ({ default: m.OverlayAdsPage })))
-const PopupAdsPage = lazy(() => import('@/components/admin/PopupAdsPage').then(m => ({ default: m.PopupAdsPage })))
-const BannerAdsPage = lazy(() => import('@/components/admin/BannerAdsPage').then(m => ({ default: m.BannerAdsPage })))
-const HeroFooterAdsPage = lazy(() => import('@/components/admin/HeroFooterAdsPage').then(m => ({ default: m.HeroFooterAdsPage })))
-const HeroAdsPage = lazy(() => import('@/components/admin/HeroAdsPage').then(m => ({ default: m.HeroAdsPage })))
-const AllAdsPage = lazy(() => import('@/components/admin/AllAdsPage').then(m => ({ default: m.AllAdsPage })))
-const LiveTVPage = lazy(() => import('@/components/admin/LiveTVPage').then(m => ({ default: m.LiveTVPage })))
-const TransactionsPage = lazy(() => import('@/components/admin/TransactionsPage').then(m => ({ default: m.TransactionsPage })))
-const ReportsPage = lazy(() => import('@/components/admin/ReportsPage').then(m => ({ default: m.ReportsPage })))
-const SystemLogsPage = lazy(() => import('@/components/admin/SystemLogsPage').then(m => ({ default: m.SystemLogsPage })))
+// ─── Chunk Resilience: Lazy Load with Automatic Network / Deploy Retry ────────────────────
+function lazyWithRetry<T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T } | T>,
+  retriesLeft = 3,
+  interval = 1000
+): React.LazyExoticComponent<T> {
+  return lazy(() => {
+    return new Promise<{ default: T }>((resolve, reject) => {
+      factory()
+        .then((val) => {
+          if (val && 'default' in val) {
+            resolve(val as { default: T })
+          } else {
+            resolve({ default: val } as any)
+          }
+        })
+        .catch((error) => {
+          if (retriesLeft <= 1) {
+            reject(error)
+            return
+          }
+          setTimeout(() => {
+            lazyWithRetry(factory, retriesLeft - 1, interval * 1.5)
+          }, interval)
+        })
+    })
+  })
+}
+
+// ─── Dynamic Imports for Admin Sub-pages (Code Splitting & Retry Protected) ────────────────────
+const AnalyticsPage = lazyWithRetry(() => import('@/components/admin/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })))
+const UsersPage = lazyWithRetry(() => import('@/components/admin/UsersPage').then(m => ({ default: m.UsersPage })))
+const SettingsPage = lazyWithRetry(() => import('@/components/admin/SettingsPage').then(m => ({ default: m.SettingsPage })))
+const CatalogPage = lazyWithRetry(() => import('@/components/admin/CatalogPage').then(m => ({ default: m.CatalogPage })))
+const VideoAdsAnalytics = lazyWithRetry(() => import('@/components/admin/VideoAdsAnalytics').then(m => ({ default: m.VideoAdsAnalytics })))
+const VideoUploadPage = lazyWithRetry(() => import('@/components/admin/VideoUploadPage').then(m => ({ default: m.VideoUploadPage })))
+const PreRollAdsPage = lazyWithRetry(() => import('@/components/admin/PreRollAdsPage').then(m => ({ default: m.PreRollAdsPage })))
+const MidRollAdsPage = lazyWithRetry(() => import('@/components/admin/MidRollAdsPage').then(m => ({ default: m.MidRollAdsPage })))
+const PostRollAdsPage = lazyWithRetry(() => import('@/components/admin/PostRollAdsPage').then(m => ({ default: m.PostRollAdsPage })))
+const OverlayAdsPage = lazyWithRetry(() => import('@/components/admin/OverlayAdsPage').then(m => ({ default: m.OverlayAdsPage })))
+const PopupAdsPage = lazyWithRetry(() => import('@/components/admin/PopupAdsPage').then(m => ({ default: m.PopupAdsPage })))
+const BannerAdsPage = lazyWithRetry(() => import('@/components/admin/BannerAdsPage').then(m => ({ default: m.BannerAdsPage })))
+const HeroFooterAdsPage = lazyWithRetry(() => import('@/components/admin/HeroFooterAdsPage').then(m => ({ default: m.HeroFooterAdsPage })))
+const HeroAdsPage = lazyWithRetry(() => import('@/components/admin/HeroAdsPage').then(m => ({ default: m.HeroAdsPage })))
+const AllAdsPage = lazyWithRetry(() => import('@/components/admin/AllAdsPage').then(m => ({ default: m.AllAdsPage })))
+const LiveTVPage = lazyWithRetry(() => import('@/components/admin/LiveTVPage').then(m => ({ default: m.LiveTVPage })))
+const TransactionsPage = lazyWithRetry(() => import('@/components/admin/TransactionsPage').then(m => ({ default: m.TransactionsPage })))
+const ReportsPage = lazyWithRetry(() => import('@/components/admin/ReportsPage').then(m => ({ default: m.ReportsPage })))
+const SystemLogsPage = lazyWithRetry(() => import('@/components/admin/SystemLogsPage').then(m => ({ default: m.SystemLogsPage })))
+
 
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
 
