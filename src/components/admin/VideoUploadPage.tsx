@@ -955,33 +955,35 @@ export function VideoUploadPage() {
               </div>
 
               {/* Grid of 10 Thumbnails */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                 {generatedThumbnails.length > 0 ? (
                   generatedThumbnails.map((thumb) => (
                     <motion.button
                       key={thumb.index}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
+                      whileHover={{ y: -4 }}
+                      whileTap={{ scale: 0.98 }}
                       onClick={() => handleSelectThumbnail(thumb.index)}
-                      className={`group relative aspect-video overflow-hidden rounded-lg border-2 transition-all ${
+                      className={`group relative w-full pb-[56.25%] overflow-hidden rounded-lg border-2 transition-all duration-300 ${
                         selectedThumbnail === thumb.index
-                          ? 'border-xtube-red shadow-[0_0_12px_rgba(229,9,20,0.4)]'
-                          : 'border-transparent hover:border-white/20'
+                          ? 'border-xtube-red shadow-[0_0_15px_rgba(229,9,20,0.5)] bg-xtube-red/10'
+                          : 'border-white/10 hover:border-white/30 bg-white/5'
                       }`}
                     >
-                      <img
-                        src={thumb.url}
-                        alt={`Thumbnail ${thumb.index + 1}`}
-                        className="h-full w-full object-cover"
-                      />
-                      <div className="absolute bottom-0.5 right-0.5 rounded bg-black/80 px-1 py-0.5 text-[8px] font-semibold text-white">
-                        {Math.floor(thumb.timeSeconds / 60)}:{(thumb.timeSeconds % 60).toString().padStart(2, '0')}
-                      </div>
-                      {selectedThumbnail === thumb.index && (
-                        <div className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-xtube-red shadow-md">
-                          <CheckCircle2 className="h-3 w-3 text-white" />
+                      <div className="absolute inset-0">
+                        <img
+                          src={thumb.url}
+                          alt={`Thumbnail ${thumb.index + 1}`}
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                        <div className="absolute bottom-1 right-1 rounded bg-black/80 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur-sm">
+                          {Math.floor(thumb.timeSeconds / 60)}:{(thumb.timeSeconds % 60).toString().padStart(2, '0')}
                         </div>
-                      )}
+                        {selectedThumbnail === thumb.index && (
+                          <div className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-xtube-red shadow-md shadow-black/50">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                          </div>
+                        )}
+                      </div>
                     </motion.button>
                   ))
                 ) : (
@@ -989,28 +991,30 @@ export function VideoUploadPage() {
                   Array.from({ length: 10 }).map((_, i) => (
                     <motion.button
                       key={i}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
+                      whileHover={{ y: -4 }}
+                      whileTap={{ scale: 0.98 }}
                       onClick={() => setSelectedThumbnail(i)}
-                      className={`group relative aspect-video overflow-hidden rounded-lg border-2 transition-all ${
+                      className={`group relative w-full pb-[56.25%] overflow-hidden rounded-lg border-2 transition-all duration-300 ${
                         selectedThumbnail === i
-                          ? 'border-xtube-red shadow-[0_0_12px_rgba(229,9,20,0.4)]'
-                          : 'border-transparent hover:border-white/20'
+                          ? 'border-xtube-red shadow-[0_0_15px_rgba(229,9,20,0.5)] bg-xtube-red/10'
+                          : 'border-white/10 hover:border-white/30 bg-white/5'
                       }`}
                     >
-                      <img
-                        src={premiumPlaceholderImages[i]}
-                        alt={`Scenic Frame ${i + 1}`}
-                        className="h-full w-full object-cover opacity-60 group-hover:opacity-85 transition-opacity"
-                      />
-                      <div className="absolute bottom-0.5 right-0.5 rounded bg-black/80 px-1 py-0.5 text-[8px] font-semibold text-white/70">
-                        {thumbnailTimecodes[i]}
-                      </div>
-                      {selectedThumbnail === i && (
-                        <div className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-xtube-red shadow-md">
-                          <CheckCircle2 className="h-3 w-3 text-white" />
+                      <div className="absolute inset-0">
+                        <img
+                          src={premiumPlaceholderImages[i]}
+                          alt={`Scenic Frame ${i + 1}`}
+                          className="h-full w-full object-cover opacity-60 transition-all duration-500 group-hover:scale-110 group-hover:opacity-90"
+                        />
+                        <div className="absolute bottom-1 right-1 rounded bg-black/80 px-1.5 py-0.5 text-[9px] font-semibold text-white/70 backdrop-blur-sm">
+                          {thumbnailTimecodes[i]}
                         </div>
-                      )}
+                        {selectedThumbnail === i && (
+                          <div className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-xtube-red shadow-md shadow-black/50">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                          </div>
+                        )}
+                      </div>
                     </motion.button>
                   ))
                 )}
