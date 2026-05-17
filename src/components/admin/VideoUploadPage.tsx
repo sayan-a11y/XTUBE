@@ -542,21 +542,13 @@ export function VideoUploadPage() {
       transition={{ duration: 0.3 }}
       className="w-full"
     >
-      <div className="w-full p-3 md:p-4 lg:p-6">
-        {/* ── Header Section ── */}
-        <div className="mb-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-white md:text-2xl">Upload Video</h1>
-              <p className="mt-1 text-sm text-white/40">Upload a video — preview is auto-generated</p>
-            </div>
-          </div>
-
-          {/* Tab */}
-          <div className="mt-4 flex items-center gap-0 border-b border-white/5">
+      <div className="w-full p-3 md:p-4 lg:p-6 min-w-0">
+        {/* ── Header Section (Tabs only to prevent title double-rendering) ── */}
+        <div className="mb-4 border-b border-white/5">
+          <div className="flex items-center gap-0">
             <button className="relative flex items-center gap-2 px-4 pb-3 text-sm font-semibold text-white">
               <Film className="h-4 w-4 text-xtube-red" />
-              Video
+              Upload & Preview
               <motion.div
                 layoutId="upload-tab-indicator"
                 className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-xtube-red"
@@ -567,20 +559,20 @@ export function VideoUploadPage() {
         </div>
 
         {/* ── Two Column Layout ── */}
-        <div className="grid grid-cols-1 gap-5 lg:gap-6 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px] w-full">
+        <div className="grid grid-cols-1 gap-5 lg:gap-6 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px] w-full min-w-0">
           {/* ═══════════════════════════════════════════════════════════════════
               LEFT COLUMN — Upload & Interactive Preview
               ═══════════════════════════════════════════════════════════════════ */}
-          <div className="space-y-4 max-w-2xl lg:max-w-none mx-auto w-full">
+          <div className="space-y-4 max-w-2xl lg:max-w-none mx-auto w-full min-w-0">
             {/* Section Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between w-full min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
                 <span className="text-lg font-bold text-xtube-red">1.</span>
-                <h2 className="text-lg font-bold text-white">Upload Video</h2>
-                <CloudUpload className="h-5 w-5 text-xtube-red" />
+                <h2 className="text-lg font-bold text-white truncate">Upload Video</h2>
+                <CloudUpload className="h-5 w-5 text-xtube-red flex-shrink-0" />
               </div>
               {fileInfo && (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-shrink-0">
                   <button
                     onClick={handleBrowseClick}
                     className="text-sm font-medium text-xtube-red transition-colors hover:text-xtube-red-hover"
@@ -606,9 +598,9 @@ export function VideoUploadPage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl"
+                  className="w-full min-w-0 overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl"
                 >
-                  <div className="flex items-center gap-3 p-3 lg:p-4">
+                  <div className="flex items-center gap-3 p-3 lg:p-4 w-full min-w-0">
                     {/* Thumbnail Preview */}
                     <div className="relative h-16 w-28 flex-shrink-0 overflow-hidden rounded-lg">
                       {generatedThumbnails.length > 0 ? (
@@ -626,7 +618,7 @@ export function VideoUploadPage() {
 
                     {/* File Details */}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-white">{fileInfo.name}</p>
+                      <p className="truncate text-sm font-semibold text-white" title={fileInfo.name}>{fileInfo.name}</p>
                       <p className="mt-0.5 text-xs text-white/40">
                         {fileInfo.resolution} &bull; {fileInfo.size} &bull; {fileInfo.duration}
                       </p>
@@ -773,14 +765,14 @@ export function VideoUploadPage() {
 
             {/* ── Paste URL Buttons ── */}
             {uploadStage === 'idle' && !file && (
-              <div className="flex items-center gap-3">
-                <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2 text-sm font-medium text-white/60 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-[#111111]/80 hover:text-white">
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
+                <button className="flex w-full sm:flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2.5 text-sm font-medium text-white/60 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-[#111111]/80 hover:text-white">
                   <Link className="h-4 w-4" />
                   Paste Video URL
                 </button>
                 <button
                   onClick={handleBrowseClick}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2 text-sm font-medium text-white/60 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-[#111111]/80 hover:text-white"
+                  className="flex w-full sm:flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2.5 text-sm font-medium text-white/60 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-[#111111]/80 hover:text-white"
                 >
                   <Upload className="h-4 w-4" />
                   Manual Upload
@@ -966,10 +958,7 @@ export function VideoUploadPage() {
             </div>
           </div>
 
-          {/* ═══════════════════════════════════════════════════════════════════
-              RIGHT COLUMN — Video Details
-              ═══════════════════════════════════════════════════════════════════ */}
-          <div className="space-y-4 max-w-2xl lg:max-w-none mx-auto w-full">
+          <div className="space-y-4 max-w-2xl lg:max-w-none mx-auto w-full min-w-0">
             {/* Section Header */}
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold text-xtube-red">2.</span>
