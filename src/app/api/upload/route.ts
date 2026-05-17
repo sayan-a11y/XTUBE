@@ -5,7 +5,6 @@ import { join } from 'path'
 import { broadcastRealtimeEvent } from '@/lib/realtime'
 import { isR2Configured, initMultipartUpload, uploadPart, completeMultipartUpload, generateStorageKey, uploadLocalFileToR2 } from '@/lib/storage/r2-client'
 
-
 // Constants
 const CHUNKS_BASE_DIR = join(process.cwd(), 'upload', 'video-chunks')
 const VIDEOS_DIR = join(process.cwd(), 'public', 'videos')
@@ -14,8 +13,12 @@ const MIDROLL_INTERVAL_SECONDS = 1800 // 30 minutes
 
 // Ensure directories exist
 function ensureDir(dir: string) {
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true })
+  try {
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true })
+    }
+  } catch (err) {
+    console.error(`Failed to ensure directory ${dir}:`, err)
   }
 }
 
@@ -37,65 +40,23 @@ function generateMidrollTimings(durationSeconds: number): number[] {
  */
 export async function POST(request: NextRequest) {
   try {
-    if (!isR2Configured()) {
-      ensureDir(CHUNKS_BASE_DIR)
-      ensureDir(VIDEOS_DIR)
-    }
-
     const contentType = request.headers.get('content-type') || ''
+    let body: any = {}
 
-    // Handle multipart form data for init
+    // Support both JSON and form-data initialization
     if (contentType.includes('multipart/form-data')) {
       const formData = await request.formData()
-      const fileName = formData.get('fileName') as string
-      const fileSize = parseInt(formData.get('fileSize') as string, 10)
-      const mimeType = (formData.get('mimeType') as string) || 'video/mp4'
-      const chunkSize = parseInt(formData.get('chunkSize') as string, 10) || DEFAULT_CHUNK_SIZE
-
-      if (!fileName || !fileSize) {
-        return NextResponse.json(
-          { error: 'fileName and fileSize are required' },
-          { status: 400 }
-        )
+      body = {
+        action: 'init',
+        fileName: formData.get('fileName') as string,
+        fileSize: parseInt(formData.get('fileSize') as string, 10),
+        mimeType: (formData.get('mimeType') as string) || 'video/mp4',
+        chunkSize: parseInt(formData.get('chunkSize') as string, 10),
       }
-
-      const totalChunks = Math.ceil(fileSize / chunkSize)
-
-      // Create upload session in DB
-      const session = await db.uploadSession.create({
-        data: {
-          fileName,
-          fileSize: BigInt(fileSize),
-          mimeType,
-          chunkSize,
-          totalChunks,
-          status: 'pending',
-          uploadedChunks: '[]',
-        },
-      })
-
-      // Create session directory
-      const sessionDir = join(CHUNKS_BASE_DIR, session.id)
-      ensureDir(sessionDir)
-
-      // Generate presigned URLs for each chunk (mock URLs for local storage)
-      const chunkUrls = Array.from({ length: totalChunks }, (_, i) => ({
-        chunkIndex: i,
-        uploadUrl: `/api/upload?chunkIndex=${i}&sessionId=${session.id}`,
-        method: 'PUT',
-      }))
-
-      return NextResponse.json({
-        sessionId: session.id,
-        totalChunks,
-        chunkSize,
-        chunkUrls,
-        status: 'pending',
-      }, { status: 201 })
+    } else {
+      body = await request.json()
     }
 
-    // Handle JSON body
-    const body = await request.json()
     const { action } = body
 
     if (action === 'init') {
@@ -121,9 +82,23 @@ export async function POST(request: NextRequest) {
 
       const useR2 = isR2Configured()
       let r2Key = ''
+      let uploadId = ''
 
       if (useR2) {
         r2Key = generateStorageKey(fileName, 'video')
+        try {
+          // Initialize multipart upload on Cloudflare R2
+          const initResult = await initMultipartUpload(
+            r2Key,
+            mimeType || 'video/mp4',
+            parsedFileSize,
+            'video',
+            fileName
+          )
+          uploadId = initResult.uploadId
+        } catch (r2Error) {
+          console.error('Failed to initialize R2 multipart upload, falling back to local:', r2Error)
+        }
       }
 
       const session = await db.uploadSession.create({
@@ -135,14 +110,22 @@ export async function POST(request: NextRequest) {
           totalChunks,
           status: 'pending',
           uploadedChunks: '[]',
-          storageKey: useR2 ? JSON.stringify({ provider: 'r2', r2Key }) : null,
+          storageKey: JSON.stringify({
+            provider: uploadId ? 'r2' : 'local',
+            r2Key,
+            uploadId,
+          }),
         },
       })
 
-      // Always create local session directory to save incoming chunks
-      const sessionDir = join(CHUNKS_BASE_DIR, session.id)
-      ensureDir(sessionDir)
+      // Only create local session directory if using local fallback mode
+      if (!uploadId) {
+        ensureDir(CHUNKS_BASE_DIR)
+        const sessionDir = join(CHUNKS_BASE_DIR, session.id)
+        ensureDir(sessionDir)
+      }
 
+      // Generate local chunk routing URLs (which will be proxied to R2 in real-time or saved locally)
       const chunkUrls = Array.from({ length: totalChunks }, (_, i) => ({
         chunkIndex: i,
         uploadUrl: `/api/upload?chunkIndex=${i}&sessionId=${session.id}`,
@@ -179,17 +162,19 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const uploadedChunks: number[] = JSON.parse(session.uploadedChunks)
-
-      if (uploadedChunks.length !== session.totalChunks) {
-        return NextResponse.json(
-          {
-            error: 'Not all chunks uploaded yet',
-            uploaded: uploadedChunks.length,
-            total: session.totalChunks,
-          },
-          { status: 400 }
-        )
+      // Check if we are running in R2 mode
+      let isR2 = false
+      let r2Key = ''
+      let uploadId = ''
+      if (session.storageKey) {
+        try {
+          const parsed = JSON.parse(session.storageKey)
+          if (parsed.provider === 'r2') {
+            isR2 = true
+            r2Key = parsed.r2Key
+            uploadId = parsed.uploadId
+          }
+        } catch { /* ignore */ }
       }
 
       // Update status to processing
@@ -198,86 +183,91 @@ export async function POST(request: NextRequest) {
         data: { status: 'processing' },
       })
 
-      // Check if we are running in R2 mode
-      let isR2 = false
-      let r2Key = ''
-      if (session.storageKey) {
-        try {
-          const parsed = JSON.parse(session.storageKey)
-          if (parsed.provider === 'r2') {
-            isR2 = true
-            r2Key = parsed.r2Key
-          }
-        } catch { /* ignore */ }
-      }
-
-      // Combine chunks into final video file locally using write streams to prevent V8 memory allocation crashes
-      const sessionDir = join(CHUNKS_BASE_DIR, sessionId)
+      let finalVideoUrl = ''
+      let storageProvider = 'local'
+      let storageKeyVal = ''
       const videoId = `vid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
-      const finalPath = join(VIDEOS_DIR, `${videoId}.mp4`)
-      ensureDir(VIDEOS_DIR)
+
+      // Estimate duration from file size (rough estimate: ~1MB per 10 sec for 1080p)
+      const estimatedDuration = Math.round((Number(session.fileSize) / (1024 * 1024)) * 10)
+      const midrollTimings = generateMidrollTimings(estimatedDuration)
+      const qualityLevels = getQualityLevelsForResolution(resolution || '1080p', Number(session.fileSize))
 
       try {
-        // Sort chunks by index and combine
-        const sortedChunks = uploadedChunks.sort((a, b) => a - b)
-        const writeStream = createWriteStream(finalPath)
+        if (isR2 && uploadId) {
+          // Cloudflare R2 Multipart Complete
+          const uploadedParts = JSON.parse(session.uploadedChunks || '[]')
+          if (uploadedParts.length !== session.totalChunks) {
+            return NextResponse.json(
+              {
+                error: 'Not all chunks uploaded yet',
+                uploaded: uploadedParts.length,
+                total: session.totalChunks,
+              },
+              { status: 400 }
+            )
+          }
 
-        await new Promise<void>((resolve, reject) => {
-          writeStream.on('error', reject)
-          writeStream.on('finish', resolve)
+          // Complete the multipart upload on Cloudflare R2 (R2 combines parts instantly)
+          const completeResult = await completeMultipartUpload(r2Key, uploadId, uploadedParts)
+          finalVideoUrl = completeResult.url
+          storageProvider = 'r2'
+          storageKeyVal = r2Key
+        } else {
+          // Local fallback — combine files on disk
+          const uploadedChunks: number[] = JSON.parse(session.uploadedChunks || '[]')
+          if (uploadedChunks.length !== session.totalChunks) {
+            return NextResponse.json(
+              {
+                error: 'Not all chunks uploaded yet',
+                uploaded: uploadedChunks.length,
+                total: session.totalChunks,
+              },
+              { status: 400 }
+            )
+          }
 
-          try {
-            for (const chunkIndex of sortedChunks) {
-              const chunkPath = join(sessionDir, `chunk_${chunkIndex}`)
-              if (!existsSync(chunkPath)) {
-                throw new Error(`Chunk ${chunkIndex} is missing from disk`)
+          ensureDir(VIDEOS_DIR)
+          const sessionDir = join(CHUNKS_BASE_DIR, sessionId)
+          const finalPath = join(VIDEOS_DIR, `${videoId}.mp4`)
+
+          // Sort chunks by index and combine
+          const sortedChunks = uploadedChunks.sort((a, b) => a - b)
+          const writeStream = createWriteStream(finalPath)
+
+          await new Promise<void>((resolve, reject) => {
+            writeStream.on('error', reject)
+            writeStream.on('finish', resolve)
+
+            try {
+              for (const chunkIndex of sortedChunks) {
+                const chunkPath = join(sessionDir, `chunk_${chunkIndex}`)
+                if (!existsSync(chunkPath)) {
+                  throw new Error(`Chunk ${chunkIndex} is missing from disk`)
+                }
+                const chunkData = readFileSync(chunkPath)
+                writeStream.write(chunkData)
               }
-              const chunkData = readFileSync(chunkPath)
-              writeStream.write(chunkData)
+              writeStream.end()
+            } catch (err) {
+              writeStream.destroy()
+              reject(err)
             }
-            writeStream.end()
-          } catch (err) {
-            writeStream.destroy()
-            reject(err)
+          })
+
+          // Clean up local chunks
+          for (const chunkIndex of sortedChunks) {
+            const chunkPath = join(sessionDir, `chunk_${chunkIndex}`)
+            try { unlinkSync(chunkPath) } catch { /* ignore */ }
           }
-        })
+          try { rmdirSync(sessionDir) } catch { /* ignore */ }
 
-        // Clean up chunks
-        for (const chunkIndex of sortedChunks) {
-          const chunkPath = join(sessionDir, `chunk_${chunkIndex}`)
-          try { unlinkSync(chunkPath) } catch { /* ignore */ }
-        }
-        try { rmdirSync(sessionDir) } catch { /* ignore */ }
-
-        // Estimate duration from file size (rough estimate: ~1MB per 10 sec for 1080p)
-        const estimatedDuration = Math.round((Number(session.fileSize) / (1024 * 1024)) * 10)
-        const midrollTimings = generateMidrollTimings(estimatedDuration)
-
-        // Determine quality levels based on selected resolution, falling back to file size
-        const qualityLevels = getQualityLevelsForResolution(resolution || '1080p', Number(session.fileSize))
-
-        let finalVideoUrl = `/videos/${videoId}.mp4`
-        let storageProvider = 'local'
-        let storageKeyVal = `videos/${videoId}.mp4`
-
-        if (isR2) {
-          try {
-            // Upload the combined local file to Cloudflare R2
-            finalVideoUrl = await uploadLocalFileToR2(finalPath, r2Key, session.mimeType || 'video/mp4')
-            storageProvider = 'r2'
-            storageKeyVal = r2Key
-
-            // Delete local assembled file after successful R2 upload
-            try { unlinkSync(finalPath) } catch { /* ignore */ }
-          } catch (r2UploadError) {
-            console.error('R2 upload failed, falling back to local storage:', r2UploadError)
-            finalVideoUrl = `/videos/${videoId}.mp4`
-            storageProvider = 'local'
-            storageKeyVal = `videos/${videoId}.mp4`
-          }
+          finalVideoUrl = `/videos/${videoId}.mp4`
+          storageProvider = 'local'
+          storageKeyVal = `videos/${videoId}.mp4`
         }
 
-        // Create Video record
+        // Create Video record in Database
         const video = await db.video.create({
           data: {
             title: title || session.fileName.replace(/\.[^/.]+$/, ''), // Remove extension
@@ -305,7 +295,6 @@ export async function POST(request: NextRequest) {
           data: {
             status: 'completed',
             videoId: video.id,
-            storageKey: storageKeyVal,
           },
         })
 
@@ -348,7 +337,7 @@ export async function POST(request: NextRequest) {
       console.error('Failed to write POST error to log file:', e)
     }
     return NextResponse.json(
-      { error: 'Upload operation failed' },
+      { error: `Upload operation failed: ${error?.message || error}` },
       { status: 500 }
     )
   }
@@ -398,6 +387,21 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    // Parse storage parameters
+    let isR2 = false
+    let uploadId = ''
+    let r2Key = ''
+    if (session.storageKey) {
+      try {
+        const parsed = JSON.parse(session.storageKey)
+        if (parsed.provider === 'r2') {
+          isR2 = true
+          uploadId = parsed.uploadId
+          r2Key = parsed.r2Key
+        }
+      } catch {}
+    }
+
     // Read chunk data — support both raw binary and form data
     const contentType = request.headers.get('content-type') || ''
     let chunkData: Buffer
@@ -419,35 +423,64 @@ export async function PUT(request: NextRequest) {
       chunkData = Buffer.from(arrayBuffer)
     }
 
-    // Save chunk to disk (always local temp storage during upload phase)
-    const sessionDir = join(CHUNKS_BASE_DIR, sessionId)
-    ensureDir(sessionDir)
-    const chunkPath = join(sessionDir, `chunk_${chunkIndex}`)
-    writeFileSync(chunkPath, chunkData)
+    if (isR2 && uploadId) {
+      // Cloudflare R2 chunk upload (proxied to R2 in real-time — stateless and serverless safe!)
+      const partNumber = chunkIndex + 1
+      const uploadResult = await uploadPart(r2Key, uploadId, partNumber, chunkData)
 
-    const uploadedChunks: number[] = JSON.parse(session.uploadedChunks)
-    if (!uploadedChunks.includes(chunkIndex)) {
-      uploadedChunks.push(chunkIndex)
+      // Store the etag in the database
+      const uploadedChunksParsed = JSON.parse(session.uploadedChunks || '[]')
+      // Remove any existing entry for this part index (for retry robustness)
+      const filteredParts = uploadedChunksParsed.filter((p: any) => p.partNumber !== partNumber)
+      filteredParts.push({ partNumber, etag: uploadResult.etag })
+
+      await db.uploadSession.update({
+        where: { id: sessionId },
+        data: {
+          uploadedChunks: JSON.stringify(filteredParts.sort((a: any, b: any) => a.partNumber - b.partNumber)),
+          status: 'uploading',
+        },
+      })
+
+      return NextResponse.json({
+        sessionId,
+        chunkIndex,
+        received: true,
+        uploadedChunks: filteredParts.length,
+        totalChunks: session.totalChunks,
+        progress: Math.round((filteredParts.length / session.totalChunks) * 100),
+      })
+    } else {
+      // Local fallback mode — save chunk to local disk
+      ensureDir(CHUNKS_BASE_DIR)
+      const sessionDir = join(CHUNKS_BASE_DIR, sessionId)
+      ensureDir(sessionDir)
+
+      const chunkPath = join(sessionDir, `chunk_${chunkIndex}`)
+      writeFileSync(chunkPath, chunkData)
+
+      const uploadedChunksParsed = JSON.parse(session.uploadedChunks || '[]')
+      if (!uploadedChunksParsed.includes(chunkIndex)) {
+        uploadedChunksParsed.push(chunkIndex)
+      }
+
+      await db.uploadSession.update({
+        where: { id: sessionId },
+        data: {
+          uploadedChunks: JSON.stringify(uploadedChunksParsed.sort((a: number, b: number) => a - b)),
+          status: 'uploading',
+        },
+      })
+
+      return NextResponse.json({
+        sessionId,
+        chunkIndex,
+        received: true,
+        uploadedChunks: uploadedChunksParsed.length,
+        totalChunks: session.totalChunks,
+        progress: Math.round((uploadedChunksParsed.length / session.totalChunks) * 100),
+      })
     }
-
-    const newStatus = uploadedChunks.length === session.totalChunks ? 'uploading' : 'uploading'
-
-    await db.uploadSession.update({
-      where: { id: sessionId },
-      data: {
-        uploadedChunks: JSON.stringify(uploadedChunks.sort((a, b) => a - b)),
-        status: newStatus,
-      },
-    })
-
-    return NextResponse.json({
-      sessionId,
-      chunkIndex,
-      received: true,
-      uploadedChunks: uploadedChunks.length,
-      totalChunks: session.totalChunks,
-      progress: Math.round((uploadedChunks.length / session.totalChunks) * 100),
-    })
   } catch (error: any) {
     console.error('Error in upload PUT:', error)
     try {
@@ -458,7 +491,7 @@ export async function PUT(request: NextRequest) {
       console.error('Failed to write PUT error to log file:', e)
     }
     return NextResponse.json(
-      { error: 'Chunk upload failed' },
+      { error: `Chunk upload failed: ${error?.message || error}` },
       { status: 500 }
     )
   }
@@ -492,7 +525,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const uploadedChunks: number[] = JSON.parse(session.uploadedChunks)
+    const uploadedChunks: any[] = JSON.parse(session.uploadedChunks || '[]')
     const progress = Math.round((uploadedChunks.length / session.totalChunks) * 100)
 
     return NextResponse.json({
@@ -507,10 +540,10 @@ export async function GET(request: NextRequest) {
       createdAt: session.createdAt,
       updatedAt: session.updatedAt,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in upload GET:', error)
     return NextResponse.json(
-      { error: 'Failed to get upload progress' },
+      { error: `Failed to get upload progress: ${error?.message || error}` },
       { status: 500 }
     )
   }
