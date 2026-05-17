@@ -216,7 +216,7 @@ export function AnalyticsPage({ data, loading }: AnalyticsPageProps) {
         >
           <h3 className="text-lg font-semibold text-white mb-4">Traffic Overview</h3>
           <div className="h-64 md:h-72">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="100%">
               <AreaChart data={trafficData}>
                 <defs>
                   <linearGradient id="trafficGradient" x1="0" y1="0" x2="0" y2="1">
@@ -250,7 +250,7 @@ export function AnalyticsPage({ data, loading }: AnalyticsPageProps) {
         >
           <h3 className="text-lg font-semibold text-white mb-4">Revenue Analytics</h3>
           <div className="h-64 md:h-72">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="100%">
               <AreaChart data={data.revenueGraph}>
                 <defs>
                   <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
@@ -281,7 +281,7 @@ export function AnalyticsPage({ data, loading }: AnalyticsPageProps) {
         >
           <h3 className="text-lg font-semibold text-white mb-4">User Growth</h3>
           <div className="h-64 md:h-72">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="100%">
               <LineChart data={userGrowthData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f1f1f" />
                 <XAxis dataKey="month" stroke="#9ca3af" fontSize={11} tickLine={false} axisLine={false} />
@@ -310,7 +310,7 @@ export function AnalyticsPage({ data, loading }: AnalyticsPageProps) {
         >
           <h3 className="text-lg font-semibold text-white mb-4">Traffic Sources</h3>
           <div className="h-64 md:h-72">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="100%">
               <PieChart>
                 <Pie
                   data={deviceData}
@@ -346,7 +346,7 @@ export function AnalyticsPage({ data, loading }: AnalyticsPageProps) {
         >
           <h3 className="text-lg font-semibold text-white mb-4">Ad Performance</h3>
           <div className="h-64 md:h-72">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="100%">
               <BarChart data={adPerfData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f1f1f" />
                 <XAxis dataKey="type" stroke="#9ca3af" fontSize={11} tickLine={false} axisLine={false} />

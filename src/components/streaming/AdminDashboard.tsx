@@ -379,7 +379,7 @@ export const AdminDashboard = memo(function AdminDashboard({ data, loading }: Ad
           }
         >
           <div className="h-44">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="100%">
               <LineChart data={performanceData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" vertical={false} />
                 <XAxis dataKey="date" stroke="#9ca3af" fontSize={10} tickLine={false} axisLine={false} tick={{ fill: '#666' }} />
@@ -397,7 +397,7 @@ export const AdminDashboard = memo(function AdminDashboard({ data, loading }: Ad
         {/* Traffic Source */}
         <SectionCard title="Traffic Source" delay={0.35}>
           <div className="h-44">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="100%">
               <PieChart>
                 <Pie
                   data={trafficSourceData}
@@ -451,7 +451,7 @@ export const AdminDashboard = memo(function AdminDashboard({ data, loading }: Ad
         {/* User Device */}
         <SectionCard title="User Device" delay={0.4}>
           <div className="h-44">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="100%">
               <PieChart>
                 <Pie
                   data={userDeviceData}
@@ -873,7 +873,7 @@ export const AdminDashboard = memo(function AdminDashboard({ data, loading }: Ad
           <span className="text-[10px] text-white/30">from last 30 days</span>
         </div>
         <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="99%" height="100%">
             <AreaChart data={data.revenueGraph}>
               <defs>
                 <linearGradient id="revenueOverviewGradient" x1="0" y1="0" x2="0" y2="1">

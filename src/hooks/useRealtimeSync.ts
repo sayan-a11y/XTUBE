@@ -1,13 +1,19 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 
 export function useRealtimeSync(onEvent?: (type: string, data: any) => void) {
+  const onEventRef = useRef(onEvent)
+
+  // Keep the latest callback updated in ref
+  useEffect(() => {
+    onEventRef.current = onEvent
+  }, [onEvent])
+
   useEffect(() => {
     if (typeof window === 'undefined') return
 
     // 1. Establish Local Server-Sent Events (SSE) stream connection
     const eventSource = new EventSource('/api/realtime')
-
 
     eventSource.onmessage = (event) => {
       try {
@@ -19,8 +25,8 @@ export function useRealtimeSync(onEvent?: (type: string, data: any) => void) {
           })
           window.dispatchEvent(customEvent)
 
-          if (onEvent) {
-            onEvent(payload.type, payload.data)
+          if (onEventRef.current) {
+            onEventRef.current(payload.type, payload.data)
           }
         }
       } catch (err) {
@@ -52,8 +58,8 @@ export function useRealtimeSync(onEvent?: (type: string, data: any) => void) {
               })
               window.dispatchEvent(customEvent)
 
-              if (onEvent) {
-                onEvent(type, data)
+              if (onEventRef.current) {
+                onEventRef.current(type, data)
               }
             }
           )
@@ -73,5 +79,5 @@ export function useRealtimeSync(onEvent?: (type: string, data: any) => void) {
         }
       }
     }
-  }, [onEvent])
+  }, [])
 }

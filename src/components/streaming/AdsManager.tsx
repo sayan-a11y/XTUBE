@@ -592,7 +592,7 @@ export function AdsManager({ ads, onCreate, onDelete, onToggle, loading }: AdsMa
             </div>
             {chartData.length > 0 ? (
               <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="99%" height="100%">
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.02)" />
                     <XAxis dataKey="name" stroke="#9ca3af" fontSize={9} tickLine={false} axisLine={false} />

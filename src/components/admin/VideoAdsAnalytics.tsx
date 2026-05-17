@@ -442,7 +442,7 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
           }
         >
           <div className="h-64 md:h-72">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="100%">
               <AreaChart data={getFilteredRevenueData()}>
                 <defs>
                   <linearGradient id="adRevenueGradient" x1="0" y1="0" x2="0" y2="1">
@@ -483,7 +483,7 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
           }
         >
           <div className="h-64 md:h-72">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="100%">
               <LineChart data={getFilteredCTRData()}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" vertical={false} />
                 <XAxis dataKey="date" stroke="#666" fontSize={10} tickLine={false} axisLine={false} tick={{ fill: '#666' }} />
@@ -525,7 +525,7 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
           }
         >
           <div className="h-64 md:h-72">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="99%" height="100%">
               <BarChart data={impressionsGraphData}>
                 <defs>
                   <linearGradient id="preRollGrad" x1="0" y1="0" x2="0" y2="1">
@@ -566,7 +566,7 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
         >
           <div className="flex flex-col items-center gap-3 md:flex-row md:items-start md:gap-4">
             <div className="h-44 w-full md:h-64 md:w-1/2">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="99%" height="100%">
                 <PieChart>
                   <Pie
                     data={deviceAnalyticsData}

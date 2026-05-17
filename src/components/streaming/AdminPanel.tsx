@@ -472,9 +472,12 @@ export function AdminPanel() {
   const [adminVideos, setAdminVideos] = useState<any[]>([])
   const [adminAds, setAdminAds] = useState<any[]>([])
   const [dataLoading, setDataLoading] = useState(true)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
 
   const fetchAdminData = useCallback(async () => {
-    setDataLoading(true)
+    if (isInitialLoad) {
+      setDataLoading(true)
+    }
     try {
       const [analyticsRes, videosRes, adsRes] = await Promise.all([
         fetch('/api/analytics'),
@@ -500,8 +503,9 @@ export function AdminPanel() {
       console.error('Error fetching admin data:', err)
     } finally {
       setDataLoading(false)
+      setIsInitialLoad(false)
     }
-  }, [])
+  }, [isInitialLoad])
 
   useEffect(() => {
     if (adminUnlocked) {

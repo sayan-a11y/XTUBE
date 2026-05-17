@@ -335,7 +335,7 @@ export function AllAdsPage() {
                 <span className="text-[10px] text-white/30">156 Total Ads</span>
               </div>
               <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="99%" height="100%">
                   <PieChart>
                     <Pie data={donutData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={2} dataKey="value" stroke="none">
                       {donutData.map((entry, index) => (
@@ -405,7 +405,7 @@ export function AllAdsPage() {
                 </Select>
               </div>
               <div className="h-44">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="99%" height="100%">
                   <BarChart data={impressionsData} barSize={14}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
                     <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.25)' }} axisLine={false} tickLine={false} interval={3} />
@@ -450,7 +450,7 @@ export function AllAdsPage() {
                 </Select>
               </div>
               <div className="h-44">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="99%" height="100%">
                   <AreaChart data={revenueData}>
                     <defs>
                       <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">

@@ -1007,7 +1007,7 @@ export function HeroAdsPage() {
                   <button className="text-[10px] text-white/30 hover:text-white/50">All Time</button>
                 </div>
                 <div className="h-44">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="99%" height="100%">
                     <PieChart>
                       <Pie
                         data={donutData}
