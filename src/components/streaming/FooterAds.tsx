@@ -173,9 +173,9 @@ function FooterAdCard({ ad, onClose }: { ad: FooterAdItem; onClose: () => void }
           will-change-transform
         `}
       >
-        {/* Background ambient blurring glow (adds extreme cinematic depth) */}
+        {/* Background ambient blurring glow (disabled on mobile/tablet to eliminate performance lag) */}
         {ad.adType === 'video' ? (
-          <div className="absolute inset-0 z-0 select-none pointer-events-none overflow-hidden opacity-20">
+          <div className="hidden md:block absolute inset-0 z-0 select-none pointer-events-none overflow-hidden opacity-20">
             <video
               src={ad.mediaUrl}
               autoPlay
@@ -186,7 +186,7 @@ function FooterAdCard({ ad, onClose }: { ad: FooterAdItem; onClose: () => void }
             />
           </div>
         ) : ad.adType === 'image' || ad.adType === 'gif' ? (
-          <div className="absolute inset-0 z-0 select-none pointer-events-none overflow-hidden opacity-20">
+          <div className="hidden md:block absolute inset-0 z-0 select-none pointer-events-none overflow-hidden opacity-20">
             <img
               src={ad.mediaUrl}
               alt=""
@@ -198,14 +198,14 @@ function FooterAdCard({ ad, onClose }: { ad: FooterAdItem; onClose: () => void }
         {/* Cinematic Linear Gradient overlay to shield text legibility */}
         <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/40 to-transparent z-10 pointer-events-none" />
 
-        {/* Interactive Close (X) button at the top-right */}
+        {/* Interactive Close (X) button (hidden on mobile as requested) */}
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation()
             onClose()
           }}
-          className="absolute top-2 right-2 sm:top-3 sm:right-3 z-30 flex items-center justify-center h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-black/60 hover:bg-black/90 border border-white/10 text-white/70 hover:text-white transition-all hover:scale-105 active:scale-95 backdrop-blur-md"
+          className="absolute top-2 right-2 sm:top-3 sm:right-3 z-30 hidden sm:flex items-center justify-center h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-black/60 hover:bg-black/90 border border-white/10 text-white/70 hover:text-white transition-all hover:scale-105 active:scale-95 backdrop-blur-md"
           aria-label="Dismiss Campaign"
         >
           <X className="h-3.5 w-3.5" />
