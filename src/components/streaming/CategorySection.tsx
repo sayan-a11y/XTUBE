@@ -114,12 +114,12 @@ export const CategorySection = memo(function CategorySection({ title, category, 
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="no-scrollbar flex gap-3 overflow-x-auto scroll-smooth pb-2"
+          className="no-scrollbar flex gap-3 overflow-x-auto scroll-smooth pb-2 [will-change:transform] [transform:translate3d(0,0,0)] [-webkit-overflow-scrolling:touch]"
         >
           {videos.map((video) => (
             <div
               key={video.id}
-              className="w-[200px] flex-shrink-0 sm:w-[220px] md:w-[240px] lg:w-[260px]"
+              className="w-[200px] flex-shrink-0 sm:w-[220px] md:w-[240px] lg:w-[260px] [content-visibility:auto] [contain-intrinsic-size:240px_135px]"
             >
               <VideoCard {...video} />
             </div>

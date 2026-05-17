@@ -248,37 +248,36 @@ export function XtubeHomeClient() {
     }
   }, [fetchVideos, fetchCategories, fetchAds, fetchHeroAds, fetchFooterAds]))
 
-  // ─── Seed Database ─────────────────────────────────────────────────────────
-
+  // ─── Seed Database (Non-blocking background check) ─────────────────────────
   useEffect(() => {
-    let cancelled = false
-    async function seedDB() {
-      try {
-        const res = await fetch('/api/seed', { method: 'POST' })
-        if (!cancelled && res.ok) {
-          setSeeded(true)
-        }
-      } catch (err) {
-        console.error('Seed error:', err)
-        if (!cancelled) setSeeded(true)
-      }
-    }
-    seedDB()
-    return () => { cancelled = true }
+    fetch('/api/seed', { method: 'POST' }).catch((err) => {
+      console.warn('Background seed check completed/skipped:', err)
+    })
   }, [])
 
-  // ─── Load initial data ─────────────────────────────────────────────────────
-
+  // ─── Load initial data (Instant on mount) ───────────────────────────────────
   useEffect(() => {
-    if (!seeded) return
     let cancelled = false
     const loadData = async () => {
-      await Promise.all([fetchVideos(), fetchCategories(), fetchAds(), fetchHeroAds(), fetchFooterAds()])
-      if (!cancelled) setLoading(false)
+      try {
+        await Promise.all([
+          fetchVideos(),
+          fetchCategories(),
+          fetchAds(),
+          fetchHeroAds(),
+          fetchFooterAds(),
+        ])
+      } catch (err) {
+        console.error('Error fetching initial page data:', err)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
     loadData()
-    return () => { cancelled = true }
-  }, [seeded, fetchVideos, fetchCategories, fetchAds, fetchHeroAds, fetchFooterAds])
+    return () => {
+      cancelled = true
+    }
+  }, [fetchVideos, fetchCategories, fetchAds, fetchHeroAds, fetchFooterAds])
 
   // ─── Load video when selected ──────────────────────────────────────────────
 
