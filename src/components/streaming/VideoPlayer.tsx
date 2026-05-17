@@ -1201,7 +1201,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
                   {/* ─── Progress Bar ──────────────────────────────────── */}
                   <div
                     ref={progressRef}
-                    className="group/progress mb-2 sm:mb-3 relative cursor-pointer"
+                    className="group/progress mb-2 sm:mb-3 relative cursor-pointer h-4 flex items-center w-full"
                     onPointerDown={handleProgressPointerDown}
                     onPointerMove={handleProgressPointerMove}
                     onPointerUp={handleProgressPointerUp}
@@ -1218,7 +1218,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
                     {/* Expanded touch target (invisible, easier to grab on mobile) */}
                     <div className="absolute -top-3 -bottom-3 left-0 right-0" />
                     {/* Track background */}
-                    <div className="h-1 sm:h-1.5 rounded-full bg-white/20 transition-all group-hover/progress:h-2 sm:group-hover/progress:h-2.5">
+                    <div className="w-full relative h-1 sm:h-1.5 rounded-full bg-white/20 transition-all group-hover/progress:h-2 sm:group-hover/progress:h-2.5">
                       {/* Buffered */}
                       <div
                         className="absolute top-0 left-0 h-full rounded-full bg-white/20 transition-[width] duration-150"
