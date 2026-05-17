@@ -94,10 +94,19 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
 
   const hasMultipleAds = visibleAds.length > 1
 
+  // Reset index if out of bounds (e.g. ad array shrinks)
+  useEffect(() => {
+    if (currentIndex >= visibleAds.length && visibleAds.length > 0) {
+      setCurrentIndex(0)
+    }
+  }, [visibleAds.length, currentIndex])
+
+  const safeIndex = currentIndex < visibleAds.length ? currentIndex : 0
+
   /* ── Derived indices ── */
   const nextIndex = useMemo(
-    () => (currentIndex + 1) % visibleAds.length,
-    [currentIndex, visibleAds.length],
+    () => visibleAds.length > 0 ? (safeIndex + 1) % visibleAds.length : 0,
+    [safeIndex, visibleAds.length],
   )
 
   /* ── Go to slide ── */
@@ -112,10 +121,12 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
   )
 
   const goToNext = useCallback(() => {
+    if (!visibleAds.length) return
     setCurrentIndex((prev) => (prev + 1) % visibleAds.length)
   }, [visibleAds.length])
 
   const goToPrev = useCallback(() => {
+    if (!visibleAds.length) return
     setCurrentIndex((prev) => (prev - 1 + visibleAds.length) % visibleAds.length)
   }, [visibleAds.length])
 
@@ -160,7 +171,7 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
 
   useEffect(() => {
     if (!visibleAds.length) return
-    const currentAd = visibleAds[currentIndex]
+    const currentAd = visibleAds[safeIndex]
     if (!currentAd || impressionFiredRef.current.has(currentAd.id)) return
 
     // Fire impression once per ad
@@ -173,10 +184,11 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
     }).catch(() => {
       // Silently fail — tracking should not break UI
     })
-  }, [currentIndex, visibleAds])
+  }, [safeIndex, visibleAds])
 
   const handleWatchNow = useCallback(() => {
-    const currentAd = visibleAds[currentIndex]
+    if (!visibleAds.length) return
+    const currentAd = visibleAds[safeIndex]
     if (!currentAd) return
 
     // Track click
@@ -190,13 +202,13 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
     if (currentAd.linkUrl) {
       window.open(currentAd.linkUrl, '_blank', 'noopener,noreferrer')
     }
-  }, [currentIndex, visibleAds])
+  }, [safeIndex, visibleAds])
 
   /* ── Video: pause when not active, play when active ── */
   useEffect(() => {
     Object.entries(videoRefs.current).forEach(([id, video]) => {
       if (!video) return
-      const ad = visibleAds[currentIndex]
+      const ad = visibleAds[safeIndex]
       if (ad && id === ad.id && ad.adType === 'video') {
         const timer = setTimeout(() => {
           video.play().catch(() => {})
@@ -206,7 +218,7 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
         video.pause()
       }
     })
-  }, [currentIndex, visibleAds])
+  }, [safeIndex, visibleAds])
 
   /* ── Touch / Swipe support ── */
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -341,7 +353,7 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
     )
   }
 
-  const currentAd = visibleAds[currentIndex]
+  const currentAd = visibleAds[safeIndex]
 
   /* ────────────────────────────────────────────
      Render

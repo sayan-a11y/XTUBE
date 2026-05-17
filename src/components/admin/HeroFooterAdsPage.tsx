@@ -374,6 +374,8 @@ export function HeroFooterAdsPage() {
       if (res.ok) {
         setAdTitle('')
         setAdLink('')
+        setStartDate('')
+        setEndDate('')
         handleResetUpload()
         fetchData()
         alert(`${isHero ? 'Hero' : 'Footer'} ad saved successfully!`)
@@ -676,6 +678,27 @@ export function HeroFooterAdsPage() {
                     />
                   </div>
                 )}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-white/50">Start Date (Open Time)</label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#ff1e1e]/40 [color-scheme:dark]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-white/50">End Date (Close Time)</label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#ff1e1e]/40 [color-scheme:dark]"
+                    />
+                  </div>
+                </div>
 
                 <motion.button
                   onClick={handleSaveAd}
