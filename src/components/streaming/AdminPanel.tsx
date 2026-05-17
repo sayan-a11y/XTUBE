@@ -543,6 +543,53 @@ export function AdminPanel() {
     }
   }, [adminUnlocked, fetchAdminData])
 
+  // Stagger-prefetch all lazy-loaded admin subpages in the background for 0.0s click transition speeds!
+  useEffect(() => {
+    if (adminUnlocked && adminLoggedIn) {
+      const prefetchSubpages = () => {
+        const subpages = [
+          () => import('@/components/admin/AnalyticsPage'),
+          () => import('@/components/admin/UsersPage'),
+          () => import('@/components/admin/SettingsPage'),
+          () => import('@/components/admin/CatalogPage'),
+          () => import('@/components/admin/VideoAdsAnalytics'),
+          () => import('@/components/admin/VideoUploadPage'),
+          () => import('@/components/admin/PreRollAdsPage'),
+          () => import('@/components/admin/MidRollAdsPage'),
+          () => import('@/components/admin/PostRollAdsPage'),
+          () => import('@/components/admin/OverlayAdsPage'),
+          () => import('@/components/admin/PopupAdsPage'),
+          () => import('@/components/admin/BannerAdsPage'),
+          () => import('@/components/admin/HeroFooterAdsPage'),
+          () => import('@/components/admin/HeroAdsPage'),
+          () => import('@/components/admin/AllAdsPage'),
+          () => import('@/components/admin/LiveTVPage'),
+          () => import('@/components/admin/TransactionsPage'),
+          () => import('@/components/admin/ReportsPage'),
+          () => import('@/components/admin/SystemLogsPage'),
+        ]
+        
+        const loadWithDelay = (index: number) => {
+          if (index >= subpages.length) return
+          setTimeout(() => {
+            subpages[index]().catch(() => {})
+            loadWithDelay(index + 1)
+          }, 100) // 100ms stagger interval
+        }
+
+        if (typeof window !== 'undefined') {
+          if ('requestIdleCallback' in window) {
+            (window as any).requestIdleCallback(() => loadWithDelay(0))
+          } else {
+            loadWithDelay(0)
+          }
+        }
+      }
+
+      prefetchSubpages()
+    }
+  }, [adminUnlocked, adminLoggedIn])
+
   // Enable dynamic automatic Server-Sent Events (SSE) database sync in real-time
   useRealtimeSync(useCallback(() => {
     fetchAdminData()

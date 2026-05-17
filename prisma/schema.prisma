@@ -127,6 +127,10 @@ model Ad {
   quality      String  @default("720p") // ad quality
 
   videoAds VideoAd[]
+
+  @@index([isActive])
+  @@index([type])
+  @@index([position])
 }
 
 model VideoAd {
@@ -199,6 +203,8 @@ model HeroAd {
   endDate      DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@index([isActive])
 }
 
 model FooterAd {
@@ -217,6 +223,8 @@ model FooterAd {
   endDate      DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@index([isActive])
 }
 
 model Analytics {
