@@ -37,8 +37,10 @@ function generateMidrollTimings(durationSeconds: number): number[] {
  */
 export async function POST(request: NextRequest) {
   try {
-    ensureDir(CHUNKS_BASE_DIR)
-    ensureDir(VIDEOS_DIR)
+    if (!isR2Configured()) {
+      ensureDir(CHUNKS_BASE_DIR)
+      ensureDir(VIDEOS_DIR)
+    }
 
     const contentType = request.headers.get('content-type') || ''
 

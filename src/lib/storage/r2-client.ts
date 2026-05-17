@@ -130,11 +130,27 @@ function signRequest(
   headers: Record<string, string>,
   bodyHash: string,
   timestamp: Date,
+  queryString = '',
   region = 'auto',
   service = 's3'
 ): Record<string, string> {
   const dateStamp = timestamp.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
   const dateOnly = dateStamp.substring(0, 8)
+
+  // Canonical query string
+  let canonicalQueryString = ''
+  if (queryString) {
+    const params = new URLSearchParams(queryString)
+    const sortedKeys = Array.from(params.keys()).sort()
+    canonicalQueryString = sortedKeys
+      .map((key) => {
+        const val = params.get(key)
+        const encodedKey = encodeURIComponent(key)
+        const encodedVal = val !== null ? encodeURIComponent(val).replace(/\+/g, '%20') : ''
+        return `${encodedKey}=${encodedVal}`
+      })
+      .join('&')
+  }
 
   // Canonical request
   const canonicalHeaders = Object.keys(headers)
@@ -149,7 +165,7 @@ function signRequest(
   const canonicalRequest = [
     method,
     path,
-    '', // query string (handled separately for presigned)
+    canonicalQueryString,
     canonicalHeaders,
     '',
     signedHeaders,
@@ -308,7 +324,7 @@ async function r2Fetch(
   extraHeaders?: Record<string, string>
 ): Promise<Response> {
   const url = `${R2_BASE_URL}/${R2_BUCKET_NAME}/${key}`
-  const host = `${R2_BUCKET_NAME}.${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+  const host = R2_ACCOUNT_ID ? `${R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : ''
 
   const headers: Record<string, string> = {
     Host: host,
@@ -374,7 +390,7 @@ async function initMultipartUploadR2(
   fileName: string
 ): Promise<InitUploadResult> {
   // Initiate multipart upload with R2/S3 API
-  const host = `${R2_BUCKET_NAME}.${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+  const host = R2_ACCOUNT_ID ? `${R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : ''
   const path = `/${R2_BUCKET_NAME}/${key}?uploads`
 
   const headers: Record<string, string> = {
@@ -383,7 +399,7 @@ async function initMultipartUploadR2(
   }
 
   const bodyHash = sha256Hex('')
-  const signedHeaders = signRequest('POST', `/${R2_BUCKET_NAME}/${key}`, headers, bodyHash, new Date())
+  const signedHeaders = signRequest('POST', `/${R2_BUCKET_NAME}/${key}`, headers, bodyHash, new Date(), 'uploads')
 
   const url = `${R2_BASE_URL}/${R2_BUCKET_NAME}/${key}?uploads`
   const response = await fetch(url, {
@@ -500,7 +516,7 @@ async function uploadPartR2(
   data: Buffer | ArrayBuffer
 ): Promise<UploadPartResult> {
   // Upload part to R2 via S3 API
-  const host = `${R2_BUCKET_NAME}.${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+  const host = R2_ACCOUNT_ID ? `${R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : ''
   const queryStr = `partNumber=${partNumber}&uploadId=${encodeURIComponent(uploadId)}`
   const path = `/${R2_BUCKET_NAME}/${key}?${queryStr}`
 
@@ -513,7 +529,7 @@ async function uploadPartR2(
   }
 
   const bodyHash = 'UNSIGNED-PAYLOAD'
-  const signedHeaders = signRequest('PUT', `/${R2_BUCKET_NAME}/${key}`, headers, bodyHash, new Date())
+  const signedHeaders = signRequest('PUT', `/${R2_BUCKET_NAME}/${key}`, headers, bodyHash, new Date(), queryStr)
 
   const url = `${R2_BASE_URL}/${R2_BUCKET_NAME}/${key}?${queryStr}`
   const response = await fetch(url, {
@@ -610,7 +626,7 @@ async function completeMultipartUploadR2(
 
   const body = `<CompleteMultipartUpload>${partsXml}</CompleteMultipartUpload>`
 
-  const host = `${R2_BUCKET_NAME}.${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+  const host = R2_ACCOUNT_ID ? `${R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : ''
   const queryStr = `uploadId=${encodeURIComponent(uploadId)}`
   const path = `/${R2_BUCKET_NAME}/${key}?${queryStr}`
 
@@ -620,7 +636,7 @@ async function completeMultipartUploadR2(
   }
 
   const bodyHash = sha256Hex(body)
-  const signedHeaders = signRequest('POST', `/${R2_BUCKET_NAME}/${key}`, headers, bodyHash, new Date())
+  const signedHeaders = signRequest('POST', `/${R2_BUCKET_NAME}/${key}`, headers, bodyHash, new Date(), queryStr)
 
   const url = `${R2_BASE_URL}/${R2_BUCKET_NAME}/${key}?${queryStr}`
   const response = await fetch(url, {
@@ -874,17 +890,18 @@ async function listObjectsR2(
   prefix: string,
   maxKeys: number
 ): Promise<Array<{ key: string; size: number; lastModified: string }>> {
-  const host = `${R2_BUCKET_NAME}.${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
-  const path = `/${R2_BUCKET_NAME}?list-type=2&prefix=${encodeURIComponent(prefix)}&max-keys=${maxKeys}`
+  const host = R2_ACCOUNT_ID ? `${R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : ''
+  const queryStr = `list-type=2&prefix=${encodeURIComponent(prefix)}&max-keys=${maxKeys}`
+  const path = `/${R2_BUCKET_NAME}?${queryStr}`
 
   const headers: Record<string, string> = {
     Host: host,
   }
 
   const bodyHash = sha256Hex('')
-  const signedHeaders = signRequest('GET', `/${R2_BUCKET_NAME}`, headers, bodyHash, new Date())
+  const signedHeaders = signRequest('GET', `/${R2_BUCKET_NAME}`, headers, bodyHash, new Date(), queryStr)
 
-  const url = `${R2_BASE_URL}${path}`
+  const url = `${R2_BASE_URL}/${R2_BUCKET_NAME}?${queryStr}`
   const response = await fetch(url, {
     method: 'GET',
     headers: signedHeaders,
