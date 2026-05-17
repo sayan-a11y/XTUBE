@@ -82,18 +82,24 @@ export async function POST(request: NextRequest) {
 
       const useR2 = isR2Configured()
       let r2Key = ''
-      let uploadId = 'direct'
-      let uploadUrl = ''
+      let uploadId = ''
+      let parts: Array<{ partNumber: number; uploadUrl: string }> = []
 
       if (useR2) {
         r2Key = generateStorageKey(fileName, 'video')
         try {
-          // Generate direct presigned PUT URL for single upload bypass
-          const signedRes = await getSignedUploadUrl(r2Key, 3600)
-          uploadUrl = signedRes.url
+          // Initialize direct browser-to-R2 parallel chunk upload bypass!
+          const initRes = await initMultipartUpload(
+            r2Key,
+            mimeType || 'video/mp4',
+            parsedFileSize,
+            'video',
+            fileName
+          )
+          uploadId = initRes.uploadId
+          parts = initRes.parts
         } catch (r2Error) {
-          console.error('Failed to generate direct R2 upload URL, falling back to local chunks:', r2Error)
-          uploadId = ''
+          console.error('Failed to initialize R2 multipart upload, falling back to local chunks:', r2Error)
         }
       }
 
@@ -102,27 +108,27 @@ export async function POST(request: NextRequest) {
           fileName,
           fileSize: BigInt(parsedFileSize),
           mimeType: mimeType || 'video/mp4',
-          chunkSize: uploadUrl ? parsedFileSize : chunkSize,
-          totalChunks: uploadUrl ? 1 : totalChunks,
+          chunkSize: uploadId ? (5 * 1024 * 1024) : chunkSize,
+          totalChunks: uploadId ? parts.length : totalChunks,
           status: 'pending',
           uploadedChunks: '[]',
           storageKey: JSON.stringify({
-            provider: uploadUrl ? 'r2' : 'local',
+            provider: uploadId ? 'r2' : 'local',
             r2Key,
-            uploadId: uploadUrl ? 'direct' : '',
+            uploadId,
           }),
         },
       })
 
       // Only create local session directory if using local fallback mode
-      if (!uploadUrl) {
+      if (!uploadId) {
         ensureDir(CHUNKS_BASE_DIR)
         const sessionDir = join(CHUNKS_BASE_DIR, session.id)
         ensureDir(sessionDir)
       }
 
       // Generate local chunk routing URLs (which will be proxied to R2 in real-time or saved locally)
-      const chunkUrls = uploadUrl ? [] : Array.from({ length: totalChunks }, (_, i) => ({
+      const chunkUrls = uploadId ? [] : Array.from({ length: totalChunks }, (_, i) => ({
         chunkIndex: i,
         uploadUrl: `/api/upload?chunkIndex=${i}&sessionId=${session.id}`,
         method: 'PUT',
@@ -130,11 +136,11 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         sessionId: session.id,
-        totalChunks: uploadUrl ? 1 : totalChunks,
-        chunkSize: uploadUrl ? parsedFileSize : chunkSize,
+        totalChunks: uploadId ? parts.length : totalChunks,
+        chunkSize: uploadId ? (5 * 1024 * 1024) : chunkSize,
         chunkUrls,
-        uploadUrl,
-        directUpload: !!uploadUrl,
+        parts: uploadId ? parts : [],
+        directUpload: !!uploadId,
         status: 'pending',
       }, { status: 201 })
     }
@@ -199,14 +205,10 @@ export async function POST(request: NextRequest) {
           storageKeyVal = r2Key
         } else if (isR2 && uploadId) {
           // Cloudflare R2 Multipart Complete
-          const uploadedParts = JSON.parse(session.uploadedChunks || '[]')
-          if (uploadedParts.length !== session.totalChunks) {
+          const uploadedParts = body.uploadedParts || JSON.parse(session.uploadedChunks || '[]')
+          if (uploadedParts.length === 0) {
             return NextResponse.json(
-              {
-                error: 'Not all chunks uploaded yet',
-                uploaded: uploadedParts.length,
-                total: session.totalChunks,
-              },
+              { error: 'No uploaded parts provided' },
               { status: 400 }
             )
           }

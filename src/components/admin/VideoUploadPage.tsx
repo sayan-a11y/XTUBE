@@ -340,50 +340,95 @@ export function VideoUploadPage() {
         throw new Error(`Session initialization failed: ${await initRes.text()}`)
       }
 
-      const { sessionId, chunkSize, totalChunks, uploadUrl, directUpload } = await initRes.json()
+      const { sessionId, chunkSize, totalChunks, parts, directUpload } = await initRes.json()
+      let uploadedPartEtags: Array<{ partNumber: number; etag: string }> = []
 
       // 2. Upload video
-      if (directUpload && uploadUrl) {
-        setUploadStatusText('Uploading video directly to R2 Storage...')
-        await new Promise<void>((resolve, reject) => {
-          const xhr = new XMLHttpRequest()
-          xhr.open('PUT', uploadUrl, true)
-          xhr.setRequestHeader('Content-Type', file.type || 'video/mp4')
+      if (directUpload && parts && parts.length > 0) {
+        setUploadStatusText('Uploading video chunks in parallel directly to R2 Storage...')
+        
+        const totalParts = parts.length
+        uploadedPartEtags = new Array(totalParts)
+        let totalUploadedBytes = 0
 
-          xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable) {
-              const progressPercent = Math.min((event.loaded / event.total) * 100, 100)
-              setUploadProgress(progressPercent)
+        // Spawn up to 4 parallel HTTP connections for ultra-fast speeds!
+        const CONCURRENCY = 4
+        let partIndexToUpload = 0
 
-              const elapsedSecs = (Date.now() - startTime) / 1000
-              const speedMBs = elapsedSecs > 0 ? (event.loaded / (1024 * 1024)) / elapsedSecs : 0
-              setUploadSpeed(`${speedMBs.toFixed(2)} MB/s`)
-              setUploadedSize(`${(event.loaded / (1024 * 1024 * 1024)).toFixed(2)} GB`)
+        const uploadPartWorker = async () => {
+          while (partIndexToUpload < totalParts) {
+            const currentIdx = partIndexToUpload++
+            const part = parts[currentIdx]
+            const partNumber = part.partNumber
 
-              const remainingBytes = file.size - event.loaded
-              const remainingSecs = speedMBs > 0 ? (remainingBytes / (1024 * 1024)) / speedMBs : 0
-              if (remainingSecs > 60) {
-                setUploadRemaining(`${Math.ceil(remainingSecs / 60)} mins left`)
-              } else {
-                setUploadRemaining(`${Math.ceil(remainingSecs)} secs left`)
+            const chunkStart = (partNumber - 1) * chunkSize
+            const chunkEnd = Math.min(file.size, partNumber * chunkSize)
+            const chunkSlice = file.slice(chunkStart, chunkEnd)
+
+            let retries = 0
+            const maxRetries = 5
+            let completed = false
+
+            while (!completed && retries < maxRetries) {
+              try {
+                const xhr = new XMLHttpRequest()
+                xhr.open('PUT', part.uploadUrl, true)
+                xhr.setRequestHeader('Content-Type', file.type || 'video/mp4')
+
+                const uploadPromise = new Promise<{ etag: string }>((resolve, reject) => {
+                  let lastLoaded = 0
+                  xhr.upload.onprogress = (event) => {
+                    if (event.lengthComputable) {
+                      const delta = event.loaded - lastLoaded
+                      lastLoaded = event.loaded
+                      totalUploadedBytes += delta
+
+                      const progressPercent = Math.min((totalUploadedBytes / file.size) * 100, 100)
+                      setUploadProgress(progressPercent)
+
+                      const elapsedSecs = (Date.now() - startTime) / 1000
+                      const speedMBs = elapsedSecs > 0 ? (totalUploadedBytes / (1024 * 1024)) / elapsedSecs : 0
+                      setUploadSpeed(`${speedMBs.toFixed(2)} MB/s`)
+                      setUploadedSize(`${(totalUploadedBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`)
+
+                      const remainingBytes = file.size - totalUploadedBytes
+                      const remainingSecs = speedMBs > 0 ? (remainingBytes / (1024 * 1024)) / speedMBs : 0
+                      if (remainingSecs > 60) {
+                        setUploadRemaining(`${Math.ceil(remainingSecs / 60)} mins left`)
+                      } else {
+                        setUploadRemaining(`${Math.ceil(remainingSecs)} secs left`)
+                      }
+                    }
+                  }
+                  xhr.onload = () => {
+                    if (xhr.status === 200 || xhr.status === 201) {
+                      const etag = xhr.getResponseHeader('ETag') || `"${Math.random().toString(36)}"`
+                      resolve({ etag })
+                    } else {
+                      reject(new Error(`Part upload failed with status ${xhr.status}`))
+                    }
+                  }
+                  xhr.onerror = () => reject(new Error('Network error on direct R2 upload'))
+                  xhr.send(chunkSlice)
+                })
+
+                const result = await uploadPromise
+                uploadedPartEtags[currentIdx] = { partNumber, etag: result.etag }
+                completed = true
+              } catch (err) {
+                retries++
+                console.warn(`Part ${partNumber} failed, attempt ${retries}:`, err)
+                if (retries >= maxRetries) throw err
+                await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, retries)))
               }
             }
           }
+        }
 
-          xhr.onload = () => {
-            if (xhr.status === 200 || xhr.status === 201) {
-              resolve()
-            } else {
-              reject(new Error(`Direct upload failed with status ${xhr.status}: ${xhr.responseText || 'Upload failed'}`))
-            }
-          }
+        // Spawn workers
+        const workers = Array.from({ length: Math.min(CONCURRENCY, totalParts) }, () => uploadPartWorker())
+        await Promise.all(workers)
 
-          xhr.onerror = () => {
-            reject(new Error('Network error occurred during direct upload to R2.'))
-          }
-
-          xhr.send(file)
-        })
       } else {
         // Fallback to local chunked upload loop
         let uploadedBytes = 0
@@ -487,6 +532,7 @@ export function VideoUploadPage() {
           duration,
           isHd: quality === '1080p' || quality === '1440p' || quality === '2k' || quality === '4k' || quality === '2K' || quality === '4K',
           resolution: quality,
+          uploadedParts: uploadedPartEtags.length > 0 ? uploadedPartEtags : undefined,
         }),
       })
 
