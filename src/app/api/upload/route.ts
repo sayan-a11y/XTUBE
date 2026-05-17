@@ -114,8 +114,10 @@ export async function POST(request: NextRequest) {
           const partCount = Math.max(1, Math.ceil(parsedFileSize / MIN_PART_SIZE))
           parts = Array.from({ length: partCount }, (_, i) => ({
             partNumber: i + 1,
-            uploadUrl: generatePresignedUrl(r2Key, 'PUT', 3600) +
-              `&partNumber=${i + 1}&uploadId=${encodeURIComponent(uploadId)}`,
+            uploadUrl: generatePresignedUrl(r2Key, 'PUT', 3600, 'auto', 's3', {
+              partNumber: String(i + 1),
+              uploadId,
+            }),
           }))
         }
 

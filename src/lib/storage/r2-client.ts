@@ -213,7 +213,8 @@ export function generatePresignedUrl(
   method: string,
   expiresInSeconds: number,
   region = 'auto',
-  service = 's3'
+  service = 's3',
+  extraParams: Record<string, string> = {}
 ): string {
   const timestamp = new Date()
   const dateStamp = timestamp.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
@@ -226,13 +227,14 @@ export function generatePresignedUrl(
   const scope = `${dateOnly}/${region}/${service}/aws4_request`
   const credential = `${R2_ACCESS_KEY_ID}/${scope}`
 
-  // Canonical query string
+  // Canonical query string (MUST include all parameters that will be present in the request!)
   const queryParams: Record<string, string> = {
     'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
     'X-Amz-Credential': credential,
     'X-Amz-Date': dateStamp,
     'X-Amz-Expires': expires,
     'X-Amz-SignedHeaders': 'host',
+    ...extraParams,
   }
 
   const sortedQuery = Object.keys(queryParams)
@@ -428,11 +430,13 @@ async function initMultipartUploadR2(
   const MIN_PART_SIZE = 5 * 1024 * 1024 // 5MB
   const partCount = Math.max(1, Math.ceil(fileSize / MIN_PART_SIZE))
 
-  // Generate presigned URLs for each part
+  // Generate presigned URLs for each part (including partNumber and uploadId in Signature V4!)
   const parts = Array.from({ length: partCount }, (_, i) => ({
     partNumber: i + 1,
-    uploadUrl: generatePresignedUrl(key, 'PUT', 3600) +
-      `&partNumber=${i + 1}&uploadId=${encodeURIComponent(uploadId)}`,
+    uploadUrl: generatePresignedUrl(key, 'PUT', 3600, 'auto', 's3', {
+      partNumber: String(i + 1),
+      uploadId,
+    }),
   }))
 
   // Track session in memory
