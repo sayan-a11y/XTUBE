@@ -186,18 +186,8 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
   
   // Custom date picker simulations
   const [dateRange, setDateRange] = useState('May 10, 2025 - Jun 10, 2025')
-  
-  // Tab states for new ad creation
-  const [uploadTab, setUploadTab] = useState<'video' | 'image'>('video')
-  const [uploadQuality, setUploadQuality] = useState('Auto')
+  // Active timeline video track
   const [timelineVideo, setTimelineVideo] = useState('video-ai-future')
-
-  // Real-time upload progress simulator values
-  const [uploading, setUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(49)
-  const [uploadSpeed, setUploadSpeed] = useState(2.5) // MB/s
-  const [uploadRemaining, setUploadRemaining] = useState('2 mins left')
-  const [uploadBytes, setUploadBytes] = useState('2.45 GB / 5.00 GB')
 
   // Settings State Toggles
   const [settingsAutoAds, setSettingsAutoAds] = useState(true)
@@ -258,63 +248,7 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
     }
   }, [syncAdsData]))
 
-  // Real-time upload stream simulation loop
-  useEffect(() => {
-    let intervalId: any = null
-    if (uploading) {
-      intervalId = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 100) {
-            setUploading(false)
-            // Add new ad to local list automatically representing completed upload
-            const newAd: LocalAdItem = {
-              id: `ad-${Date.now()}`,
-              title: uploadTab === 'video' ? 'Ad_Video_4K_UHD.mp4' : 'Image_Creative_Banner.png',
-              type: uploadTab === 'video' ? 'Video' : 'Image',
-              position: uploadTab === 'video' ? 'Mid-roll' : 'Banner',
-              imageUrl: uploadTab === 'video' 
-                ? 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&q=80&w=300'
-                : 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&q=80&w=300',
-              impressions: 1250,
-              clicks: 45,
-              revenue: 12.80,
-              duration: uploadTab === 'video' ? '00:15' : '-',
-              status: 'Active',
-              resolution: uploadTab === 'video' ? '3840x2160 • 4K' : '1200x628 • Image'
-            }
-            setLocalAds(prevAds => [newAd, ...prevAds])
-            return 100
-          }
-          const step = Math.random() * 4 + 1
-          const nextVal = Math.min(prev + step, 100)
-          
-          // Calculate remaining speed/GB sizes
-          const currentGB = ((nextVal / 100) * 5.0).toFixed(2)
-          setUploadBytes(`${currentGB} GB / 5.00 GB`)
-          const randomSpeed = (Math.random() * 0.8 + 2.1).toFixed(1)
-          setUploadSpeed(parseFloat(randomSpeed))
-          
-          const remainingSecs = Math.round(((100 - nextVal) * 2.4))
-          if (remainingSecs > 60) {
-            setUploadRemaining(`${Math.floor(remainingSecs / 60)}m ${remainingSecs % 60}s left`)
-          } else {
-            setUploadRemaining(`${remainingSecs}s left`)
-          }
 
-          return nextVal
-        })
-      }, 900)
-    }
-    return () => {
-      if (intervalId) clearInterval(intervalId)
-    }
-  }, [uploading, uploadTab])
-
-  const startSimulatedUpload = () => {
-    setUploadProgress(0)
-    setUploadBytes('0.00 GB / 5.00 GB')
-    setUploading(true)
-  }
 
   // ─── Computed Metrics ──────────────────────────────────────────────────────
 
@@ -437,14 +371,7 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
             <span>Export Report</span>
           </button>
 
-          {/* Create New Ad Trigger */}
-          <button 
-            onClick={startSimulatedUpload}
-            className="flex h-9 items-center gap-1.5 rounded-lg bg-xtube-red px-3 text-xs font-semibold text-white transition-all hover:bg-xtube-red-hover"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Create New Ad</span>
-          </button>
+
         </div>
       </motion.div>
 
@@ -789,93 +716,8 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
       {/* ─── UPLOAD, LIST, & TIMELINE ROW (3 Column Block matching screenshot) ─── */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         
-        {/* Column Block 1: Upload New Ad (3/12 cols) */}
-        <div className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 p-4 backdrop-blur-xl lg:col-span-3">
-          <h3 className="mb-3 text-sm font-semibold text-white">Upload New Ad</h3>
-
-          {/* Video / Image tab pills */}
-          <div className="mb-4 flex rounded-lg bg-white/5 p-0.5">
-            <button
-              onClick={() => setUploadTab('video')}
-              className={`flex-1 rounded-md py-1.5 text-center text-xs font-semibold transition-all ${uploadTab === 'video' ? 'bg-[#1a1a1a] text-white shadow' : 'text-white/50 hover:text-white'}`}
-            >
-              Video Ad
-            </button>
-            <button
-              onClick={() => setUploadTab('image')}
-              className={`flex-1 rounded-md py-1.5 text-center text-xs font-semibold transition-all ${uploadTab === 'image' ? 'bg-[#1a1a1a] text-white shadow' : 'text-white/50 hover:text-white'}`}
-            >
-              Image Ad
-            </button>
-          </div>
-
-          {/* Interactive Drag & Drop File Container */}
-          <div 
-            onClick={startSimulatedUpload}
-            className="flex h-32 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.01] p-4 text-center transition hover:border-xtube-red/40 hover:bg-white/[0.02]"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/5 mb-2">
-              <Upload className="h-4.5 w-4.5 text-white/60" />
-            </div>
-            <p className="text-xs text-white/80">Drag & drop video file here</p>
-            <p className="text-[10px] text-white/40 mt-0.5">or</p>
-            <button className="mt-2 rounded-md bg-xtube-red px-3 py-1 text-[10px] font-semibold hover:bg-xtube-red-hover">
-              Choose File
-            </button>
-          </div>
-          <p className="mt-1.5 text-[9px] text-white/30 text-center">Max file size: 5GB | Supported: MP4, WebM, MOV, HLS</p>
-
-          {/* Real-time upload progress simulator */}
-          <div className="mt-4 rounded-xl border border-white/5 bg-[#121212] p-3.5">
-            <div className="flex items-start justify-between mb-1.5">
-              <div className="min-w-0">
-                <p className="truncate text-xs font-semibold text-white/90">
-                  {uploadTab === 'video' ? 'Ad_Video_4K_UHD.mp4' : 'Image_Creative_Banner.png'}
-                </p>
-                <p className="text-[10px] text-white/40">{uploadBytes}</p>
-              </div>
-              <span className="text-xs font-bold text-xtube-red">{Math.round(uploadProgress)}%</span>
-            </div>
-
-            {/* Progress bar */}
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5">
-              <div 
-                className="h-full rounded-full bg-xtube-red transition-all duration-300" 
-                style={{ width: `${uploadProgress}%` }}
-              />
-            </div>
-
-            <div className="mt-2.5 flex items-center justify-between text-[10px]">
-              <span className="text-white/40">{uploadSpeed} MB/s - {uploadRemaining}</span>
-              <button 
-                onClick={() => setUploading(!uploading)}
-                className="text-xtube-red font-semibold hover:underline"
-              >
-                {uploading ? 'Pause' : 'Resume'}
-              </button>
-            </div>
-          </div>
-
-          {/* Upload Quality Settings Options */}
-          <div className="mt-4 space-y-2">
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-white/40 block">Upload Quality</label>
-            <div className="grid grid-cols-4 gap-1">
-              {['Auto', '1080p', '2K', '4K'].map((q) => (
-                <button
-                  key={q}
-                  onClick={() => setUploadQuality(q)}
-                  className={`rounded-md border py-1.5 text-center text-[10px] font-semibold transition ${uploadQuality === q ? 'border-xtube-red bg-xtube-red/5 text-xtube-red' : 'border-white/5 bg-[#141414] text-white/60 hover:text-white'}`}
-                >
-                  {q === 'Auto' ? 'Auto ⬤' : q}
-                </button>
-              ))}
-            </div>
-            <p className="text-[9px] text-white/30 mt-1">Auto quality will deliver best experience across all devices.</p>
-          </div>
-        </div>
-
-        {/* Column Block 2: All Ads List Table (5/12 cols) */}
-        <div className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 p-4 backdrop-blur-xl lg:col-span-5">
+        {/* Column Block 2: All Ads List Table (8/12 cols) */}
+        <div className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 p-4 backdrop-blur-xl lg:col-span-8">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-sm font-semibold text-white">All Ads List</h3>
             
@@ -1010,14 +852,7 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
         {/* Column Block 3: Ads Timeline Schedules (4/12 cols) */}
         <div className="rounded-xl border border-white/5 bg-[#0f0f0f]/80 p-4 backdrop-blur-xl lg:col-span-4">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-white">Ads Timeline (Unlimited Ads)</h3>
-            <button 
-              onClick={startSimulatedUpload}
-              className="flex h-6 items-center gap-1 rounded bg-xtube-red px-2 text-[10px] font-semibold text-white hover:bg-xtube-red-hover"
-            >
-              <Plus className="h-3 w-3" />
-              <span>Add Ad</span>
-            </button>
+            <h3 className="text-sm font-semibold text-white">Ads Timeline</h3>
           </div>
 
           {/* Target Video Selector */}
