@@ -54,56 +54,57 @@ export function isPhone(): boolean {
   return hasSmallScreen && !hasFinePointer
 }
 
+let tempClickCount = 0
+let reloadTimeoutId: any = null
+
 /**
  * Process a logo click for the secret admin unlock system.
  *
  * Returns:
- * - 'reload'   → clicks 1-6 or phone: page should refresh
- * - 'admin'    → 7th continuous click: admin login modal should open (tablet/desktop/laptop)
+ * - 'reload'   → phone or immediate action: page should refresh instantly
+ * - 'admin'    → 7th continuous click: admin login modal should open fast (tablet/desktop/laptop)
  * - 'navigate' → admin already logged in: navigate home
+ * - 'wait'     → click between 1 and 6: wait for consecutive clicks, reloads if they stop
  */
-export function processAdminClick(isPhoneDevice: boolean): 'reload' | 'admin' | 'navigate' {
+export function processAdminClick(isPhoneDevice: boolean): 'reload' | 'admin' | 'navigate' | 'wait' {
   // If admin session already exists, just navigate home
   if (typeof window !== 'undefined' && sessionStorage.getItem(ADMIN_TOKEN_KEY)) {
     return 'navigate'
   }
 
-  // Phone ONLY: always just reload, never track clicks
-  // Tablet/Desktop/Laptop: track clicks for admin unlock
+  // Phone ONLY: always just reload immediately, never track clicks or open admin
   if (isPhoneDevice) {
     sessionStorage.removeItem(ADMIN_CLICK_KEY)
     return 'reload'
   }
 
-  // ─── Desktop / Tablet / Laptop: Track clicks with sessionStorage ───────
-
-  let existingCount = 0
-  try {
-    const raw = sessionStorage.getItem(ADMIN_CLICK_KEY)
-    if (raw) {
-      const data: ClickData = JSON.parse(raw)
-      // Only keep counting if within the 5-second window
-      if (Date.now() - data.lastTime <= CLICK_WINDOW_MS) {
-        existingCount = data.count
-      }
-      // If stale, count resets to 0 (first click of new sequence)
-    }
-  } catch {
-    // Corrupted data, start fresh
+  // Clear any existing reload timeout
+  if (reloadTimeoutId) {
+    clearTimeout(reloadTimeoutId)
+    reloadTimeoutId = null
   }
 
-  const newCount = existingCount + 1
+  tempClickCount++
 
-  if (newCount >= REQUIRED_CLICKS) {
-    // ★ 7th click! Open admin modal — DO NOT refresh
+  if (tempClickCount >= REQUIRED_CLICKS) {
+    // ★ 7th continuous click! Reset count and open admin panel instantly
+    tempClickCount = 0
     sessionStorage.removeItem(ADMIN_CLICK_KEY)
     return 'admin'
   }
 
-  // Clicks 1-6: save count with timestamp, then reload
-  const newData: ClickData = { count: newCount, lastTime: Date.now() }
+  // Save count in sessionStorage so the logo pulsates and animations are aware of the progress
+  const newData: ClickData = { count: tempClickCount, lastTime: Date.now() }
   sessionStorage.setItem(ADMIN_CLICK_KEY, JSON.stringify(newData))
-  return 'reload'
+
+  // Clicks 1-6: start an 800ms timeout. If they do not click again within 800ms, reload the page
+  reloadTimeoutId = setTimeout(() => {
+    tempClickCount = 0
+    sessionStorage.removeItem(ADMIN_CLICK_KEY)
+    window.location.reload()
+  }, 800)
+
+  return 'wait'
 }
 
 /**

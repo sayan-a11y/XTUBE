@@ -171,8 +171,8 @@ export function XtubeLogo({
       const store = useAppStore.getState()
       store.setView('home')
       store.setSelectedVideoId(null)
-    } else {
-      // Clicks 1-6 or phone: refresh the page
+    } else if (result === 'reload') {
+      // Mobile or immediate reload request
       window.location.reload()
     }
   }, [onClick, disableAdminClick])
