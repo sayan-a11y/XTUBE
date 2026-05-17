@@ -271,6 +271,13 @@ export function XtubeHomeClient({
 
   // ─── Load initial data (Instant on mount) ───────────────────────────────────
   useEffect(() => {
+    // If SSR data is already present, bypass redundant API loading calls.
+    // Realtime sync channels will handle pushing any live content additions.
+    if (initialVideos && initialVideos.length > 0) {
+      setLoading(false)
+      return
+    }
+
     let cancelled = false
     const loadData = async () => {
       try {
@@ -291,7 +298,7 @@ export function XtubeHomeClient({
     return () => {
       cancelled = true
     }
-  }, [fetchVideos, fetchCategories, fetchAds, fetchHeroAds, fetchFooterAds])
+  }, [initialVideos, fetchVideos, fetchCategories, fetchAds, fetchHeroAds, fetchFooterAds])
 
   // ─── Load video when selected ──────────────────────────────────────────────
 
