@@ -531,11 +531,11 @@ export function VideoUploadPage() {
         </div>
 
         {/* ── Two Column Layout ── */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px]">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
           {/* ═══════════════════════════════════════════════════════════════════
               LEFT COLUMN — Upload & Interactive Preview
               ═══════════════════════════════════════════════════════════════════ */}
-          <div className="space-y-4">
+          <div className="space-y-4 lg:col-span-7 xl:col-span-8">
             {/* Section Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -930,7 +930,7 @@ export function VideoUploadPage() {
           {/* ═══════════════════════════════════════════════════════════════════
               RIGHT COLUMN — Video Details
               ═══════════════════════════════════════════════════════════════════ */}
-          <div className="space-y-4">
+          <div className="space-y-4 lg:col-span-5 xl:col-span-4">
             {/* Section Header */}
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold text-xtube-red">2.</span>
