@@ -122,34 +122,21 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
               muted
               loop
               playsInline
-              className={`
-                w-full
-                max-h-[120px] md:max-h-[150px] lg:max-h-[180px]
-                object-contain
-                will-change-transform
-                rounded-lg
-              `}
+              className="w-full h-full object-contain will-change-transform rounded-lg"
               preload="metadata"
             >
               <track kind="captions" />
             </video>
 
             {/* Controls overlay — hidden on mobile */}
-            <div className="hidden md:flex absolute bottom-2 right-2 items-center gap-1.5 z-10">
+            <div className="hidden md:flex absolute bottom-2 right-2 items-center gap-1.5 z-25">
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation()
                   toggleMute()
                 }}
-                className={`
-                  flex items-center justify-center
-                  h-7 w-7 rounded-md
-                  bg-white/10 backdrop-blur-md
-                  hover:bg-white/20
-                  border border-white/10
-                  transition-colors duration-200
-                `}
+                className="flex items-center justify-center h-7 w-7 rounded-md bg-black/40 backdrop-blur-md hover:bg-black/60 border border-white/10 transition-colors duration-200"
                 aria-label={isMuted ? 'Unmute' : 'Mute'}
               >
                 {isMuted ? (
@@ -164,14 +151,7 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
                   e.stopPropagation()
                   togglePause()
                 }}
-                className={`
-                  flex items-center justify-center
-                  h-7 w-7 rounded-md
-                  bg-white/10 backdrop-blur-md
-                  hover:bg-white/20
-                  border border-white/10
-                  transition-colors duration-200
-                `}
+                className="flex items-center justify-center h-7 w-7 rounded-md bg-black/40 backdrop-blur-md hover:bg-black/60 border border-white/10 transition-colors duration-200"
                 aria-label={isPaused ? 'Play' : 'Pause'}
               >
                 {isPaused ? (
@@ -190,13 +170,7 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
             src={ad.mediaUrl}
             alt={ad.title}
             loading="lazy"
-            className={`
-              w-full
-              max-h-[120px] md:max-h-[150px] lg:max-h-[180px]
-              object-contain
-              rounded-lg
-              will-change-transform
-            `}
+            className="w-full h-full object-contain rounded-lg will-change-transform"
             draggable={false}
           />
         )
@@ -207,13 +181,7 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
             src={ad.mediaUrl}
             alt={ad.title}
             loading="lazy"
-            className={`
-              w-full
-              max-h-[120px] md:max-h-[150px] lg:max-h-[180px]
-              object-contain
-              rounded-lg
-              will-change-transform
-            `}
+            className="w-full h-full object-contain rounded-lg will-change-transform"
             draggable={false}
           />
         )
@@ -223,12 +191,7 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
           <iframe
             src={ad.mediaUrl}
             sandbox="allow-scripts allow-same-origin"
-            className={`
-              w-full
-              max-h-[120px] md:max-h-[150px] lg:max-h-[180px]
-              border-0 rounded-lg
-              will-change-transform
-            `}
+            className="w-full h-full border-0 rounded-lg will-change-transform"
             title={ad.title}
             loading="lazy"
           />
@@ -245,33 +208,55 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.1 }}
-        whileHover={{ boxShadow: '0 0 25px rgba(255,30,30,0.1)' }}
+        whileHover={{ boxShadow: '0 0 25px rgba(255,30,30,0.15)', borderColor: 'rgba(255,30,30,0.2)' }}
         onClick={ad.adType !== 'html5' ? handleClick : undefined}
         className={`
           relative
           mx-auto max-w-[1600px]
-          min-h-[80px] md:min-h-[100px] lg:min-h-[120px]
+          h-[100px] sm:h-[130px] md:h-[160px] lg:h-[180px]
           rounded-xl
           border border-[#ff1e1e]/10
-          bg-[#0B0B0F]/80 backdrop-blur-xl
-          shadow-[0_0_20px_rgba(255,30,30,0.05)]
-          p-3 md:p-4
+          bg-[#050508]/90 backdrop-blur-xl
+          shadow-[0_0_30px_rgba(255,30,30,0.08)]
           overflow-hidden
           ${ad.adType !== 'html5' && ad.linkUrl ? 'cursor-pointer' : ''}
           will-change-transform
         `}
       >
+        {/* Background Ambient Glow Blur */}
+        {ad.adType === 'video' ? (
+          <div className="absolute inset-0 z-0 select-none pointer-events-none overflow-hidden opacity-25">
+            <video
+              src={ad.mediaUrl}
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="w-full h-full object-cover blur-2xl scale-110"
+            />
+          </div>
+        ) : ad.adType === 'image' || ad.adType === 'gif' ? (
+          <div className="absolute inset-0 z-0 select-none pointer-events-none overflow-hidden opacity-25">
+            <img
+              src={ad.mediaUrl}
+              alt=""
+              className="w-full h-full object-cover blur-2xl scale-110"
+            />
+          </div>
+        ) : null}
+
         {/* AD badge */}
-        <div className="absolute top-2 right-2 z-10">
+        <div className="absolute top-2 right-2 z-20">
           <motion.span
             animate={{ opacity: [1, 0.6, 1] }}
             transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
             className="
               inline-block
-              bg-[#ff1e1e]/10 text-[#ff1e1e]
-              text-[10px] font-bold
+              bg-xtube-red text-white
+              text-[9px] font-extrabold
               px-2 py-0.5 rounded
               select-none
+              shadow-[0_0_10px_rgba(229,9,20,0.4)]
             "
           >
             AD
@@ -279,7 +264,7 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
         </div>
 
         {/* Media content */}
-        <div className="w-full h-full flex items-center justify-center">
+        <div className="relative z-10 w-full h-full flex items-center justify-center p-2 sm:p-3">
           {renderMedia()}
         </div>
       </motion.div>
