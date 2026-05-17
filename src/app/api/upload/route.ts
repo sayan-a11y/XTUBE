@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'complete') {
-      const { sessionId, title, description, category, duration, isHd } = body
+      const { sessionId, title, description, category, duration, isHd, resolution } = body
 
       if (!sessionId) {
         return NextResponse.json(
@@ -209,8 +209,8 @@ export async function POST(request: NextRequest) {
         const estimatedDuration = Math.round((session.fileSize / (1024 * 1024)) * 10)
         const midrollTimings = generateMidrollTimings(estimatedDuration)
 
-        // Determine quality levels based on file size
-        const qualityLevels = determineQualityLevels(session.fileSize)
+        // Determine quality levels based on selected resolution, falling back to file size
+        const qualityLevels = getQualityLevelsForResolution(resolution || '1080p', session.fileSize)
 
         // Create Video record
         const video = await db.video.create({
@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
             category: category || 'New Videos',
             duration: duration || formatDuration(estimatedDuration),
             durationSeconds: estimatedDuration,
-            isHd: isHd !== undefined ? isHd : (qualityLevels.includes('1080p') || qualityLevels.includes('2K') || qualityLevels.includes('4K')),
+            isHd: isHd !== undefined ? isHd : (qualityLevels.includes('1080p') || qualityLevels.includes('1440p') || qualityLevels.includes('2K') || qualityLevels.includes('4K') || qualityLevels.includes('2k') || qualityLevels.includes('4k')),
             qualityLevels: JSON.stringify(qualityLevels),
             midrollTimings: JSON.stringify(midrollTimings),
             thumbnailUrls: JSON.stringify([]),
@@ -230,6 +230,7 @@ export async function POST(request: NextRequest) {
             storageProvider: 'local',
             storageKey: `videos/${videoId}.mp4`,
             fileSize: session.fileSize,
+            resolution: resolution || '1080p',
           },
         })
 
@@ -434,6 +435,29 @@ export async function GET(request: NextRequest) {
 }
 
 // ─── Helper Functions ────────────────────────────────────────────────
+
+function getQualityLevelsForResolution(resolution: string, fileSize: number): string[] {
+  const norm = resolution.toLowerCase().trim()
+  if (norm === '4k') {
+    return ['480p', '720p', '1080p', '1440p', '2K', '4K']
+  }
+  if (norm === '2k') {
+    return ['480p', '720p', '1080p', '1440p', '2K']
+  }
+  if (norm === '1440p') {
+    return ['480p', '720p', '1080p', '1440p']
+  }
+  if (norm === '1080p') {
+    return ['480p', '720p', '1080p']
+  }
+  if (norm === '720p') {
+    return ['480p', '720p']
+  }
+  if (norm === '480p') {
+    return ['480p']
+  }
+  return determineQualityLevels(fileSize)
+}
 
 function determineQualityLevels(fileSize: number): string[] {
   const sizeMB = fileSize / (1024 * 1024)

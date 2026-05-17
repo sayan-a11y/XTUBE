@@ -84,7 +84,10 @@ const premiumPlaceholderImages = [
 
 const qualityOptions = [
   { value: 'auto', label: 'Auto', desc: 'Recommended' },
+  { value: '480p', label: '480p', desc: '' },
+  { value: '720p', label: '720p', desc: '' },
   { value: '1080p', label: '1080p', desc: '' },
+  { value: '1440p', label: '1440p', desc: '' },
   { value: '2k', label: '2K', desc: '' },
   { value: '4k', label: '4K', desc: '' },
 ]
@@ -213,9 +216,12 @@ export function VideoUploadPage() {
 
       let detectedQuality = '1080p'
       if (width >= 3840 || height >= 2160) detectedQuality = '4k'
-      else if (width >= 2560 || height >= 1440) detectedQuality = '2k'
-      else if (width >= 1280 || height >= 720) detectedQuality = '1080p'
-      else detectedQuality = 'auto'
+      else if (width >= 2560 || height >= 1440) {
+        detectedQuality = width >= 2560 ? '2k' : '1440p'
+      }
+      else if (width >= 1920 || height >= 1080) detectedQuality = '1080p'
+      else if (width >= 1280 || height >= 720) detectedQuality = '720p'
+      else detectedQuality = '480p'
 
       setQuality(detectedQuality)
       setSelectedQuality(detectedQuality)
@@ -372,7 +378,8 @@ export function VideoUploadPage() {
           description,
           category: category || 'Travel & Nature',
           duration,
-          isHd: quality === '1080p' || quality === '2k' || quality === '4k',
+          isHd: quality === '1080p' || quality === '1440p' || quality === '2k' || quality === '4k' || quality === '2K' || quality === '4K',
+          resolution: quality,
         }),
       })
 
@@ -854,7 +861,10 @@ export function VideoUploadPage() {
                   {qualityOptions.map((opt) => (
                     <button
                       key={opt.value}
-                      onClick={() => setSelectedQuality(opt.value)}
+                      onClick={() => {
+                        setSelectedQuality(opt.value)
+                        setQuality(opt.value)
+                      }}
                       className={`relative rounded-lg border px-3 py-2 text-center transition-all ${
                         selectedQuality === opt.value
                           ? 'border-xtube-red/40 bg-xtube-red/10 text-white'
@@ -1025,13 +1035,19 @@ export function VideoUploadPage() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-white">Quality</label>
-                    <Select value={quality} onValueChange={setQuality}>
+                    <Select value={quality} onValueChange={(val) => {
+                      setQuality(val)
+                      setSelectedQuality(val)
+                    }}>
                       <SelectTrigger className="w-full rounded-lg border-white/10 bg-[#0a0a0a] text-sm text-white/70 focus:ring-xtube-red/20 [&_svg]:text-white/30">
                         <SelectValue placeholder="Select quality" />
                       </SelectTrigger>
                       <SelectContent className="border-white/10 bg-[#111111]">
                         <SelectItem value="auto" className="text-white focus:bg-white/5 focus:text-white">Auto</SelectItem>
+                        <SelectItem value="480p" className="text-white focus:bg-white/5 focus:text-white">480p</SelectItem>
+                        <SelectItem value="720p" className="text-white focus:bg-white/5 focus:text-white">720p</SelectItem>
                         <SelectItem value="1080p" className="text-white focus:bg-white/5 focus:text-white">1080p</SelectItem>
+                        <SelectItem value="1440p" className="text-white focus:bg-white/5 focus:text-white">1440p</SelectItem>
                         <SelectItem value="2k" className="text-white focus:bg-white/5 focus:text-white">2K</SelectItem>
                         <SelectItem value="4k" className="text-white focus:bg-white/5 focus:text-white">4K</SelectItem>
                       </SelectContent>
