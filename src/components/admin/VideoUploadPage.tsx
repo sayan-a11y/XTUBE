@@ -246,7 +246,9 @@ export function VideoUploadPage() {
       setFileInfo({
         name: selectedFile.name,
         resolution: width && height ? `${width} × ${height}` : 'HD (1080p)',
-        size: (selectedFile.size / (1024 * 1024 * 1024)).toFixed(2) + ' GB',
+        size: selectedFile.size >= 1024 * 1024 * 1024
+          ? (selectedFile.size / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
+          : (selectedFile.size / (1024 * 1024)).toFixed(1) + ' MB',
         duration: formattedDur,
       })
 
@@ -343,6 +345,14 @@ export function VideoUploadPage() {
       const { sessionId, chunkSize, totalChunks, parts, directUpload, completedParts, resumed } = await initRes.json()
       let uploadedPartEtags: Array<{ partNumber: number; etag: string }> = []
 
+      // Helper function to format bytes dynamically into MB/GB so it never shows "0.00 GB" for small videos!
+      const formatBytes = (bytes: number): string => {
+        if (bytes >= 1024 * 1024 * 1024) {
+          return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+        }
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+      }
+
       // 2. Upload video
       if (directUpload && parts && parts.length > 0) {
         setUploadStatusText(resumed ? 'Resuming parallel video upload directly to R2 Storage...' : 'Uploading video chunks in parallel directly to R2 Storage...')
@@ -356,12 +366,14 @@ export function VideoUploadPage() {
         if (resumed && completedParts && completedParts.length > 0) {
           completedParts.forEach((p: any) => {
             if (p && typeof p === 'object' && p.partNumber) {
-              completedMap.set(p.partNumber, p.etag)
+              completedMap.set(p.partNumber, p.etag || '')
+            } else if (typeof p === 'number') {
+              completedMap.set(p + 1, '')
             }
           })
         }
 
-        // Spawn up to 4 parallel HTTP connections for ultra-fast speeds directly to R2!
+        // Spawn up to 4 parallel HTTP connections for ultra-fast speeds!
         const CONCURRENCY = 4
         let partIndexToUpload = 0
 
@@ -388,7 +400,7 @@ export function VideoUploadPage() {
               const totalUploadedBytes = partProgress.reduce((sum, p) => sum + p, 0)
               const progressPercent = Math.min((totalUploadedBytes / file.size) * 100, 100)
               setUploadProgress(progressPercent)
-              setUploadedSize(`${(totalUploadedBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`)
+              setUploadedSize(`${formatBytes(totalUploadedBytes)} / ${formatBytes(file.size)}`)
               continue
             }
 
@@ -398,6 +410,7 @@ export function VideoUploadPage() {
 
             while (!completed && retries < maxRetries) {
               try {
+                // Try Direct Upload to R2 URL first!
                 const xhr = new XMLHttpRequest()
                 xhr.open('PUT', part.uploadUrl, true)
                 xhr.setRequestHeader('Content-Type', file.type || 'video/mp4')
@@ -414,7 +427,7 @@ export function VideoUploadPage() {
                       const elapsedSecs = (Date.now() - startTime) / 1000
                       const speedMBs = elapsedSecs > 0 ? (totalUploadedBytes / (1024 * 1024)) / elapsedSecs : 0
                       setUploadSpeed(`${speedMBs.toFixed(2)} MB/s`)
-                      setUploadedSize(`${(totalUploadedBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`)
+                      setUploadedSize(`${formatBytes(totalUploadedBytes)} / ${formatBytes(file.size)}`)
 
                       const remainingBytes = file.size - totalUploadedBytes
                       const remainingSecs = speedMBs > 0 ? (remainingBytes / (1024 * 1024)) / speedMBs : 0
@@ -430,10 +443,10 @@ export function VideoUploadPage() {
                       const etag = xhr.getResponseHeader('ETag') || `"${Math.random().toString(36)}"`
                       resolve({ etag })
                     } else {
-                      reject(new Error(`Part upload failed with status ${xhr.status}`))
+                      reject(new Error(`Direct part upload failed with status ${xhr.status}`))
                     }
                   }
-                  xhr.onerror = () => reject(new Error('Network error on direct R2 upload'))
+                  xhr.onerror = () => reject(new Error('CORS or network error on direct R2 upload'))
                   xhr.send(chunkSlice)
                 })
 
@@ -443,33 +456,94 @@ export function VideoUploadPage() {
                 completed = true
 
               } catch (err: any) {
-                partProgress[currentIdx] = 0
-                retries++
-                console.warn(`Part ${partNumber} failed, attempt ${retries} directly to R2:`, err)
-
+                console.warn(`Direct R2 upload failed for Part ${partNumber}. Attempting Server Proxy Fallback...`, err)
+                
+                // Server Proxy Fallback: upload chunk to /api/upload
                 try {
-                  await fetch('/api/system-logs', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      level: 'warn',
-                      category: 'upload',
-                      message: `Direct R2 Part ${partNumber} upload attempt ${retries} failed: ${err?.message || err}`,
-                      details: {
-                        sessionId,
-                        partNumber,
-                        retries,
-                        error: err?.stack || err?.message || String(err),
-                      }
-                    })
-                  })
-                } catch (e) {
-                  console.error('Failed to log client error to server:', e)
-                }
+                  const proxyUrl = `/api/upload?chunkIndex=${partNumber - 1}&sessionId=${sessionId}`
+                  const xhrProxy = new XMLHttpRequest()
+                  xhrProxy.open('PUT', proxyUrl, true)
+                  xhrProxy.setRequestHeader('Content-Type', file.type || 'video/mp4')
 
-                if (retries >= maxRetries) throw err
-                // Exponential backoff retry to R2
-                await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, retries - 1)))
+                  const proxyUploadPromise = new Promise<{ etag: string }>((resolve, reject) => {
+                    xhrProxy.upload.onprogress = (event) => {
+                      if (event.lengthComputable) {
+                        partProgress[currentIdx] = event.loaded
+                        const totalUploadedBytes = partProgress.reduce((sum, p) => sum + p, 0)
+                        
+                        const progressPercent = Math.min((totalUploadedBytes / file.size) * 100, 100)
+                        setUploadProgress(progressPercent)
+
+                        const elapsedSecs = (Date.now() - startTime) / 1000
+                        const speedMBs = elapsedSecs > 0 ? (totalUploadedBytes / (1024 * 1024)) / elapsedSecs : 0
+                        setUploadSpeed(`${speedMBs.toFixed(2)} MB/s`)
+                        setUploadedSize(`${formatBytes(totalUploadedBytes)} / ${formatBytes(file.size)}`)
+
+                        const remainingBytes = file.size - totalUploadedBytes
+                        const remainingSecs = speedMBs > 0 ? (remainingBytes / (1024 * 1024)) / speedMBs : 0
+                        if (remainingSecs > 60) {
+                          setUploadRemaining(`${Math.ceil(remainingSecs / 60)} mins left`)
+                        } else {
+                          setUploadRemaining(`${Math.ceil(remainingSecs)} secs left`)
+                        }
+                      }
+                    }
+
+                    xhrProxy.onload = () => {
+                      if (xhrProxy.status >= 200 && xhrProxy.status < 300) {
+                        try {
+                          const resObj = JSON.parse(xhrProxy.responseText)
+                          if (resObj.etag) {
+                            resolve({ etag: resObj.etag })
+                          } else {
+                            reject(new Error('Proxy response missing ETag'))
+                          }
+                        } catch (e) {
+                          reject(new Error('Failed to parse proxy response'))
+                        }
+                      } else {
+                        reject(new Error(`Proxy part upload failed with status ${xhrProxy.status}`))
+                      }
+                    }
+
+                    xhrProxy.onerror = () => reject(new Error('Network error on server proxy upload'))
+                    xhrProxy.send(chunkSlice)
+                  })
+
+                  const result = await proxyUploadPromise
+                  partProgress[currentIdx] = chunkSlice.size
+                  uploadedPartEtags[currentIdx] = { partNumber, etag: result.etag }
+                  completed = true
+
+                } catch (proxyErr: any) {
+                  partProgress[currentIdx] = 0
+                  retries++
+                  console.error(`Part ${partNumber} failed completely (Direct & Proxy), attempt ${retries}:`, proxyErr)
+
+                  try {
+                    await fetch('/api/system-logs', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        level: 'error',
+                        category: 'upload',
+                        message: `Part ${partNumber} failed completely (Direct & Proxy) on attempt ${retries}: ${proxyErr?.message || proxyErr}`,
+                        details: {
+                          sessionId,
+                          partNumber,
+                          retries,
+                          error: proxyErr?.stack || proxyErr?.message || String(proxyErr),
+                        }
+                      })
+                    })
+                  } catch (e) {
+                    console.error('Failed to log client error to server:', e)
+                  }
+
+                  if (retries >= maxRetries) throw proxyErr
+                  // Exponential backoff
+                  await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, retries - 1)))
+                }
               }
             }
           }
