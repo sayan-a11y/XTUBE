@@ -137,13 +137,17 @@ export function VideoUploadPage() {
   const [isTrending, setIsTrending] = useState(false)
   const [isLive, setIsLive] = useState(false)
 
-  // Video player state
+  // Custom local player states
+  const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [durationVal, setDurationVal] = useState(0)
+  const [isMuted, setIsMuted] = useState(true)
+  const [videoObjectUrl, setVideoObjectUrl] = useState<string>('')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // ─── Browser Metadata Extraction & File Handler ───────────────────────
+  // ─── Browser Metadata Extraction & Dynamic Client-Side 10 Thumbnail Extraction ───
 
   const processSelectedFile = useCallback((selectedFile: File) => {
     setFile(selectedFile)
@@ -154,21 +158,29 @@ export function VideoUploadPage() {
     // Pre-fill Title with file name (without extension)
     setTitle(selectedFile.name.replace(/\.[^/.]+$/, ''))
 
-    // Auto-detect resolution & duration using a dynamic video element
-    const videoEl = document.createElement('video')
-    videoEl.preload = 'metadata'
-    videoEl.src = URL.createObjectURL(selectedFile)
-    videoEl.onloadedmetadata = () => {
-      URL.revokeObjectURL(videoEl.src)
-      const dur = videoEl.duration || 0
-      const width = videoEl.videoWidth || 0
-      const height = videoEl.videoHeight || 0
+    // Setup local object URL for preview player
+    const localUrl = URL.createObjectURL(selectedFile)
+    setVideoObjectUrl(localUrl)
+    setGeneratedThumbnails([])
+
+    // Load video element in background to extract duration, resolution & 10 real thumbnails
+    const tempVideo = document.createElement('video')
+    tempVideo.preload = 'metadata'
+    tempVideo.src = localUrl
+    tempVideo.muted = true
+    tempVideo.playsInline = true
+
+    tempVideo.onloadedmetadata = () => {
+      const dur = tempVideo.duration || 0
+      const width = tempVideo.videoWidth || 1920
+      const height = tempVideo.videoHeight || 1080
 
       const mins = Math.floor(dur / 60)
       const secs = Math.floor(dur % 60)
       const formattedDur = `${mins}:${secs.toString().padStart(2, '0')}`
 
       setDuration(formattedDur)
+      setDurationVal(dur)
 
       let detectedQuality = '1080p'
       if (width >= 3840 || height >= 2160) detectedQuality = '4k'
@@ -185,6 +197,47 @@ export function VideoUploadPage() {
         size: (selectedFile.size / (1024 * 1024 * 1024)).toFixed(2) + ' GB',
         duration: formattedDur,
       })
+
+      // Generate 10 local thumbnails at equal intervals from duration
+      const interval = dur / 11
+      const localThumbs: Array<{ index: number; timeSeconds: number; url: string }> = []
+      const canvas = document.createElement('canvas')
+      canvas.width = 320
+      canvas.height = 180
+      const ctx = canvas.getContext('2d')
+
+      let index = 0
+      const captureFrame = () => {
+        if (index < 10) {
+          const time = (index + 1) * interval
+          tempVideo.currentTime = time
+
+          const handleSeeked = () => {
+            if (ctx) {
+              ctx.drawImage(tempVideo, 0, 0, 320, 180)
+              localThumbs.push({
+                index,
+                timeSeconds: Math.floor(time),
+                url: canvas.toDataURL('image/jpeg', 0.8)
+              })
+            }
+            tempVideo.removeEventListener('seeked', handleSeeked)
+            index++
+            captureFrame()
+          }
+
+          tempVideo.addEventListener('seeked', handleSeeked)
+        } else {
+          setGeneratedThumbnails(localThumbs)
+          setSelectedThumbnail(0)
+          // Graceful cleanup of background video
+          try {
+            tempVideo.src = ''
+            tempVideo.load()
+          } catch (e) {}
+        }
+      }
+      captureFrame()
     }
   }, [])
 
@@ -301,21 +354,22 @@ export function VideoUploadPage() {
       const { video } = await completeRes.json()
       setUploadedVideo(video)
 
-      // 4. Trigger thumbnail generation
-      try {
-        const thumbRes = await fetch('/api/thumbnails/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ videoId: video.id, count: 10 }),
-        })
-        if (thumbRes.ok) {
-          const thumbData = await thumbRes.json()
-          if (thumbData.thumbnails) {
-            setGeneratedThumbnails(thumbData.thumbnails)
+      // 4. Save chosen custom local base64 thumbnail into the Supabase database in real-time
+      if (generatedThumbnails[selectedThumbnail]) {
+        try {
+          const selectedUrl = generatedThumbnails[selectedThumbnail].url
+          const res = await fetch(`/api/videos/${video.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ thumbnail: selectedUrl }),
+          })
+          if (res.ok) {
+            const data = await res.json()
+            setUploadedVideo(data.video)
           }
+        } catch (err) {
+          console.error('Failed to update selected thumbnail in Supabase:', err)
         }
-      } catch (err) {
-        console.error('Thumbnail generation error:', err)
       }
 
       setUploadStage('success')
@@ -324,29 +378,51 @@ export function VideoUploadPage() {
       setErrorMessage(err.message || 'An error occurred during upload.')
       setUploadStage('idle')
     }
-  }, [file, title, description, category, duration, quality])
+  }, [file, title, description, category, duration, quality, generatedThumbnails, selectedThumbnail])
 
-  // ─── Select Thumbnail poster ─────────────────────────────────────────
+  // ─── Select Thumbnail ──────────────────────────────────────────────────
 
-  const handleSelectThumbnail = useCallback(async (index: number) => {
+  const handleSelectThumbnail = useCallback((index: number) => {
     setSelectedThumbnail(index)
-    if (!uploadedVideo || !generatedThumbnails[index]) return
+  }, [])
 
-    const selectedUrl = generatedThumbnails[index].url
-    try {
-      const res = await fetch(`/api/videos/${uploadedVideo.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ thumbnail: selectedUrl }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setUploadedVideo(data.video)
-      }
-    } catch (err) {
-      console.error('Failed to update active thumbnail:', err)
+  // ─── Player Controls ───────────────────────────────────────────────────
+
+  const togglePlay = useCallback(() => {
+    if (!videoRef.current) return
+    if (isPlaying) {
+      videoRef.current.pause()
+      setIsPlaying(false)
+    } else {
+      videoRef.current.play()
+      setIsPlaying(true)
     }
-  }, [uploadedVideo, generatedThumbnails])
+  }, [isPlaying])
+
+  const toggleMute = useCallback(() => {
+    if (!videoRef.current) return
+    videoRef.current.muted = !isMuted
+    setIsMuted(!isMuted)
+  }, [isMuted])
+
+  const handleTimeUpdate = useCallback(() => {
+    if (!videoRef.current) return
+    setCurrentTime(videoRef.current.currentTime)
+  }, [])
+
+  const handleSeekChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!videoRef.current) return
+    const val = parseFloat(e.target.value)
+    videoRef.current.currentTime = val
+    setCurrentTime(val)
+  }, [])
+
+  const handleFullscreen = useCallback(() => {
+    if (!videoRef.current) return
+    if (videoRef.current.requestFullscreen) {
+      videoRef.current.requestFullscreen()
+    }
+  }, [])
 
   // ─── Drag & Drop ───────────────────────────────────────────────────────
 
@@ -386,6 +462,10 @@ export function VideoUploadPage() {
   }, [])
 
   const handleResetUpload = useCallback(() => {
+    if (videoObjectUrl) {
+      URL.revokeObjectURL(videoObjectUrl)
+    }
+    setVideoObjectUrl('')
     setUploadStage('idle')
     setUploadProgress(0)
     setFileInfo(null)
@@ -403,7 +483,7 @@ export function VideoUploadPage() {
     setIsLive(false)
     setSelectedThumbnail(0)
     if (fileInputRef.current) fileInputRef.current.value = ''
-  }, [])
+  }, [videoObjectUrl])
 
   const handleClearForm = useCallback(() => {
     setTitle('')
@@ -453,7 +533,7 @@ export function VideoUploadPage() {
         {/* ── Two Column Layout ── */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px]">
           {/* ═══════════════════════════════════════════════════════════════════
-              LEFT COLUMN — Upload Video
+              LEFT COLUMN — Upload & Interactive Preview
               ═══════════════════════════════════════════════════════════════════ */}
           <div className="space-y-4">
             {/* Section Header */}
@@ -482,7 +562,7 @@ export function VideoUploadPage() {
               )}
             </div>
 
-            {/* ── File Info Card (shown after file is uploaded) ── */}
+            {/* ── File Info Card ── */}
             <AnimatePresence mode="wait">
               {fileInfo && (
                 <motion.div
@@ -495,9 +575,13 @@ export function VideoUploadPage() {
                   <div className="flex items-center gap-3 p-3 lg:p-4">
                     {/* Thumbnail Preview */}
                     <div className="relative h-16 w-28 flex-shrink-0 overflow-hidden rounded-lg">
-                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/60 via-teal-800/40 to-cyan-900/30" />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Film className="h-6 w-6 text-white/25" />
+                      {generatedThumbnails.length > 0 ? (
+                        <img src={generatedThumbnails[selectedThumbnail].url} className="h-full w-full object-cover" alt="Active Frame" />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/60 via-teal-800/40 to-cyan-900/30" />
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                        <Film className="h-6 w-6 text-white/40" />
                       </div>
                       <div className="absolute bottom-1 right-1 rounded bg-black/80 px-1 py-0.5 text-[9px] font-semibold text-white">
                         {fileInfo.duration}
@@ -533,80 +617,77 @@ export function VideoUploadPage() {
               )}
             </AnimatePresence>
 
-            {/* ── Video Player Preview (shown after upload success) ── */}
-            <AnimatePresence>
-              {uploadStage === 'success' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl"
-                >
-                  <div className="relative aspect-video bg-gradient-to-br from-[#1a2a4a] via-[#0d1b2a] to-[#0a1628]">
-                    {/* Video scene gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-
-                    {/* Play/Pause overlay */}
-                    <button
-                      onClick={() => setIsPlaying(!isPlaying)}
-                      className="absolute inset-0 flex items-center justify-center transition-opacity"
-                    >
-                      <motion.div
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 backdrop-blur-md transition-colors hover:bg-white/20"
-                      >
-                        {isPlaying ? (
-                          <Pause className="h-6 w-6 text-white" fill="white" />
-                        ) : (
-                          <Play className="h-6 w-6 text-white ml-0.5" fill="white" />
-                        )}
-                      </motion.div>
-                    </button>
-
-                    {/* Bottom controls */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 pb-3 pt-8">
-                      {/* Progress bar */}
-                      <div className="group/progress relative mb-2 h-1 cursor-pointer rounded-full bg-white/20">
-                        <div className="absolute left-0 top-0 h-full w-[30%] rounded-full bg-xtube-red" />
-                        <div className="absolute left-[30%] top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-xtube-red bg-white opacity-0 transition-opacity group-hover/progress:opacity-100" />
+            {/* ── Custom Premium Local Video Player Preview ── */}
+            <div className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl">
+              {file && videoObjectUrl ? (
+                <div className="relative aspect-video bg-black group/player">
+                  <video
+                    ref={videoRef}
+                    src={videoObjectUrl}
+                    className="h-full w-full object-contain"
+                    onTimeUpdate={handleTimeUpdate}
+                    onEnded={() => setIsPlaying(false)}
+                    muted={isMuted}
+                    playsInline
+                  />
+                  {/* Controls overlay */}
+                  <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/30 to-transparent p-4 opacity-0 group-hover/player:opacity-100 transition-opacity duration-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={togglePlay}
+                          className="rounded-full bg-xtube-red/90 p-2 text-white hover:bg-xtube-red transition-all"
+                        >
+                          {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 fill-white ml-0.5" />}
+                        </button>
+                        
+                        <button
+                          onClick={toggleMute}
+                          className="text-white/80 hover:text-white transition-colors"
+                        >
+                          <Volume2 className={`h-5 w-5 ${isMuted ? 'text-xtube-red' : ''}`} />
+                        </button>
+                        
+                        <span className="text-xs text-white/70">
+                          {Math.floor(currentTime / 60)}:{(Math.floor(currentTime % 60)).toString().padStart(2, '0')} / {duration || '0:00'}
+                        </span>
                       </div>
 
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => setIsPlaying(!isPlaying)}
-                            className="text-white/70 transition-colors hover:text-white"
-                          >
-                            {isPlaying ? (
-                              <Pause className="h-4 w-4" />
-                            ) : (
-                              <Play className="h-4 w-4" />
-                            )}
-                          </button>
-                          <button className="text-white/70 transition-colors hover:text-white">
-                            <Volume2 className="h-4 w-4" />
-                          </button>
-                          <span className="text-xs text-white/50">0:00 / 1:28</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <button className="text-white/70 transition-colors hover:text-white">
-                            <Settings className="h-4 w-4" />
-                          </button>
-                          <button className="text-white/70 transition-colors hover:text-white">
-                            <Maximize className="h-4 w-4" />
-                          </button>
-                        </div>
+                      <div className="flex items-center gap-3">
+                        <button 
+                          onClick={handleFullscreen}
+                          className="text-white/70 transition-colors hover:text-white"
+                        >
+                          <Maximize className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
+                    
+                    {/* Time slider */}
+                    <input
+                      type="range"
+                      min={0}
+                      max={durationVal || 100}
+                      value={currentTime}
+                      onChange={handleSeekChange}
+                      className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-xtube-red focus:outline-none"
+                    />
                   </div>
-                </motion.div>
+                </div>
+              ) : (
+                <div className="relative aspect-video flex flex-col items-center justify-center bg-gradient-to-br from-[#0c0c0e] to-[#141416] p-6 text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/5 border border-white/10 mb-3 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+                    <Film className="h-6 w-6 text-white/30" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-white/70">No Video Loaded</h3>
+                  <p className="text-xs text-white/30 max-w-xs mt-1">Select a video file to generate scenic mock thumbnails and see the preview player instantly.</p>
+                </div>
               )}
-            </AnimatePresence>
+            </div>
 
-            {/* ── Upload Area (shown when idle) ── */}
+            {/* ── Drag & Drop Area (shown when idle and no file selected) ── */}
             <AnimatePresence>
-              {uploadStage === 'idle' && (
+              {uploadStage === 'idle' && !file && (
                 <motion.div
                   key="upload-area"
                   initial={{ opacity: 0, y: 10 }}
@@ -616,7 +697,7 @@ export function VideoUploadPage() {
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                   onClick={handleBrowseClick}
-                  className={`relative flex min-h-[260px] cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed backdrop-blur-xl transition-all duration-200 ${
+                  className={`relative flex min-h-[220px] cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed backdrop-blur-xl transition-all duration-200 ${
                     isDragOver
                       ? 'border-xtube-red bg-xtube-red/5 shadow-[0_0_20px_rgba(229,9,20,0.15)]'
                       : 'border-white/10 bg-[#111111]/60 hover:border-white/20 hover:bg-[#111111]/80'
@@ -632,14 +713,14 @@ export function VideoUploadPage() {
 
                   <motion.div
                     animate={isDragOver ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
-                    className="flex h-16 w-16 items-center justify-center rounded-full bg-xtube-red/10"
+                    className="flex h-14 w-14 items-center justify-center rounded-full bg-xtube-red/10"
                   >
-                    <CloudUpload className="h-8 w-8 text-xtube-red" />
+                    <CloudUpload className="h-7 w-7 text-xtube-red" />
                   </motion.div>
 
                   <div className="text-center">
-                    <p className="text-lg font-medium text-white">Drag &amp; drop your video here</p>
-                    <p className="mt-1 text-sm text-white/40">
+                    <p className="text-base font-semibold text-white">Drag &amp; drop your video here</p>
+                    <p className="mt-0.5 text-xs text-white/40">
                       or{' '}
                       <span className="cursor-pointer text-xtube-red underline underline-offset-2 hover:text-xtube-red-hover">
                         browse files
@@ -647,38 +728,31 @@ export function VideoUploadPage() {
                     </p>
                   </div>
 
-                  <p className="text-xs text-white/25">
+                  <p className="text-[10px] text-white/25">
                     MP4, MOV, WebM, HLS &bull; Max 5GB
                   </p>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* ── Upload Options (shown when idle) ── */}
-            <AnimatePresence>
-              {uploadStage === 'idle' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="flex items-center gap-3"
+            {/* ── Paste URL Buttons ── */}
+            {uploadStage === 'idle' && !file && (
+              <div className="flex items-center gap-3">
+                <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2 text-sm font-medium text-white/60 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-[#111111]/80 hover:text-white">
+                  <Link className="h-4 w-4" />
+                  Paste Video URL
+                </button>
+                <button
+                  onClick={handleBrowseClick}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2 text-sm font-medium text-white/60 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-[#111111]/80 hover:text-white"
                 >
-                  <button className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2 text-sm font-medium text-white/60 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-[#111111]/80 hover:text-white">
-                    <Link className="h-4 w-4" />
-                    Paste Video URL
-                  </button>
-                  <button
-                    onClick={handleBrowseClick}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2 text-sm font-medium text-white/60 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-[#111111]/80 hover:text-white"
-                  >
-                    <Upload className="h-4 w-4" />
-                    Manual Upload
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  <Upload className="h-4 w-4" />
+                  Manual Upload
+                </button>
+              </div>
+            )}
 
-            {/* ── Upload Progress (shown when uploading) ── */}
+            {/* ── Upload Progress Panel ── */}
             <AnimatePresence>
               {(uploadStage === 'uploading' || uploadStage === 'processing') && (
                 <motion.div
@@ -689,7 +763,7 @@ export function VideoUploadPage() {
                 >
                   <div className="mb-3 flex items-center justify-between">
                     <span className="text-sm font-semibold text-white">
-                      {uploadStage === 'processing' ? 'Processing video...' : 'Uploading video...'}
+                      {uploadStage === 'processing' ? 'Processing video...' : 'Uploading video to server...'}
                     </span>
                     <span className="text-sm font-bold text-xtube-red">
                       {Math.round(uploadProgress)}%
@@ -704,7 +778,6 @@ export function VideoUploadPage() {
                       transition={{ duration: 0.3, ease: 'easeOut' }}
                       className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-xtube-red to-red-500"
                     />
-                    {/* Glow effect */}
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${uploadProgress}%` }}
@@ -716,181 +789,142 @@ export function VideoUploadPage() {
                   {uploadStage === 'uploading' ? (
                     <div className="grid grid-cols-3 gap-3">
                       <div>
-                        <p className="text-xs text-white/30">Uploaded</p>
-                        <p className="text-sm font-semibold text-white">
-                          {uploadedSize} / 5.00 GB
+                        <p className="text-[10px] text-white/30">Uploaded Size</p>
+                        <p className="text-xs font-semibold text-white">
+                          {uploadedSize} / {fileInfo?.size || '5GB'}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-white/30">Speed</p>
-                        <p className="text-sm font-semibold text-white">{uploadSpeed}</p>
+                        <p className="text-[10px] text-white/30">Speed</p>
+                        <p className="text-xs font-semibold text-white">{uploadSpeed}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-white/30">Time Left</p>
-                        <p className="text-sm font-semibold text-white">{uploadRemaining}</p>
+                        <p className="text-[10px] text-white/30">Time Left</p>
+                        <p className="text-xs font-semibold text-white">{uploadRemaining}</p>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 text-sm text-amber-400">
+                    <div className="flex items-center gap-2 text-xs text-amber-400">
                       <div className="h-3 w-3 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
-                      <span>Generating thumbnails and detecting quality...</span>
+                      <span>Saving to Supabase real-time database and finalizing...</span>
                     </div>
                   )}
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* ── Quality Options (shown after upload success) ── */}
-            <AnimatePresence>
-              {uploadStage === 'success' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-3 lg:p-4 backdrop-blur-xl"
-                >
-                  <div className="mb-3 flex items-center gap-2">
-                    <Settings className="h-4 w-4 text-white/40" />
-                    <span className="text-sm font-semibold text-white">Video Quality</span>
-                  </div>
+            {/* ── Quality Options ── */}
+            {uploadStage === 'success' && (
+              <div className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-3 lg:p-4 backdrop-blur-xl">
+                <div className="mb-3 flex items-center gap-2">
+                  <Settings className="h-4 w-4 text-white/40" />
+                  <span className="text-sm font-semibold text-white">Video Quality</span>
+                </div>
 
-                  <div className="flex gap-2">
-                    {qualityOptions.map((opt) => (
-                      <motion.button
-                        key={opt.value}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setSelectedQuality(opt.value)}
-                        className={`relative flex-1 rounded-lg border px-3 py-2.5 text-center transition-all ${
-                          selectedQuality === opt.value
-                            ? 'border-xtube-red/40 bg-xtube-red/10 text-white shadow-[0_0_12px_rgba(229,9,20,0.15)]'
-                            : 'border-white/10 bg-white/[0.02] text-white/50 hover:border-white/20 hover:text-white/70'
-                        }`}
-                      >
-                        <span className="text-sm font-semibold">{opt.label}</span>
-                        {opt.desc && (
-                          <span className="ml-1 text-[10px] text-xtube-red">{opt.desc}</span>
-                        )}
-                        {selectedQuality === opt.value && (
-                          <motion.div
-                            layoutId="quality-selected"
-                            className="absolute -top-px left-0 right-0 h-[2px] rounded-full bg-xtube-red"
-                            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                          />
-                        )}
-                      </motion.button>
-                    ))}
-                  </div>
-
-                  {selectedQuality === 'auto' && (
-                    <p className="mt-2 text-[11px] text-white/30">
-                      Auto quality will deliver best experience across all devices.
-                    </p>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* ── Thumbnail Section (shown after upload success) ── */}
-            <AnimatePresence>
-              {uploadStage === 'success' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-3 lg:p-4 backdrop-blur-xl"
-                >
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <ImageIcon className="h-4 w-4 text-white/40" />
-                      <span className="text-sm font-semibold text-white">Thumbnail</span>
-                    </div>
-                    <button className="text-sm font-medium text-xtube-red transition-colors hover:text-xtube-red-hover">
-                      Upload Manually
+                <div className="flex gap-2">
+                  {qualityOptions.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setSelectedQuality(opt.value)}
+                      className={`relative flex-1 rounded-lg border px-3 py-2 text-center transition-all ${
+                        selectedQuality === opt.value
+                          ? 'border-xtube-red/40 bg-xtube-red/10 text-white'
+                          : 'border-white/10 bg-white/[0.02] text-white/50 hover:border-white/20'
+                      }`}
+                    >
+                      <span className="text-xs font-semibold">{opt.label}</span>
+                      {opt.desc && (
+                        <span className="ml-1 text-[8px] text-xtube-red">{opt.desc}</span>
+                      )}
                     </button>
-                  </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-                  {/* Thumbnails Grid */}
-                  <div className="grid grid-cols-5 gap-2">
-                    {generatedThumbnails.length > 0 ? (
-                      generatedThumbnails.map((thumb, i) => (
-                        <motion.button
-                          key={i}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleSelectThumbnail(i)}
-                          className={`group relative aspect-video overflow-hidden rounded-lg border-2 transition-all ${
-                            selectedThumbnail === i
-                              ? 'border-xtube-red shadow-[0_0_12px_rgba(229,9,20,0.3)]'
-                              : 'border-transparent hover:border-white/20'
-                          }`}
-                        >
-                          <img
-                            src={thumb.url}
-                            alt={`Thumbnail ${i}`}
-                            className="h-full w-full object-cover"
-                          />
-                          {/* Timecode */}
-                          <div className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 py-0.5 text-[7px] font-semibold text-white">
-                            {Math.floor(thumb.timeSeconds / 60)}:{(thumb.timeSeconds % 60).toString().padStart(2, '0')}
-                          </div>
-                          {/* Selected indicator */}
-                          {selectedThumbnail === i && (
-                            <div className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-xtube-red">
-                              <CheckCircle2 className="h-3 w-3 text-white" />
-                            </div>
-                          )}
-                          {/* Hover overlay */}
-                          <div className="absolute inset-0 bg-white/0 transition-colors group-hover:bg-white/5" />
-                        </motion.button>
-                      ))
-                    ) : (
-                      thumbnailGradients.map((gradient, i) => (
-                        <motion.button
-                          key={i}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => setSelectedThumbnail(i)}
-                          className={`group relative aspect-video overflow-hidden rounded-lg border-2 transition-all ${
-                            selectedThumbnail === i
-                              ? 'border-xtube-red shadow-[0_0_12px_rgba(229,9,20,0.3)]'
-                              : 'border-transparent hover:border-white/20'
-                          }`}
-                        >
-                          <img
-                            src={premiumPlaceholderImages[i]}
-                            alt={`Thumbnail ${i}`}
-                            className="h-full w-full object-cover"
-                          />
-                          {/* Fallback gradient underlay */}
-                          <div className={`absolute inset-0 bg-gradient-to-br ${gradient} -z-10`} />
-                          {/* Timecode */}
-                          <div className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 py-0.5 text-[7px] font-semibold text-white">
-                            {thumbnailTimecodes[i]}
-                          </div>
-                          {/* Selected indicator */}
-                          {selectedThumbnail === i && (
-                            <div className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-xtube-red">
-                              <CheckCircle2 className="h-3 w-3 text-white" />
-                            </div>
-                          )}
-                          {/* Hover overlay */}
-                          <div className="absolute inset-0 bg-white/0 transition-colors group-hover:bg-white/5" />
-                        </motion.button>
-                      ))
-                    )}
-                  </div>
+            {/* ── Thumbnail Section (Always Visible & Responsive) ── */}
+            <div className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-4 backdrop-blur-xl">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4 text-white/40" />
+                  <span className="text-sm font-semibold text-white">Select Thumbnail Poster (10 Options)</span>
+                </div>
+                {generatedThumbnails.length > 0 && (
+                  <span className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
+                    Auto-extracted from Video
+                  </span>
+                )}
+              </div>
 
-                  {/* Info note */}
-                  <div className="mt-3 flex items-start gap-2">
-                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-white/25" />
-                    <p className="text-[11px] text-white/30">
-                      Video thumbnail and duration are auto-generated after upload.
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+              {/* Grid of 10 Thumbnails */}
+              <div className="grid grid-cols-5 gap-2">
+                {generatedThumbnails.length > 0 ? (
+                  generatedThumbnails.map((thumb) => (
+                    <motion.button
+                      key={thumb.index}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleSelectThumbnail(thumb.index)}
+                      className={`group relative aspect-video overflow-hidden rounded-lg border-2 transition-all ${
+                        selectedThumbnail === thumb.index
+                          ? 'border-xtube-red shadow-[0_0_12px_rgba(229,9,20,0.4)]'
+                          : 'border-transparent hover:border-white/20'
+                      }`}
+                    >
+                      <img
+                        src={thumb.url}
+                        alt={`Thumbnail ${thumb.index + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="absolute bottom-0.5 right-0.5 rounded bg-black/80 px-1 py-0.5 text-[8px] font-semibold text-white">
+                        {Math.floor(thumb.timeSeconds / 60)}:{(thumb.timeSeconds % 60).toString().padStart(2, '0')}
+                      </div>
+                      {selectedThumbnail === thumb.index && (
+                        <div className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-xtube-red shadow-md">
+                          <CheckCircle2 className="h-3 w-3 text-white" />
+                        </div>
+                      )}
+                    </motion.button>
+                  ))
+                ) : (
+                  // Default mock premium scenic thumbnails
+                  Array.from({ length: 10 }).map((_, i) => (
+                    <motion.button
+                      key={i}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setSelectedThumbnail(i)}
+                      className={`group relative aspect-video overflow-hidden rounded-lg border-2 transition-all ${
+                        selectedThumbnail === i
+                          ? 'border-xtube-red shadow-[0_0_12px_rgba(229,9,20,0.4)]'
+                          : 'border-transparent hover:border-white/20'
+                      }`}
+                    >
+                      <img
+                        src={premiumPlaceholderImages[i]}
+                        alt={`Scenic Frame ${i + 1}`}
+                        className="h-full w-full object-cover opacity-60 group-hover:opacity-85 transition-opacity"
+                      />
+                      <div className="absolute bottom-0.5 right-0.5 rounded bg-black/80 px-1 py-0.5 text-[8px] font-semibold text-white/70">
+                        {thumbnailTimecodes[i]}
+                      </div>
+                      {selectedThumbnail === i && (
+                        <div className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-xtube-red shadow-md">
+                          <CheckCircle2 className="h-3 w-3 text-white" />
+                        </div>
+                      )}
+                    </motion.button>
+                  ))
+                )}
+              </div>
+
+              <div className="mt-3 flex items-start gap-2 text-white/40">
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                <p className="text-[10px] leading-relaxed">
+                  Select your poster thumbnail from the 10 options. The chosen thumbnail is automatically uploaded to Supabase in real-time.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* ═══════════════════════════════════════════════════════════════════
