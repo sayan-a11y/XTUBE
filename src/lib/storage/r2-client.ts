@@ -220,8 +220,8 @@ function generatePresignedUrl(
   const dateOnly = dateStamp.substring(0, 8)
   const expires = expiresInSeconds.toString()
 
-  const host = `${R2_BUCKET_NAME}.${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
-  const path = `/${key}`
+  const host = `${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+  const path = `/${R2_BUCKET_NAME}/${key}`
 
   const scope = `${dateOnly}/${region}/${service}/aws4_request`
   const credential = `${R2_ACCESS_KEY_ID}/${scope}`
