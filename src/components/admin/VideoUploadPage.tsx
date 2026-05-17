@@ -119,6 +119,7 @@ export function VideoUploadPage() {
   const [isDragOver, setIsDragOver] = useState(false)
   const [selectedQuality, setSelectedQuality] = useState('auto')
   const [selectedThumbnail, setSelectedThumbnail] = useState(0)
+  const [uploadStatusText, setUploadStatusText] = useState('Uploading video to server...')
 
   // File info
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null)
@@ -319,6 +320,7 @@ export function VideoUploadPage() {
       setUploadedSize('0 GB')
       setUploadSpeed('0 MB/s')
       setErrorMessage(null)
+      setUploadStatusText('Uploading video to server...')
 
       const startTime = Date.now()
 
@@ -353,23 +355,36 @@ export function VideoUploadPage() {
 
         // Upload chunk with retries
         let retries = 0
-        const maxRetries = 3
+        const maxRetries = 5 // Increased to 5 for high reliability on mobile/tablet connections
         let chunkUploaded = false
 
         while (!chunkUploaded && retries < maxRetries) {
           try {
+            if (retries > 0) {
+              setUploadStatusText(`Uploading chunk ${i + 1} of ${totalChunks} (Retry ${retries}/${maxRetries})...`)
+            } else {
+              setUploadStatusText(`Uploading chunk ${i + 1} of ${totalChunks}...`)
+            }
+
+            const formData = new FormData()
+            formData.append('chunk', chunkSlice, `chunk_${i}`)
+
             const res = await fetch(`/api/upload?chunkIndex=${i}&sessionId=${sessionId}`, {
               method: 'PUT',
-              headers: { 'Content-Type': 'application/octet-stream' },
-              body: chunkSlice,
+              body: formData,
             })
 
-            if (!res.ok) throw new Error(`Chunk ${i} failed`)
+            if (!res.ok) {
+              const text = await res.text()
+              throw new Error(`Chunk ${i} failed on server: ${text || res.statusText}`)
+            }
             chunkUploaded = true
-          } catch (err) {
+          } catch (err: any) {
             retries++
+            console.warn(`Chunk ${i} upload attempt ${retries} failed:`, err)
             if (retries >= maxRetries) throw err
-            await new Promise((r) => setTimeout(r, 500 * retries))
+            // Exponential backoff: wait longer between retries (e.g., 1s, 2s, 4s, 8s)
+            await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, retries - 1)))
           }
         }
 
@@ -577,6 +592,7 @@ export function VideoUploadPage() {
     setIsTrending(false)
     setIsLive(false)
     setSelectedThumbnail(0)
+    setUploadStatusText('Uploading video to server...')
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [videoObjectUrl])
 
@@ -858,7 +874,7 @@ export function VideoUploadPage() {
                 >
                   <div className="mb-3 flex items-center justify-between">
                     <span className="text-sm font-semibold text-white">
-                      {uploadStage === 'processing' ? 'Processing video...' : 'Uploading video to server...'}
+                      {uploadStage === 'processing' ? 'Processing video...' : uploadStatusText}
                     </span>
                     <span className="text-sm font-bold text-xtube-red">
                       {Math.round(uploadProgress)}%

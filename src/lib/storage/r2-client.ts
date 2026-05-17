@@ -1012,3 +1012,66 @@ export async function uploadObject(
   writeFileSync(fullPath, data)
   return getLocalUrl(key)
 }
+
+/**
+ * Upload a local file from disk to Cloudflare R2 or local storage.
+ * If R2 is enabled, uploads in memory-safe 5MB chunks using multipart upload.
+ */
+export async function uploadLocalFileToR2(
+  localPath: string,
+  key: string,
+  contentType: string
+): Promise<string> {
+  const provider = getProvider()
+
+  if (provider === 'r2') {
+    const { statSync, openSync, readSync, closeSync } = require('fs')
+    const stat = statSync(localPath)
+    const fileSize = stat.size
+
+    const MIN_PART_SIZE = 5 * 1024 * 1024 // 5MB minimum for R2 multipart
+
+    if (fileSize < MIN_PART_SIZE) {
+      const buffer = readFileSync(localPath)
+      return uploadObject(key, buffer, contentType)
+    }
+
+    // Initialize R2 multipart upload
+    const initResult = await initMultipartUploadR2(key, contentType, fileSize, 'video', localPath)
+    const uploadId = initResult.uploadId
+    const r2Parts: Array<{ partNumber: number; etag: string }> = []
+
+    const fd = openSync(localPath, 'r')
+    const buffer = Buffer.alloc(MIN_PART_SIZE)
+    let bytesRead = 0
+    let partNumber = 1
+
+    try {
+      while (bytesRead < fileSize) {
+        const read = readSync(fd, buffer, 0, MIN_PART_SIZE, bytesRead)
+        if (read === 0) break
+
+        const chunkData = read === MIN_PART_SIZE ? buffer : buffer.subarray(0, read)
+        const uploadResult = await uploadPartR2(key, uploadId, partNumber, chunkData)
+        r2Parts.push({ partNumber, etag: uploadResult.etag })
+
+        bytesRead += read
+        partNumber++
+      }
+    } finally {
+      closeSync(fd)
+    }
+
+    const completeResult = await completeMultipartUploadR2(key, uploadId, r2Parts)
+    return completeResult.url
+  }
+
+  // Local storage: copy file to target path
+  const fullPath = ensureLocalDir(key)
+  if (localPath !== fullPath) {
+    const { copyFileSync } = require('fs')
+    copyFileSync(localPath, fullPath)
+  }
+  return getLocalUrl(key)
+}
+
