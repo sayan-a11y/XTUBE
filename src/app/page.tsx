@@ -26,9 +26,11 @@ export default async function Page() {
     orderBy: { order: 'asc' },
   })
   const categories = categoriesRaw.map(c => ({
-    ...c,
-    createdAt: c.createdAt.toISOString(),
-    updatedAt: c.updatedAt.toISOString(),
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    icon: c.icon,
+    order: c.order,
   }))
 
   // Fetch initial active general ads
