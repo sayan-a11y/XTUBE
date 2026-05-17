@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       const session = await db.uploadSession.create({
         data: {
           fileName,
-          fileSize,
+          fileSize: BigInt(fileSize),
           mimeType,
           chunkSize,
           totalChunks,
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
       const session = await db.uploadSession.create({
         data: {
           fileName,
-          fileSize,
+          fileSize: BigInt(fileSize),
           mimeType: mimeType || 'video/mp4',
           chunkSize,
           totalChunks,
@@ -262,11 +262,17 @@ export async function POST(request: NextRequest) {
             },
           })
 
+          // Serialize BigInt safely for JSON responses and broadcast events
+          const serializedVideo = {
+            ...video,
+            fileSize: video.fileSize ? Number(video.fileSize) : null,
+          }
+
           // Broadcast the new video in real-time
-          broadcastRealtimeEvent('video:created', video)
+          broadcastRealtimeEvent('video:created', serializedVideo)
 
           return NextResponse.json({
-            video,
+            video: serializedVideo,
             videoUrl: finalVideoUrl,
             midrollTimings,
             qualityLevels,
@@ -356,11 +362,17 @@ export async function POST(request: NextRequest) {
             },
           })
 
+          // Serialize BigInt safely for JSON responses and broadcast events
+          const serializedVideo = {
+            ...video,
+            fileSize: video.fileSize ? Number(video.fileSize) : null,
+          }
+
           // Broadcast the new video in real-time
-          broadcastRealtimeEvent('video:created', video)
+          broadcastRealtimeEvent('video:created', serializedVideo)
 
           return NextResponse.json({
-            video,
+            video: serializedVideo,
             videoUrl: `/videos/${videoId}.mp4`,
             midrollTimings,
             qualityLevels,
@@ -569,7 +581,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       sessionId: session.id,
       fileName: session.fileName,
-      fileSize: session.fileSize,
+      fileSize: Number(session.fileSize),
       totalChunks: session.totalChunks,
       uploadedChunks: uploadedChunks.length,
       progress,

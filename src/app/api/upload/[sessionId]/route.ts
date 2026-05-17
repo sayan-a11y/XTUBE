@@ -47,7 +47,7 @@ export async function GET(
     return NextResponse.json({
       sessionId: session.id,
       fileName: session.fileName,
-      fileSize: session.fileSize,
+      fileSize: Number(session.fileSize),
       mimeType: session.mimeType,
       chunkSize: session.chunkSize,
       totalChunks: session.totalChunks,
