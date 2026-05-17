@@ -14,7 +14,8 @@ import {
   Clock,
   CheckCircle,
   Activity,
-  Percent
+  Percent,
+  Megaphone
 } from 'lucide-react'
 import {
   AreaChart,
@@ -65,55 +66,23 @@ interface LocalAdRow {
   status: 'Active' | 'Paused'
 }
 
-// ─── Constants Matching Screenshot Colors ──────────────────────────────────────
-
+// Donut colors
 const DONUT_COLORS = ['#dc2626', '#2563eb', '#16a34a', '#d97706', '#8b5cf6']
 
-// Baseline performance data over time (from screenshot)
-const BASELINE_PERFORMANCE = [
-  { date: 'Jun 4', impressions: 340000, clicks: 58000, revenue: 1700 },
-  { date: 'Jun 5', impressions: 420000, clicks: 92000, revenue: 3100 },
-  { date: 'Jun 6', impressions: 350000, clicks: 98000, revenue: 3000 },
-  { date: 'Jun 7', impressions: 370000, clicks: 94000, revenue: 3200 },
-  { date: 'Jun 8', impressions: 350000, clicks: 102000, revenue: 3000 },
-  { date: 'Jun 9', impressions: 360000, clicks: 96000, revenue: 3050 },
-  { date: 'Jun 10', impressions: 320000, clicks: 98000, revenue: 2600 },
-]
-
-// Baseline donut data
-const BASELINE_DONUT = [
-  { name: 'Ad #2025-001', value: 805200, pct: '32.9%', raw: '805.2K', color: '#dc2626' },
-  { name: 'Ad #2025-002', value: 652100, pct: '26.6%', raw: '652.1K', color: '#2563eb' },
-  { name: 'Ad #2025-003', value: 512400, pct: '20.9%', raw: '512.4K', color: '#16a34a' },
-  { name: 'Ad #2025-004', value: 285600, pct: '11.6%', raw: '285.6K', color: '#d97706' },
-  { name: 'Others', value: 194700, pct: '8.0%', raw: '194.7K', color: '#8b5cf6' },
-]
-
-// Baseline table campaigns
-const BASELINE_TABLE: LocalAdRow[] = [
-  { id: '#2025-001', name: 'Ad Campaign 001', impressions: '805.2K', views: '402.6K', clicks: '15.2K', ctr: '1.89%', revenue: '$4,152.35', status: 'Active' },
-  { id: '#2025-002', name: 'Ad Campaign 002', impressions: '652.1K', views: '321.4K', clicks: '12.1K', ctr: '1.86%', revenue: '$3,245.80', status: 'Active' },
-  { id: '#2025-003', name: 'Ad Campaign 003', impressions: '512.4K', views: '256.8K', clicks: '9.3K', ctr: '1.81%', revenue: '$2,456.10', status: 'Active' },
-  { id: '#2025-004', name: 'Ad Campaign 004', impressions: '285.6K', views: '142.3K', clicks: '4.8K', ctr: '1.68%', revenue: '$1,356.20', status: 'Active' },
-  { id: '#2025-005', name: 'Ad Campaign 005', impressions: '194.7K', views: '98.6K', clicks: '3.1K', ctr: '1.59%', revenue: '$1,240.30', status: 'Active' },
-]
-
 export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
-  const [tableRows, setTableRows] = useState<LocalAdRow[]>(BASELINE_TABLE)
-  const [dateRange] = useState('Jun 4, 2025 - Jun 10, 2025')
+  const [tableRows, setTableRows] = useState<LocalAdRow[]>([])
   const [refreshing, setRefreshing] = useState(false)
 
-  // ─── DYNAMIC STATISTICS CALCULATIONS FROM SUPABASE ──────────────────────────────
+  // ─── DYNAMIC STATISTICS CALCULATIONS FROM SUPABASE (100% PURE REALTIME) ─────────
   
   const computedKPIs = useMemo(() => {
-    // Initialize starting with the screenshot's premium baseline stats
-    let impressionsVal = 2450000 // 2.45M
-    let clicksVal = 45320 // 45.32K
-    let viewsVal = 1230000 // 1.23M
-    let revenueVal = 12450.75 // $12,450.75
-    let usersVal = 785320 // 785.32K
+    let impressionsVal = 0
+    let clicksVal = 0
+    let viewsVal = 0
+    let revenueVal = 0
+    let usersVal = 0
 
-    // Add active Supabase database ad metrics
+    // Add active Supabase database ad metrics exclusively
     ads.forEach(ad => {
       impressionsVal += ad.impressions || 0
       clicksVal += ad.clicks || 0
@@ -122,13 +91,13 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
       usersVal += Math.round((ad.impressions || 0) * 0.32)
     })
 
-    const ctrVal = impressionsVal > 0 ? ((clicksVal / impressionsVal) * 100) : 1.85
-    const cpmVal = impressionsVal > 0 ? ((revenueVal / impressionsVal) * 1000) : 5.08
+    const ctrVal = impressionsVal > 0 ? ((clicksVal / impressionsVal) * 100) : 0
+    const cpmVal = impressionsVal > 0 ? ((revenueVal / impressionsVal) * 1000) : 0
 
-    // Helper functions for short notations (M, K)
+    // Short notations formatter
     const formatValue = (num: number) => {
       if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`
-      if (num >= 1000) return `${(num / 1000).toFixed(2)}K`
+      if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
       return String(num)
     }
 
@@ -139,155 +108,167 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
       revenue: `$${revenueVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       ctr: `${ctrVal.toFixed(2)}%`,
       users: formatValue(usersVal),
-      cpm: `$${cpmVal.toFixed(2)}`
+      cpm: `$${cpmVal.toFixed(2)}`,
+      rawImpressions: impressionsVal
     }
   }, [ads])
 
-  // ─── DYNAMIC PERFORMANCE OVER TIME GRAPH ──────────────────────────────────────────
+  // ─── DYNAMIC PERFORMANCE OVER TIME GRAPH (LAST 7 DAYS) ──────────────────────────
   
   const computedPerformanceData = useMemo(() => {
-    if (!ads || ads.length === 0) return BASELINE_PERFORMANCE
-
-    const totalDbImp = ads.reduce((sum, a) => sum + (a.impressions || 0), 0)
-    const totalDbClicks = ads.reduce((sum, a) => sum + (a.clicks || 0), 0)
-    const totalDbRevenue = ads.reduce((sum, a) => sum + (a.revenue || 0), 0)
-
-    // Distribute dynamic database metric increases across graph points
-    return BASELINE_PERFORMANCE.map((day, idx) => {
-      const factor = (idx + 1) / 28
-      return {
-        ...day,
-        impressions: day.impressions + Math.round(totalDbImp * factor),
-        clicks: day.clicks + Math.round(totalDbClicks * factor),
-        revenue: parseFloat((day.revenue + totalDbRevenue * factor).toFixed(2))
-      }
-    })
+    const days: Array<{ date: string; impressions: number; clicks: number; revenue: number }> = []
+    
+    // Generate dates for the last 7 days dynamically
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      
+      let dayImp = 0
+      let dayClicks = 0
+      let dayRev = 0
+      
+      ads.forEach(ad => {
+        const adDate = new Date(ad.createdAt)
+        if (adDate.toDateString() === d.toDateString()) {
+          dayImp += ad.impressions || 0
+          dayClicks += ad.clicks || 0
+          dayRev += ad.revenue || 0
+        }
+      })
+      
+      days.push({
+        date: dateLabel,
+        impressions: dayImp,
+        clicks: dayClicks,
+        revenue: parseFloat(dayRev.toFixed(2))
+      })
+    }
+    
+    return days
   }, [ads])
 
   // ─── DYNAMIC TOP PERFORMING ADS PIE/DONUT ─────────────────────────────────────────
   
   const computedDonutData = useMemo(() => {
-    if (!ads || ads.length === 0) return BASELINE_DONUT
+    if (!ads || ads.length === 0) {
+      return [{ name: 'No Active Ads', value: 1, pct: '0%', raw: '0', color: '#1f2937' }]
+    }
 
-    // Prepare list of database items
-    const databaseList = ads.map((ad, idx) => ({
-      name: ad.title || `Ad Campaign ${String(idx + 6).padStart(3, '0')}`,
-      value: ad.impressions || 18500,
-      color: DONUT_COLORS[idx % DONUT_COLORS.length]
-    }))
+    const totalImp = ads.reduce((sum, a) => sum + (a.impressions || 0), 0)
+    
+    // Sort ads by impressions descending
+    const sortedAds = [...ads].sort((a, b) => (b.impressions || 0) - (a.impressions || 0))
+    const top4 = sortedAds.slice(0, 4)
+    const othersSum = sortedAds.slice(4).reduce((sum, a) => sum + (a.impressions || 0), 0)
 
-    // Merge baseline and DB items
-    const combined = [...databaseList]
-    BASELINE_DONUT.forEach(baseAd => {
-      if (!combined.some(c => c.name === baseAd.name)) {
-        combined.push({
-          name: baseAd.name,
-          value: baseAd.value,
-          color: baseAd.color
-        })
+    const list = top4.map((ad, idx) => {
+      const pctStr = totalImp > 0 ? `${(((ad.impressions || 0) / totalImp) * 100).toFixed(1)}%` : '0%'
+      const formattedRaw = (ad.impressions || 0) >= 1000000 
+        ? `${((ad.impressions || 0) / 1000000).toFixed(1)}M`
+        : (ad.impressions || 0) >= 1000 
+          ? `${((ad.impressions || 0) / 1000).toFixed(1)}K`
+          : String(ad.impressions || 0)
+
+      return {
+        name: ad.title || `Campaign #${ad.id.slice(0, 6)}`,
+        value: ad.impressions || 0,
+        pct: pctStr,
+        raw: formattedRaw,
+        color: DONUT_COLORS[idx % DONUT_COLORS.length]
       }
     })
 
-    // Sort by impressions descending and group tail items
-    combined.sort((a, b) => b.value - a.value)
-    const top4 = combined.slice(0, 4)
-    const othersSum = combined.slice(4).reduce((sum, item) => sum + item.value, 0)
-
-    const finalData = [...top4]
     if (othersSum > 0) {
-      finalData.push({
+      const pctStr = totalImp > 0 ? `${((othersSum / totalImp) * 100).toFixed(1)}%` : '0%'
+      const formattedRaw = othersSum >= 1000000 
+        ? `${(othersSum / 1000000).toFixed(1)}M`
+        : othersSum >= 1000 
+          ? `${(othersSum / 1000).toFixed(1)}K`
+          : String(othersSum)
+
+      list.push({
         name: 'Others',
         value: othersSum,
+        pct: pctStr,
+        raw: formattedRaw,
         color: '#8b5cf6'
       })
     }
 
-    const totalValue = finalData.reduce((sum, i) => sum + i.value, 0) || 1
-
-    return finalData.map(item => {
-      const formattedRaw = item.value >= 1000000 
-        ? `${(item.value / 1000000).toFixed(1)}M`
-        : item.value >= 1000 
-          ? `${(item.value / 1000).toFixed(1)}K`
-          : String(item.value)
-
-      return {
-        name: item.name,
-        value: item.value,
-        pct: `${((item.value / totalValue) * 100).toFixed(1)}%`,
-        raw: formattedRaw,
-        color: item.color
-      }
-    })
+    return list
   }, [ads])
 
   // ─── DYNAMIC AD TYPE VERTICAL BAR CHART ───────────────────────────────────────────
   
   const computedBarData = useMemo(() => {
-    let preRoll = 1120000
-    let midRoll = 785000
-    let postRoll = 412000
-    let overlay = 256000
-    let otherType = 134000
+    let preRoll = 0
+    let midRoll = 0
+    let postRoll = 0
+    let overlay = 0
+    let otherType = 0
 
     ads.forEach(ad => {
       const pos = ad.position.toLowerCase()
       const imp = ad.impressions || 0
       if (pos.includes('pre')) preRoll += imp
-      else if (pos.includes('mid')) midRoll = midRoll + imp
-      else if (pos.includes('post')) postRoll = postRoll + imp
-      else if (pos.includes('overlay')) overlay = overlay + imp
-      else otherType = otherType + imp
+      else if (pos.includes('mid')) midRoll += imp
+      else if (pos.includes('post')) postRoll += imp
+      else if (pos.includes('overlay')) overlay += imp
+      else otherType += imp
     })
 
     const formatDisplay = (val: number) => {
       if (val >= 1000000) return `${(val / 1000000).toFixed(2)}M`
-      if (val >= 1000) return `${Math.round(val / 1000)}K`
+      if (val >= 1000) return `${(val / 1000).toFixed(1)}K`
       return String(val)
     }
 
+    // Find the maximum value to scale relative height of bars properly
+    const maxVal = Math.max(preRoll, midRoll, postRoll, overlay, otherType) || 1
+
     return [
-      { name: 'Pre-roll', value: preRoll, display: formatDisplay(preRoll), color: '#dc2626' },
-      { name: 'Mid-roll', value: midRoll, display: formatDisplay(midRoll), color: '#2563eb' },
-      { name: 'Post-roll', value: postRoll, display: formatDisplay(postRoll), color: '#16a34a' },
-      { name: 'Overlay', value: overlay, display: formatDisplay(overlay), color: '#d97706' },
-      { name: 'Other', value: otherType, display: formatDisplay(otherType), color: '#8b5cf6' }
+      { name: 'Pre-roll', value: preRoll, maxVal, display: formatDisplay(preRoll), color: '#dc2626' },
+      { name: 'Mid-roll', value: midRoll, maxVal, display: formatDisplay(midRoll), color: '#2563eb' },
+      { name: 'Post-roll', value: postRoll, maxVal, display: formatDisplay(postRoll), color: '#16a34a' },
+      { name: 'Overlay', value: overlay, maxVal, display: formatDisplay(overlay), color: '#d97706' },
+      { name: 'Other', value: otherType, maxVal, display: formatDisplay(otherType), color: '#8b5cf6' }
     ]
   }, [ads])
 
-  // ─── SYNC CAMPAIGNS TABLE ROWS ───────────────────────────────────────────────────
+  // ─── SYNC CAMPAIGNS TABLE ROWS (PURE REALTIME) ───────────────────────────────────
   
   const syncAdsData = useCallback(() => {
     if (!ads || ads.length === 0) {
-      setTableRows(BASELINE_TABLE)
+      setTableRows([])
       return
     }
 
     const transformed: LocalAdRow[] = ads.map((ad, idx) => {
-      const adId = `#2025-0${String(idx + 6).padStart(2, '0')}`
-      const formattedImp = ad.impressions >= 1000000 
-        ? `${(ad.impressions / 1000000).toFixed(1)}M`
-        : ad.impressions >= 1000 
-          ? `${(ad.impressions / 1000).toFixed(1)}K`
-          : String(ad.impressions)
+      const adId = `#2025-0${String(idx + 1).padStart(2, '0')}`
+      const formattedImp = (ad.impressions || 0) >= 1000000 
+        ? `${((ad.impressions || 0) / 1000000).toFixed(1)}M`
+        : (ad.impressions || 0) >= 1000 
+          ? `${((ad.impressions || 0) / 1000).toFixed(1)}K`
+          : String(ad.impressions || 0)
 
-      const formattedViews = ad.impressions > 0 
-        ? `${Math.round(ad.impressions * 0.5 >= 1000 ? ad.impressions * 0.5 / 1000 : ad.impressions * 0.5)}K`
+      const formattedViews = (ad.impressions || 0) > 0 
+        ? `${Math.round((ad.impressions || 0) * 0.5 >= 1000 ? (ad.impressions || 0) * 0.5 / 1000 : (ad.impressions || 0) * 0.5)}K`
         : '0K'
 
-      const formattedClicks = ad.clicks >= 1000 
-        ? `${(ad.clicks / 1000).toFixed(1)}K` 
-        : String(ad.clicks)
+      const formattedClicks = (ad.clicks || 0) >= 1000 
+        ? `${((ad.clicks || 0) / 1000).toFixed(1)}K` 
+        : String(ad.clicks || 0)
 
-      const calculatedCtr = ad.impressions > 0 
-        ? `${((ad.clicks / ad.impressions) * 100).toFixed(2)}%`
+      const calculatedCtr = (ad.impressions || 0) > 0 
+        ? `${(((ad.clicks || 0) / (ad.impressions || 0)) * 100).toFixed(2)}%`
         : '0.00%'
 
-      const formattedRevenue = `$${ad.revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      const formattedRevenue = `$${(ad.revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
       return {
         id: adId,
-        name: ad.title || `Ad Campaign ${String(idx + 6).padStart(3, '0')}`,
+        name: ad.title || `Ad Campaign ${String(idx + 1).padStart(3, '0')}`,
         impressions: formattedImp,
         views: formattedViews,
         clicks: formattedClicks,
@@ -297,23 +278,14 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
       }
     })
 
-    // Prepend dynamic Supabase entries, merge with screenshot campaigns
-    setTableRows(() => {
-      const combinedList = [...transformed]
-      BASELINE_TABLE.forEach(baseRow => {
-        if (!combinedList.some(c => c.name === baseRow.name)) {
-          combinedList.push(baseRow)
-        }
-      })
-      return combinedList.slice(0, 7) // Keep list clean
-    })
+    setTableRows(transformed)
   }, [ads])
 
   useEffect(() => {
     syncAdsData()
   }, [syncAdsData])
 
-  // SSE real-time sync hook trigger
+  // Real-time server push events
   useRealtimeSync(useCallback((type) => {
     if (type.startsWith('ad:') || type.includes('ad:')) {
       syncAdsData()
@@ -327,6 +299,19 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
       syncAdsData()
     }, 600)
   }
+
+  // Dynamic Date Range Picker display based on database campaign creation dates
+  const dynamicDateDisplay = useMemo(() => {
+    if (!ads || ads.length === 0) {
+      return 'No Active Campaigns'
+    }
+    const dates = ads.map(a => new Date(a.createdAt).getTime())
+    const minD = new Date(Math.min(...dates))
+    const maxD = new Date(Math.max(...dates))
+    
+    const opt: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
+    return `${minD.toLocaleDateString('en-US', opt)} - ${maxD.toLocaleDateString('en-US', opt)}`
+  }, [ads])
 
   return (
     <div className="space-y-4 p-4 text-white bg-[#0a0b0d] min-h-screen">
@@ -353,13 +338,13 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Date Picker */}
+          {/* Dynamic Date display */}
           <div className="flex h-8.5 items-center gap-2 rounded-lg border border-white/5 bg-[#12141a] px-3 text-xs text-white/80 hover:border-white/10 cursor-pointer transition">
-            <span>{dateRange}</span>
+            <span>{dynamicDateDisplay}</span>
             <ChevronDown className="h-3.5 w-3.5 text-white/30" />
           </div>
 
-          {/* Refresh Action Button */}
+          {/* Refresh Trigger */}
           <button 
             onClick={handleRefresh}
             className="flex h-8.5 items-center gap-1.5 rounded-lg border border-white/5 bg-[#12141a] px-3 text-xs font-semibold text-white/90 hover:bg-white/[0.04] transition active:scale-95"
@@ -572,10 +557,10 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
               {computedDonutData.map((item) => (
                 <div key={item.name} className="flex items-center justify-between border-b border-white/[0.02] pb-1.5">
                   <span className="flex items-center gap-2 text-white/70">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
                     <span className="truncate max-w-[120px]">{item.name}</span>
                   </span>
-                  <span className="font-semibold text-white">
+                  <span className="font-semibold text-white shrink-0">
                     {item.raw} <span className="text-white/30 text-[10px]">({item.pct})</span>
                   </span>
                 </div>
@@ -598,38 +583,51 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-white/5 text-[10px] font-semibold text-white/30 uppercase tracking-wider">
-                  <th className="pb-3.5">Ad ID</th>
-                  <th className="pb-3.5">Ad Name</th>
-                  <th className="pb-3.5">Impressions</th>
-                  <th className="pb-3.5">Views</th>
-                  <th className="pb-3.5">Clicks</th>
-                  <th className="pb-3.5">CTR</th>
-                  <th className="pb-3.5">Revenue</th>
-                  <th className="pb-3.5 text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/[0.02]">
-                {tableRows.map((row) => (
-                  <tr key={row.id} className="group hover:bg-white/[0.01] transition-colors">
-                    <td className="py-3 font-medium text-white/40">{row.id}</td>
-                    <td className="py-3 font-semibold text-white/90 group-hover:text-red-500 transition truncate max-w-[150px]">{row.name}</td>
-                    <td className="py-3 text-white/60">{row.impressions}</td>
-                    <td className="py-3 text-white/50">{row.views}</td>
-                    <td className="py-3 text-white/60">{row.clicks}</td>
-                    <td className="py-3 font-medium text-white/80">{row.ctr}</td>
-                    <td className="py-3 font-bold text-emerald-400">{row.revenue}</td>
-                    <td className="py-3 text-right">
-                      <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-400 border border-emerald-500/10">
-                        {row.status}
-                      </span>
-                    </td>
+            {tableRows.length === 0 ? (
+              // ─── STUNNING REAL-TIME EMPTY STATE ───
+              <div className="flex flex-col items-center justify-center py-16 text-center border border-white/5 rounded-xl bg-white/[0.01]">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-xtube-red/10 mb-4 animate-pulse">
+                  <Megaphone className="h-6 w-6 text-xtube-red" />
+                </div>
+                <h4 className="text-sm font-bold text-white mb-1">No Active Campaigns Found</h4>
+                <p className="text-xs text-white/40 max-w-sm px-6">
+                  Create new dynamic banner or video ad slots inside the Ad Manager tabs to populate live statistics in real-time.
+                </p>
+              </div>
+            ) : (
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-white/5 text-[10px] font-semibold text-white/30 uppercase tracking-wider">
+                    <th className="pb-3.5">Ad ID</th>
+                    <th className="pb-3.5">Ad Name</th>
+                    <th className="pb-3.5">Impressions</th>
+                    <th className="pb-3.5">Views</th>
+                    <th className="pb-3.5">Clicks</th>
+                    <th className="pb-3.5">CTR</th>
+                    <th className="pb-3.5">Revenue</th>
+                    <th className="pb-3.5 text-right">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-white/[0.02]">
+                  {tableRows.map((row) => (
+                    <tr key={row.id} className="group hover:bg-white/[0.01] transition-colors">
+                      <td className="py-3 font-medium text-white/40">{row.id}</td>
+                      <td className="py-3 font-semibold text-white/90 group-hover:text-red-500 transition truncate max-w-[150px]">{row.name}</td>
+                      <td className="py-3 text-white/60">{row.impressions}</td>
+                      <td className="py-3 text-white/50">{row.views}</td>
+                      <td className="py-3 text-white/60">{row.clicks}</td>
+                      <td className="py-3 font-medium text-white/80">{row.ctr}</td>
+                      <td className="py-3 font-bold text-emerald-400">{row.revenue}</td>
+                      <td className="py-3 text-right">
+                        <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-400 border border-emerald-500/10">
+                          {row.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
@@ -663,7 +661,8 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
             {/* Render Vertical Colored Bars */}
             {computedBarData.map((bar) => {
               // Calculate accurate relative height rates
-              const heightPct = `${(bar.value / 1200000) * 100}%`
+              const maxValToUse = bar.maxVal || 1
+              const heightPct = `${(bar.value / maxValToUse) * 80}%`
 
               return (
                 <div key={bar.name} className="relative z-10 flex flex-col items-center w-10 group cursor-pointer">
@@ -676,9 +675,9 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
                   <div 
                     className="w-7 rounded-t-md transition-all duration-500 hover:brightness-110 shadow-lg"
                     style={{ 
-                      height: `calc(${heightPct} - 25px)`, 
-                      backgroundColor: bar.color,
-                      boxShadow: `0 4px 12px ${bar.color}22`
+                      height: bar.value > 0 ? `calc(${heightPct} + 15px)` : '4px', 
+                      backgroundColor: bar.value > 0 ? bar.color : '#1f2937',
+                      boxShadow: bar.value > 0 ? `0 4px 12px ${bar.color}22` : 'none'
                     }}
                   />
 
