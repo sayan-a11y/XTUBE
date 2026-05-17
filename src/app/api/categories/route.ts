@@ -7,7 +7,30 @@ export async function GET() {
     const categories = await db.category.findMany({
       orderBy: { order: 'asc' },
     })
-    return NextResponse.json({ categories })
+
+    // Fetch all videos to calculate live video counts and total views per category
+    const videos = await db.video.findMany({
+      select: {
+        category: true,
+        views: true,
+      },
+    })
+
+    // Compute live stats for each category
+    const categoryStats = categories.map((cat) => {
+      const catVideos = videos.filter(
+        (v) => v.category.toLowerCase().trim() === cat.name.toLowerCase().trim()
+      )
+      const videoCount = catVideos.length
+      const viewCount = catVideos.reduce((sum, v) => sum + v.views, 0)
+      return {
+        ...cat,
+        videoCount,
+        viewCount,
+      }
+    })
+
+    return NextResponse.json({ categories: categoryStats })
   } catch (error) {
     console.error('Error fetching categories:', error)
     return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 })

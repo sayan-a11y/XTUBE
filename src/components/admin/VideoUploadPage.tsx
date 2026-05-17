@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useRealtimeSync } from '@/hooks/useRealtimeSync'
 import {
   X,
   Film,
@@ -136,6 +137,34 @@ export function VideoUploadPage() {
   const [isFeatured, setIsFeatured] = useState(false)
   const [isTrending, setIsTrending] = useState(false)
   const [isLive, setIsLive] = useState(false)
+
+  // DB-backed categories & realtime updates
+  const [dbCategories, setDbCategories] = useState<string[]>([])
+
+  const fetchDbCategories = useCallback(async () => {
+    try {
+      const res = await fetch('/api/categories')
+      if (res.ok) {
+        const data = await res.json()
+        const names = (data.categories || []).map((cat: any) => cat.name)
+        setDbCategories(names)
+      }
+    } catch (err) {
+      console.warn('Failed to fetch categories:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchDbCategories()
+  }, [fetchDbCategories])
+
+  useRealtimeSync(useCallback((type) => {
+    if (type.startsWith('category:') || type.includes('category:')) {
+      fetchDbCategories()
+    }
+  }, [fetchDbCategories]))
+
+  const activeCategories = dbCategories.length > 0 ? dbCategories : categoryOptions
 
   // Custom local player states
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -986,7 +1015,7 @@ export function VideoUploadPage() {
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent className="border-white/10 bg-[#111111]">
-                        {categoryOptions.map((cat) => (
+                        {activeCategories.map((cat) => (
                           <SelectItem key={cat} value={cat} className="text-white focus:bg-white/5 focus:text-white">
                             {cat}
                           </SelectItem>

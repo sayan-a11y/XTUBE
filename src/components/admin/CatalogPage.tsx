@@ -52,8 +52,8 @@ interface CategoryItem {
   slug: string
   icon: string
   order: number
-  videoCount: number
-  viewCount: number
+  videoCount?: number
+  viewCount?: number
 }
 
 const iconMap: Record<string, React.ElementType> = {
@@ -77,7 +77,8 @@ const iconMap: Record<string, React.ElementType> = {
 
 const iconOptions = Object.keys(iconMap)
 
-function formatViewCount(num: number): string {
+function formatViewCount(num: number | undefined | null): string {
+  if (num === undefined || num === null || isNaN(num)) return '0'
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
   return num.toLocaleString()
@@ -412,7 +413,7 @@ export function CatalogPage() {
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-1.5">
                         <Film className="h-3.5 w-3.5 text-xtube-text-secondary" />
-                        <span className="text-sm text-xtube-text-secondary">{category.videoCount} videos</span>
+                        <span className="text-sm text-xtube-text-secondary">{category.videoCount || 0} videos</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Eye className="h-3.5 w-3.5 text-xtube-text-secondary" />
