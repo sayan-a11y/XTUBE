@@ -1,8 +1,10 @@
 import { db } from '@/lib/db'
 import { XtubeHomeClient } from '@/components/streaming/XtubeHomeClient'
 
-// Force dynamic rendering so server fetches latest content on every reload
-export const dynamic = 'force-dynamic'
+// Enable Incremental Static Regeneration (ISR) with 1-second cache revalidation
+// This allows Vercel's Edge CDN to serve the page instantly (0.0s) from cache,
+// while updating the cache in the background.
+export const revalidate = 1
 
 export default async function Page() {
   const now = new Date()
