@@ -338,8 +338,15 @@ export async function POST(request: NextRequest) {
       { error: 'Invalid action. Use "init" or "complete"' },
       { status: 400 }
     )
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in upload POST:', error)
+    try {
+      const { appendFileSync } = require('fs')
+      const { join } = require('path')
+      appendFileSync(join(process.cwd(), 'upload_error.log'), `[${new Date().toISOString()}] POST error: ${error?.stack || error}\n`)
+    } catch (e) {
+      console.error('Failed to write POST error to log file:', e)
+    }
     return NextResponse.json(
       { error: 'Upload operation failed' },
       { status: 500 }
@@ -441,8 +448,15 @@ export async function PUT(request: NextRequest) {
       totalChunks: session.totalChunks,
       progress: Math.round((uploadedChunks.length / session.totalChunks) * 100),
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in upload PUT:', error)
+    try {
+      const { appendFileSync } = require('fs')
+      const { join } = require('path')
+      appendFileSync(join(process.cwd(), 'upload_error.log'), `[${new Date().toISOString()}] PUT error: ${error?.stack || error}\n`)
+    } catch (e) {
+      console.error('Failed to write PUT error to log file:', e)
+    }
     return NextResponse.json(
       { error: 'Chunk upload failed' },
       { status: 500 }
