@@ -1057,36 +1057,43 @@ export function HeroFooterAdsPage() {
                   </div>
 
                   {/* STICKY FOOTER ANCHORED AD PLAYBACK CONTAINER */}
-                  <div className="w-full">
-                    <div className="w-full h-10 border-t border-white/10 bg-black/90 px-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2 min-w-0 w-full justify-between">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="h-6 w-10 rounded overflow-hidden flex-shrink-0 bg-white/5">
-                            {adTab === 'video' && (localPreviewUrl || mediaUrl) ? (
-                              <video
-                                src={localPreviewUrl || mediaUrl || ''}
-                                autoPlay
-                                muted
-                                loop
-                                playsInline
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <img
-                                src={extractedThumbnails[selectedThumbnail] || localPreviewUrl || mediaUrl || premiumPlaceholderImages[selectedThumbnail % 10]}
-                                alt="footer thumbnail"
-                                className="h-full w-full object-cover"
-                              />
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <span className="text-[6px] text-xtube-red font-bold uppercase leading-none block">Anchored ad</span>
-                            <p className="text-[8px] font-bold text-white truncate leading-tight">{adTitle || 'Featured bottom campaign'}</p>
-                          </div>
-                        </div>
-                        {adLink && (
-                          <span className="text-[7px] bg-white/10 text-white border border-white/15 px-2 py-0.5 rounded font-extrabold flex-shrink-0">Learn More</span>
+                  <div className="w-full p-1.5 sm:p-2 z-20">
+                    <div className="relative w-full h-11 rounded-lg border border-[#ff1e1e]/20 bg-[#050508]/95 overflow-hidden flex items-center shadow-[0_0_15px_rgba(255,30,30,0.15)]">
+                      {/* Cinematic Background Media */}
+                      <div className="absolute inset-0 z-0 w-full h-full">
+                        {adTab === 'video' && (localPreviewUrl || mediaUrl) ? (
+                          <video
+                            src={localPreviewUrl || mediaUrl || ''}
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <img
+                            src={localPreviewUrl || mediaUrl || extractedThumbnails[selectedThumbnail] || premiumPlaceholderImages[selectedThumbnail % 10]}
+                            alt="footer ad"
+                            className="h-full w-full object-cover"
+                          />
                         )}
+                      </div>
+
+                      {/* Linear gradient */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-black via-black/30 to-transparent z-10 pointer-events-none" />
+
+                      {/* Texts */}
+                      <div className="relative z-15 px-2.5 flex flex-col justify-center w-full max-w-[70%]">
+                        <div className="flex items-center gap-1">
+                          <span className="bg-[#ff1e1e] text-white text-[5px] font-black px-1 rounded uppercase">AD</span>
+                          <span className="text-white/40 text-[5px] font-bold uppercase tracking-wider">&bull; ANCHORED</span>
+                        </div>
+                        <h4 className="text-white text-[7px] font-extrabold truncate uppercase leading-tight mt-0.5">{adTitle || 'Featured bottom campaign'}</h4>
+                      </div>
+
+                      {/* Mini Close Button */}
+                      <div className="absolute top-1 right-1 z-20 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-black/50 border border-white/10 text-white/50">
+                        <span className="text-[6px]">×</span>
                       </div>
                     </div>
                   </div>
