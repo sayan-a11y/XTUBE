@@ -454,6 +454,7 @@ export async function PUT(request: NextRequest) {
         uploadedChunks: filteredParts.length,
         totalChunks: session.totalChunks,
         progress: Math.round((filteredParts.length / session.totalChunks) * 100),
+        etag: uploadResult.etag,
       })
     } else {
       // Local fallback mode — save chunk to local disk
