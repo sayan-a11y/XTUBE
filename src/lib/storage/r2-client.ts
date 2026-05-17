@@ -137,6 +137,13 @@ function signRequest(
   const dateStamp = timestamp.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
   const dateOnly = dateStamp.substring(0, 8)
 
+  // Standard AWS SigV4: Add x-amz headers before computing canonical signature
+  const fullHeaders: Record<string, string> = {
+    ...headers,
+    'x-amz-date': dateStamp,
+    'x-amz-content-sha256': bodyHash,
+  }
+
   // Canonical query string
   let canonicalQueryString = ''
   if (queryString) {
@@ -152,12 +159,12 @@ function signRequest(
       .join('&')
   }
 
-  // Canonical request
-  const canonicalHeaders = Object.keys(headers)
+  // Canonical headers
+  const canonicalHeaders = Object.keys(fullHeaders)
     .sort()
-    .map((k) => `${k.toLowerCase()}:${headers[k].trim()}`)
+    .map((k) => `${k.toLowerCase()}:${fullHeaders[k].trim()}`)
     .join('\n')
-  const signedHeaders = Object.keys(headers)
+  const signedHeaders = Object.keys(fullHeaders)
     .sort()
     .map((k) => k.toLowerCase())
     .join(';')
@@ -193,10 +200,8 @@ function signRequest(
   const authHeader = `AWS4-HMAC-SHA256 Credential=${R2_ACCESS_KEY_ID}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
 
   return {
-    ...headers,
+    ...fullHeaders,
     Authorization: authHeader,
-    'X-Amz-Date': dateStamp,
-    'X-Amz-Content-Sha256': bodyHash,
   }
 }
 
