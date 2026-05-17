@@ -208,7 +208,7 @@ function signRequest(
 /**
  * Generate a presigned URL for R2/S3 (AWS Signature V4 presigned URL).
  */
-function generatePresignedUrl(
+export function generatePresignedUrl(
   key: string,
   method: string,
   expiresInSeconds: number,

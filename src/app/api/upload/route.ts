@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { mkdirSync, existsSync, writeFileSync, readdirSync, readFileSync, unlinkSync, rmdirSync, createWriteStream } from 'fs'
 import { join } from 'path'
 import { broadcastRealtimeEvent } from '@/lib/realtime'
-import { isR2Configured, initMultipartUpload, uploadPart, completeMultipartUpload, generateStorageKey, uploadLocalFileToR2, getSignedUploadUrl } from '@/lib/storage/r2-client'
+import { isR2Configured, initMultipartUpload, uploadPart, completeMultipartUpload, generateStorageKey, uploadLocalFileToR2, getSignedUploadUrl, generatePresignedUrl } from '@/lib/storage/r2-client'
 
 // Constants
 const CHUNKS_BASE_DIR = join(process.cwd(), 'upload', 'video-chunks')
@@ -79,6 +79,65 @@ export async function POST(request: NextRequest) {
 
       const chunkSize = customChunkSize || DEFAULT_CHUNK_SIZE
       const totalChunks = Math.ceil(parsedFileSize / chunkSize)
+
+      // ─── CHECK FOR ACTIVE RESUMABLE SESSION ─────────────────────────────
+      // If there is an active session for the same file (name & size) that is still pending or uploading,
+      // and it was created in the last 24 hours, we can resume it!
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      const existingSession = await db.uploadSession.findFirst({
+        where: {
+          fileName,
+          fileSize: BigInt(parsedFileSize),
+          status: { in: ['pending', 'uploading'] },
+          createdAt: { gte: yesterday },
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+
+      if (existingSession) {
+        let isR2 = false
+        let r2Key = ''
+        let uploadId = ''
+        try {
+          const parsed = JSON.parse(existingSession.storageKey || '{}')
+          if (parsed.provider === 'r2') {
+            isR2 = true
+            r2Key = parsed.r2Key
+            uploadId = parsed.uploadId
+          }
+        } catch {}
+
+        let parts: Array<{ partNumber: number; uploadUrl: string }> = []
+        if (isR2 && uploadId && r2Key) {
+          // Regenerate fresh, active presigned PUT URLs for all parts
+          const MIN_PART_SIZE = 5 * 1024 * 1024
+          const partCount = Math.max(1, Math.ceil(parsedFileSize / MIN_PART_SIZE))
+          parts = Array.from({ length: partCount }, (_, i) => ({
+            partNumber: i + 1,
+            uploadUrl: generatePresignedUrl(r2Key, 'PUT', 3600) +
+              `&partNumber=${i + 1}&uploadId=${encodeURIComponent(uploadId)}`,
+          }))
+        }
+
+        const completedParts = JSON.parse(existingSession.uploadedChunks || '[]')
+
+        // Return the existing session to the client for instant resume!
+        return NextResponse.json({
+          sessionId: existingSession.id,
+          totalChunks: existingSession.totalChunks,
+          chunkSize: Number(existingSession.chunkSize),
+          chunkUrls: uploadId ? [] : Array.from({ length: existingSession.totalChunks }, (_, i) => ({
+            chunkIndex: i,
+            uploadUrl: `/api/upload?chunkIndex=${i}&sessionId=${existingSession.id}`,
+            method: 'PUT',
+          })),
+          parts,
+          directUpload: !!uploadId,
+          completedParts,
+          resumed: true,
+          status: existingSession.status,
+        }, { status: 200 })
+      }
 
       const useR2 = isR2Configured()
       let r2Key = ''

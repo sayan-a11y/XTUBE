@@ -340,17 +340,27 @@ export function VideoUploadPage() {
         throw new Error(`Session initialization failed: ${await initRes.text()}`)
       }
 
-      const { sessionId, chunkSize, totalChunks, parts, directUpload } = await initRes.json()
+      const { sessionId, chunkSize, totalChunks, parts, directUpload, completedParts, resumed } = await initRes.json()
       let uploadedPartEtags: Array<{ partNumber: number; etag: string }> = []
 
       // 2. Upload video
       if (directUpload && parts && parts.length > 0) {
-        setUploadStatusText('Uploading video chunks in parallel directly to R2 Storage...')
+        setUploadStatusText(resumed ? 'Resuming parallel video upload directly to R2 Storage...' : 'Uploading video chunks in parallel directly to R2 Storage...')
         
         const totalParts = parts.length
         uploadedPartEtags = new Array(totalParts)
         const partProgress = new Array(totalParts).fill(0)
         let useServerProxy = false
+
+        // Build mapping of already uploaded parts from previous session
+        const completedMap = new Map<number, string>()
+        if (resumed && completedParts && completedParts.length > 0) {
+          completedParts.forEach((p: any) => {
+            if (p && typeof p === 'object' && p.partNumber) {
+              completedMap.set(p.partNumber, p.etag)
+            }
+          })
+        }
 
         // Spawn up to 4 parallel HTTP connections for ultra-fast speeds!
         const CONCURRENCY = 4
@@ -366,6 +376,22 @@ export function VideoUploadPage() {
             const chunkStart = (partNumber - 1) * chunkSize
             const chunkEnd = Math.min(file.size, partNumber * chunkSize)
             const chunkSlice = file.slice(chunkStart, chunkEnd)
+            const currentChunkSize = chunkEnd - chunkStart
+
+            // If this part is already uploaded in the previous session, skip it!
+            if (completedMap.has(partNumber)) {
+              const existingEtag = completedMap.get(partNumber)!
+              console.log(`Part ${partNumber} resumed. Skipping upload. ETag: ${existingEtag}`)
+              partProgress[currentIdx] = currentChunkSize
+              uploadedPartEtags[currentIdx] = { partNumber, etag: existingEtag }
+
+              // Update initial progress bar instantly for resumed parts
+              const totalUploadedBytes = partProgress.reduce((sum, p) => sum + p, 0)
+              const progressPercent = Math.min((totalUploadedBytes / file.size) * 100, 100)
+              setUploadProgress(progressPercent)
+              setUploadedSize(`${(totalUploadedBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`)
+              continue
+            }
 
             let retries = 0
             const maxRetries = 5
@@ -514,11 +540,33 @@ export function VideoUploadPage() {
         // Fallback to local chunked upload loop
         let uploadedBytes = 0
 
+        // Build mapping of already uploaded chunks from previous session
+        const completedSet = new Set<number>()
+        if (resumed && completedParts && completedParts.length > 0) {
+          completedParts.forEach((p: any) => {
+            if (typeof p === 'number') {
+              completedSet.add(p)
+            } else if (p && typeof p === 'object' && p.partNumber !== undefined) {
+              completedSet.add(p.partNumber - 1)
+            }
+          })
+        }
+
         for (let i = 0; i < totalChunks; i++) {
           const chunkStart = i * chunkSize
           const chunkEnd = Math.min(file.size, (i + 1) * chunkSize)
           const chunkSlice = file.slice(chunkStart, chunkEnd)
           const currentChunkSize = chunkEnd - chunkStart
+
+          // If this chunk was already uploaded in previous session, skip it!
+          if (completedSet.has(i)) {
+            console.log(`Local fallback resumed: chunk ${i + 1} of ${totalChunks} already uploaded. Skipping.`)
+            uploadedBytes += currentChunkSize
+            const progressPercent = Math.min(((i + 1) / totalChunks) * 100, 100)
+            setUploadProgress(progressPercent)
+            setUploadedSize(`${(uploadedBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`)
+            continue
+          }
 
           const chunkStartTime = Date.now()
 
