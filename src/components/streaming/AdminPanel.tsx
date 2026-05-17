@@ -126,7 +126,7 @@ const navigationItems: NavItem[] = [
       { id: 'all-ads', label: 'All Ads', icon: Megaphone, section: 'all-ads' },
       { id: 'banner-ads', label: 'Banner Ads', icon: Image, section: 'banner-ads' },
       { id: 'popup-ads', label: 'Popup Ads', icon: Popcorn, section: 'popup-ads' },
-      { id: 'hero-footer-ads', label: 'Hero/Footer Ads', icon: Monitor, section: 'hero-footer-ads' },
+      { id: 'hero-footer-ads', label: 'Footer Ads', icon: Monitor, section: 'hero-footer-ads' },
       { id: 'hero-ads', label: 'Hero Ads', icon: Monitor, section: 'hero-ads' },
       {
         id: 'video-ads-group',
@@ -161,7 +161,7 @@ const sectionTitles: Record<AdminSection, string> = {
   'all-ads': 'All Ads',
   'banner-ads': 'Banner Ads',
   'popup-ads': 'Popup Ads',
-  'hero-footer-ads': 'Hero / Footer Ads',
+  'hero-footer-ads': 'Footer Ads',
   'hero-ads': 'Hero Ads',
   'pre-roll-ads': 'Pre-roll Ads',
   'mid-roll-ads': 'Mid-roll Ads',

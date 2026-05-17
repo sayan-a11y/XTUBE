@@ -35,7 +35,6 @@ import {
   Monitor,
   Tablet,
   Smartphone,
-  ArrowUpFromLine,
   ArrowDownFromLine,
 } from 'lucide-react'
 import {
@@ -54,14 +53,13 @@ import {
 } from 'recharts'
 
 type UploadStage = 'idle' | 'uploading' | 'processing' | 'success'
-type SectionTab = 'hero' | 'footer'
 type PreviewMode = 'desktop' | 'tablet' | 'mobile'
+type AdTab = 'image' | 'video'
 
-interface HeroFooterAd {
+interface FooterAd {
   id: string
-  isHero: boolean
   title: string
-  type: 'Image' | 'HTML5'
+  type: 'Image' | 'Video'
   placement: string
   size: string
   impressions: string
@@ -165,10 +163,10 @@ export function HeroFooterAdsPage() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadSpeed, setUploadSpeed] = useState('0 MB/s')
   const [uploadRemaining, setUploadRemaining] = useState('')
-  const [uploadedSize, setUploadedSize] = useState('0 MB')
+  const [uploadedSize, setUploadedSize] = useState('0 GB')
   const [isDragOver, setIsDragOver] = useState(false)
   const [selectedThumbnail, setSelectedThumbnail] = useState(0)
-  const [sectionTab, setSectionTab] = useState<SectionTab>('hero')
+  const [adTab, setAdTab] = useState<AdTab>('image')
 
   // Ad Settings state
   const [adTitle, setAdTitle] = useState('')
@@ -189,28 +187,24 @@ export function HeroFooterAdsPage() {
 
   const [mediaUrl, setMediaUrl] = useState<string | null>(null)
   const [extractedThumbnails, setExtractedThumbnails] = useState<string[]>([])
+  const [isExtractingThumbnails, setIsExtractingThumbnails] = useState(false)
   const [fileDetails, setFileDetails] = useState<{
     name: string
     size: string
     resolution: string
     format: string
+    duration: number
   } | null>(null)
 
   // Live Syncing State
-  const [heroAds, setHeroAds] = useState<any[]>([])
   const [footerAds, setFooterAds] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchData = useCallback(async () => {
     try {
-      const [heroRes, footerRes] = await Promise.all([
-        fetch('/api/hero-ads'),
-        fetch('/api/footer-ads')
-      ])
-      if (heroRes.ok && footerRes.ok) {
-        const heroData = await heroRes.json()
+      const footerRes = await fetch('/api/footer-ads')
+      if (footerRes.ok) {
         const footerData = await footerRes.json()
-        setHeroAds(heroData.heroAds || [])
         setFooterAds(footerData.footerAds || [])
       }
     } catch (e) {
@@ -227,58 +221,139 @@ export function HeroFooterAdsPage() {
   useEffect(() => {
     if (!isSupabaseConfigured() || !supabase) return
 
-    const channelHero = supabase
-      .channel('admin-hero-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'HeroAd' }, () => {
-        fetchData()
-      })
-      .subscribe()
-
     const channelFooter = supabase
-      .channel('admin-footer-realtime')
+      .channel('admin-footer-realtime-page')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'FooterAd' }, () => {
         fetchData()
       })
       .subscribe()
 
     return () => {
-      supabase?.removeChannel(channelHero)
       supabase?.removeChannel(channelFooter)
     }
   }, [fetchData])
+
+  // Canvas frame extraction logic
+  const extractCanvasThumbnails = useCallback((file: File, duration: number) => {
+    setIsExtractingThumbnails(true)
+    const tempVideo = document.createElement('video')
+    tempVideo.src = URL.createObjectURL(file)
+    tempVideo.preload = 'metadata'
+    tempVideo.muted = true
+    tempVideo.playsInline = true
+
+    tempVideo.onloadedmetadata = () => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      canvas.width = 320
+      canvas.height = 180
+
+      const frames: string[] = []
+      let captured = 0
+
+      const captureFrame = (time: number) => {
+        tempVideo.currentTime = time
+        tempVideo.onseeked = () => {
+          if (ctx) {
+            ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height)
+            frames.push(canvas.toDataURL('image/jpeg', 0.8))
+          }
+          captured++
+          if (captured < 10) {
+            captureFrame((duration / 10) * captured)
+          } else {
+            setExtractedThumbnails(frames)
+            setIsExtractingThumbnails(false)
+            setUploadStage('success')
+          }
+        }
+      }
+      captureFrame(0.5) // start at 0.5s to avoid black frames
+    }
+
+    tempVideo.onerror = () => {
+      setExtractedThumbnails(premiumPlaceholderImages)
+      setIsExtractingThumbnails(false)
+      setUploadStage('success')
+    }
+  }, [])
 
   const processSelectedFile = useCallback((file: File) => {
     const objectUrl = URL.createObjectURL(file)
     setMediaUrl(objectUrl)
 
+    const isVideo = file.type.startsWith('video/')
     const format = file.name.split('.').pop()?.toUpperCase() || ''
-    setFileDetails({
-      name: file.name,
-      size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-      resolution: 'Responsive Dimension',
-      format,
-    })
-    if (!adTitle) setAdTitle(file.name.replace(/\.[^/.]+$/, ""))
 
-    setUploadStage('uploading')
-    setUploadProgress(0)
-    let progress = 0
+    if (isVideo) {
+      const tempVid = document.createElement('video')
+      tempVid.src = objectUrl
+      tempVid.preload = 'metadata'
+      tempVid.onloadedmetadata = () => {
+        const roundedDuration = Math.round(tempVid.duration || 5)
+        const resolution = `${tempVid.videoWidth}×${tempVid.videoHeight}`
+        setFileDetails({
+          name: file.name,
+          size: `${(file.size / (1024 * 1024 * 1024)).toFixed(2)} GB`,
+          resolution,
+          format,
+          duration: roundedDuration,
+        })
+        if (!adTitle) setAdTitle(file.name.replace(/\.[^/.]+$/, ""))
 
-    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-    progressIntervalRef.current = setInterval(() => {
-      progress = Math.min(progress + 15, 100)
-      setUploadProgress(progress)
-      setUploadedSize(`${((progress / 100) * parseFloat((file.size / (1024 * 1024)).toFixed(2))).toFixed(2)} MB`)
-      setUploadSpeed('45.2 MB/s')
-      setUploadRemaining('1 sec')
+        // Start upload progress simulation before extracting
+        setUploadStage('uploading')
+        setUploadProgress(0)
+        let progress = 0
+        const totalSize = parseFloat((file.size / (1024 * 1024 * 1024)).toFixed(2))
 
-      if (progress >= 100) {
         if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-        setUploadStage('success')
-        setExtractedThumbnails(premiumPlaceholderImages)
+        progressIntervalRef.current = setInterval(() => {
+          const increment = Math.random() * 8 + 4
+          progress = Math.min(progress + increment, 100)
+          setUploadProgress(progress)
+          setUploadedSize(`${((progress / 100) * totalSize).toFixed(2)} GB`)
+          setUploadSpeed(`${(Math.random() * 15 + 25).toFixed(1)} MB/s`)
+          const timeRemaining = ((100 - progress) / increment) * 0.15
+          setUploadRemaining(timeRemaining > 60 ? `${Math.ceil(timeRemaining / 60)} mins` : `${Math.ceil(timeRemaining)} secs`)
+
+          if (progress >= 100) {
+            if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+            setUploadStage('processing')
+            extractCanvasThumbnails(file, tempVid.duration)
+          }
+        }, 120)
       }
-    }, 80)
-  }, [adTitle])
+    } else {
+      // Image file
+      setFileDetails({
+        name: file.name,
+        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+        resolution: 'Responsive Dimension',
+        format,
+        duration: 0,
+      })
+      if (!adTitle) setAdTitle(file.name.replace(/\.[^/.]+$/, ""))
+
+      setUploadStage('uploading')
+      setUploadProgress(0)
+      let progress = 0
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+      progressIntervalRef.current = setInterval(() => {
+        progress = Math.min(progress + 15, 100)
+        setUploadProgress(progress)
+        setUploadedSize(`${progress}%`)
+        setUploadSpeed('45.2 MB/s')
+        setUploadRemaining('1 sec')
+
+        if (progress >= 100) {
+          if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+          setUploadStage('success')
+          setExtractedThumbnails(premiumPlaceholderImages)
+        }
+      }, 80)
+    }
+  }, [adTitle, extractCanvasThumbnails])
 
   const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true) }, [])
   const handleDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(false) }, [])
@@ -299,11 +374,10 @@ export function HeroFooterAdsPage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
 
-  const deleteAd = useCallback(async (id: string, isHero: boolean) => {
-    if (!confirm('Are you sure you want to delete this ad?')) return
+  const deleteAd = useCallback(async (id: string) => {
+    if (!confirm('Are you sure you want to delete this footer ad?')) return
     try {
-      const endpoint = isHero ? '/api/hero-ads' : '/api/footer-ads'
-      const res = await fetch(endpoint, {
+      const res = await fetch('/api/footer-ads', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
@@ -316,10 +390,9 @@ export function HeroFooterAdsPage() {
     }
   }, [fetchData])
 
-  const toggleAdStatus = useCallback(async (id: string, isHero: boolean, isActive: boolean) => {
+  const toggleAdStatus = useCallback(async (id: string, isActive: boolean) => {
     try {
-      const endpoint = isHero ? '/api/hero-ads' : '/api/footer-ads'
-      const res = await fetch(endpoint, {
+      const res = await fetch('/api/footer-ads', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, isActive }),
@@ -335,35 +408,26 @@ export function HeroFooterAdsPage() {
   const [saving, setSaving] = useState(false)
   const handleSaveAd = useCallback(async () => {
     if (!adTitle) {
-      alert('Please enter an ad title')
+      alert('Please enter an ad campaign title')
       return
     }
     setSaving(true)
     try {
-      const isHero = sectionTab === 'hero'
-      const endpoint = isHero ? '/api/hero-ads' : '/api/footer-ads'
       const activeThumbnail = extractedThumbnails[selectedThumbnail] || premiumPlaceholderImages[0]
 
       const payload: Record<string, any> = {
         title: adTitle,
         mediaUrl: mediaUrl || activeThumbnail,
         thumbnailUrl: activeThumbnail,
-        adType: 'image',
-        mediaFormat: fileDetails?.format?.toLowerCase() || 'jpg',
+        adType: adTab === 'video' ? 'video' : 'image',
+        mediaFormat: fileDetails?.format?.toLowerCase() || (adTab === 'video' ? 'mp4' : 'jpg'),
         isActive: statusActive,
+        linkUrl: adLink || null,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
       }
 
-      if (isHero) {
-        payload.description = 'Premium hero banner promotion'
-        payload.category = 'Featured'
-        payload.displayOrder = 0
-      } else {
-        payload.linkUrl = adLink || null
-      }
-
-      const res = await fetch(endpoint, {
+      const res = await fetch('/api/footer-ads', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -378,89 +442,62 @@ export function HeroFooterAdsPage() {
         setEndDate('')
         handleResetUpload()
         fetchData()
-        alert(`${isHero ? 'Hero' : 'Footer'} ad saved successfully!`)
+        alert('Footer ad campaign saved successfully!')
       }
     } catch (e) {
       console.error(e)
     } finally {
       setSaving(false)
     }
-  }, [adTitle, sectionTab, statusActive, startDate, endDate, adLink, handleResetUpload, mediaUrl, extractedThumbnails, selectedThumbnail, fileDetails, fetchData])
+  }, [adTitle, adTab, statusActive, startDate, endDate, adLink, handleResetUpload, mediaUrl, extractedThumbnails, selectedThumbnail, fileDetails, fetchData])
 
   // KPIs
   const stats = useMemo(() => {
-    const totalHero = heroAds.length
     const totalFooter = footerAds.length
-    const activeHero = heroAds.filter(a => a.isActive).length
     const activeFooter = footerAds.filter(a => a.isActive).length
 
-    const totalImpressions = [...heroAds, ...footerAds].reduce((s, a) => s + (a.impressions || 0), 0)
-    const totalClicks = [...heroAds, ...footerAds].reduce((s, a) => s + (a.clicks || 0), 0)
-    const totalRevenue = [...heroAds, ...footerAds].reduce((s, a) => s + (a.revenue || 0), 0)
-    const avgCTR = [...heroAds, ...footerAds].length > 0
-      ? ([...heroAds, ...footerAds].reduce((s, a) => s + (a.impressions > 0 ? (a.clicks / a.impressions) * 100 : 0), 0) / [...heroAds, ...footerAds].length)
+    const totalImpressions = footerAds.reduce((s, a) => s + (a.impressions || 0), 0)
+    const totalClicks = footerAds.reduce((s, a) => s + (a.clicks || 0), 0)
+    const totalRevenue = footerAds.reduce((s, a) => s + (a.revenue || 0), 0)
+    const avgCTR = footerAds.length > 0
+      ? (footerAds.reduce((s, a) => s + (a.impressions > 0 ? (a.clicks / a.impressions) * 100 : 0), 0) / footerAds.length)
       : 0
 
     return {
-      totalAds: totalHero + totalFooter,
-      activeAds: activeHero + activeFooter,
+      totalAds: totalFooter,
+      activeAds: activeFooter,
       totalImpressions,
       avgCTR,
       totalRevenue
     }
-  }, [heroAds, footerAds])
+  }, [footerAds])
 
   const adGradients = ['from-red-900/60 via-rose-800/40 to-pink-900/30','from-blue-900/60 via-indigo-800/40 to-violet-900/30','from-cyan-900/60 via-sky-800/40 to-blue-900/30','from-emerald-900/60 via-teal-800/40 to-cyan-900/30']
 
-  const mappedAds: HeroFooterAd[] = useMemo(() => {
-    const list: HeroFooterAd[] = []
-    heroAds.forEach((ad, i) => {
-      list.push({
-        id: ad.id,
-        isHero: true,
-        title: ad.title,
-        type: (ad.mediaFormat === 'html5' ? 'HTML5' : 'Image'),
-        placement: 'Hero Header Banner',
-        size: '1920×600',
-        impressions: formatAdNumber(ad.impressions || 0),
-        clicks: ad.clicks || 0,
-        rawImpressions: ad.impressions || 0,
-        rawRevenue: ad.revenue || 0,
-        ctr: (ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) + '%' : '0%'),
-        revenue: formatAdRevenue(ad.revenue || 0),
-        status: ad.isActive ? 'Active' : 'Paused',
-        gradient: adGradients[i % adGradients.length],
-        imageUrl: ad.thumbnailUrl || ad.mediaUrl,
-        mediaUrl: ad.mediaUrl,
-      })
-    })
-    footerAds.forEach((ad, i) => {
-      list.push({
-        id: ad.id,
-        isHero: false,
-        title: ad.title,
-        type: (ad.mediaFormat === 'html5' ? 'HTML5' : 'Image'),
-        placement: 'Footer Anchored ad',
-        size: '970×250',
-        impressions: formatAdNumber(ad.impressions || 0),
-        clicks: ad.clicks || 0,
-        rawImpressions: ad.impressions || 0,
-        rawRevenue: ad.revenue || 0,
-        ctr: (ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) + '%' : '0%'),
-        revenue: formatAdRevenue(ad.revenue || 0),
-        status: ad.isActive ? 'Active' : 'Paused',
-        gradient: adGradients[(i + heroAds.length) % adGradients.length],
-        imageUrl: ad.thumbnailUrl || ad.mediaUrl,
-        mediaUrl: ad.mediaUrl,
-      })
-    })
-    return list
-  }, [heroAds, footerAds])
+  const mappedAds: FooterAd[] = useMemo(() => {
+    return footerAds.map((ad, i) => ({
+      id: ad.id,
+      title: ad.title,
+      type: (ad.adType === 'video' || ad.mediaFormat === 'mp4' ? 'Video' : 'Image'),
+      placement: 'Footer Anchored Ad',
+      size: '970×250',
+      impressions: formatAdNumber(ad.impressions || 0),
+      clicks: ad.clicks || 0,
+      rawImpressions: ad.impressions || 0,
+      rawRevenue: ad.revenue || 0,
+      ctr: (ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) + '%' : '0%'),
+      revenue: formatAdRevenue(ad.revenue || 0),
+      status: ad.isActive ? 'Active' : 'Paused',
+      gradient: adGradients[i % adGradients.length],
+      imageUrl: ad.thumbnailUrl || ad.mediaUrl,
+      mediaUrl: ad.mediaUrl,
+    }))
+  }, [footerAds])
 
   const donutData = useMemo(() => [
-    { name: 'Hero Placement', value: heroAds.reduce((s, a) => s + (a.impressions || 0), 0) || 1200 },
-    { name: 'Footer Placement', value: footerAds.reduce((s, a) => s + (a.impressions || 0), 0) || 450 }
-  ], [heroAds, footerAds])
+    { name: 'Video Footer Ads', value: footerAds.filter(a => a.adType === 'video' || a.mediaFormat === 'mp4').reduce((s, a) => s + (a.impressions || 0), 0) || 1200 },
+    { name: 'Image Footer Ads', value: footerAds.filter(a => a.adType !== 'video' && a.mediaFormat !== 'mp4').reduce((s, a) => s + (a.impressions || 0), 0) || 450 }
+  ], [footerAds])
 
   const filteredAds = mappedAds.filter((ad) => {
     if (statusFilter !== 'all' && ad.status.toLowerCase() !== statusFilter) return false
@@ -485,8 +522,8 @@ export function HeroFooterAdsPage() {
         {/* TOP HEADER */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl font-bold text-white md:text-2xl">Hero &amp; Footer Ads</h1>
-            <p className="mt-1 text-xs text-white/40">Deploy landing top headers and floating anchored footer creatives</p>
+            <h1 className="text-xl font-bold text-white md:text-2xl">Footer Ads</h1>
+            <p className="mt-1 text-xs text-white/40">Deploy anchored footer advertisement banner &amp; video creatives</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#111111]/60 px-3 py-2 text-xs font-medium text-white/60 backdrop-blur-xl transition-colors hover:border-white/20 hover:text-white">
@@ -502,8 +539,8 @@ export function HeroFooterAdsPage() {
 
         {/* TOP ANALYTICS CARDS */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <StatCard title="Total Campaigns" value={String(stats.totalAds)} change="+9.4%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
-          <StatCard title="Active Placements" value={String(stats.activeAds)} change="+11.2%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
+          <StatCard title="Total Footer Ads" value={String(stats.totalAds)} change="+9.4%" icon={Megaphone} color={STAT_COLORS[0]} delay={0} index={0} />
+          <StatCard title="Active Campaigns" value={String(stats.activeAds)} change="+11.2%" icon={Radio} color={STAT_COLORS[1]} delay={0.05} index={1} />
           <StatCard title="Impressions" value={formatAdNumber(stats.totalImpressions)} change="+22.7%" icon={Eye} color={STAT_COLORS[2]} delay={0.1} index={2} />
           <StatCard title="Average CTR" value={stats.avgCTR.toFixed(2) + '%'} change="+8.4%" icon={MousePointer} color={STAT_COLORS[3]} delay={0.15} index={3} />
           <StatCard title="Revenue Track" value={formatAdRevenue(stats.totalRevenue)} change="+19.6%" icon={DollarSign} color={STAT_COLORS[4]} delay={0.2} index={4} />
@@ -520,37 +557,37 @@ export function HeroFooterAdsPage() {
             className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 backdrop-blur-xl"
           >
             <div className="p-3 lg:p-4">
-              <h2 className="mb-4 text-base font-bold text-white">Deploy Placement Creative</h2>
+              <h2 className="mb-4 text-base font-bold text-white">Create Footer Ad</h2>
 
-              {/* Placement Selector Tab */}
+              {/* Ad Creative Type Tabs */}
               <div className="mb-4 flex items-center gap-0 border-b border-white/5">
                 <button
-                  onClick={() => { setSectionTab('hero'); handleResetUpload() }}
+                  onClick={() => { setAdTab('image'); handleResetUpload() }}
                   className={`relative flex items-center gap-2 px-4 pb-2.5 text-sm font-medium transition-colors ${
-                    sectionTab === 'hero' ? 'text-white' : 'text-white/40 hover:text-white/60'
+                    adTab === 'image' ? 'text-white' : 'text-white/40 hover:text-white/60'
                   }`}
                 >
-                  <ArrowUpFromLine className="h-3.5 w-3.5" />
-                  Hero Cinematic Placement
-                  {sectionTab === 'hero' && (
+                  <ImageIcon className="h-3.5 w-3.5" />
+                  Image Creative
+                  {adTab === 'image' && (
                     <motion.div
-                      layoutId="herofooter-tab-indicator"
+                      layoutId="footer-tab-indicator"
                       className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-xtube-red"
                       transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                     />
                   )}
                 </button>
                 <button
-                  onClick={() => { setSectionTab('footer'); handleResetUpload() }}
+                  onClick={() => { setAdTab('video'); handleResetUpload() }}
                   className={`relative flex items-center gap-2 px-4 pb-2.5 text-sm font-medium transition-colors ${
-                    sectionTab === 'footer' ? 'text-white' : 'text-white/40 hover:text-white/60'
+                    adTab === 'video' ? 'text-white' : 'text-white/40 hover:text-white/60'
                   }`}
                 >
-                  <ArrowDownFromLine className="h-3.5 w-3.5" />
-                  Anchored Footer Placement
-                  {sectionTab === 'footer' && (
+                  <Film className="h-3.5 w-3.5" />
+                  Video Creative
+                  {adTab === 'video' && (
                     <motion.div
-                      layoutId="herofooter-tab-indicator"
+                      layoutId="footer-tab-indicator"
                       className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-xtube-red"
                       transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                     />
@@ -579,7 +616,7 @@ export function HeroFooterAdsPage() {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*"
+                      accept={adTab === 'video' ? 'video/mp4,video/mov,video/webm' : 'image/*'}
                       className="hidden"
                       onChange={(e) => { if (e.target.files?.length) processSelectedFile(e.target.files[0]) }}
                     />
@@ -587,12 +624,16 @@ export function HeroFooterAdsPage() {
                       <CloudUpload className="h-6 w-6 text-xtube-red" />
                     </div>
                     <div className="text-center">
-                      <p className="text-sm font-medium text-white">Drag &amp; drop banner image here</p>
+                      <p className="text-sm font-medium text-white">
+                        Drag &amp; drop your {adTab === 'video' ? 'video' : 'creative image'} here
+                      </p>
                       <p className="mt-1 text-xs text-white/40">
                         or <span className="text-xtube-red underline underline-offset-2">browse files</span>
                       </p>
                     </div>
-                    <p className="text-[10px] text-white/25">Supported: JPG, PNG, WEBP, GIF</p>
+                    <p className="text-[10px] text-white/25">
+                      {adTab === 'video' ? 'Max file size: 5GB | Supported: MP4, WebM, MOV' : 'Supported: JPG, PNG, WEBP, GIF'}
+                    </p>
                   </motion.div>
                 ) : uploadStage === 'uploading' || uploadStage === 'processing' ? (
                   <motion.div
@@ -603,7 +644,9 @@ export function HeroFooterAdsPage() {
                     className="rounded-xl border border-white/5 bg-[#0a0a0a]/60 p-4 space-y-4"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-white">Processing Creative file...</span>
+                      <span className="text-xs font-medium text-white">
+                        {uploadStage === 'processing' ? 'Generating Thumbnails...' : 'Uploading Chunk Stream...'}
+                      </span>
                       <span className="text-xs font-bold text-xtube-red">{Math.round(uploadProgress)}%</span>
                     </div>
                     <div className="relative h-1.5 overflow-hidden rounded-full bg-white/10">
@@ -614,6 +657,27 @@ export function HeroFooterAdsPage() {
                         className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-xtube-red to-red-500"
                       />
                     </div>
+                    {uploadStage === 'uploading' ? (
+                      <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+                        <div>
+                          <p className="text-[9px] text-white/25">Uploaded</p>
+                          <p className="font-semibold text-white truncate">{uploadedSize} / {fileDetails?.size}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-white/25">Speed</p>
+                          <p className="font-semibold text-white">{uploadSpeed}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-white/25">Time Left</p>
+                          <p className="font-semibold text-white">{uploadRemaining}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-xs text-amber-400">
+                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
+                        <span>Realtime Video Thumbnail Generator Rendering 10 Frames...</span>
+                      </div>
+                    )}
                     <button onClick={handleResetUpload} className="text-xs text-xtube-red hover:underline">Cancel</button>
                   </motion.div>
                 ) : (
@@ -628,24 +692,33 @@ export function HeroFooterAdsPage() {
                       <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-semibold text-white">{fileDetails?.name}</p>
-                        <p className="text-[10px] text-white/30">{fileDetails?.size} &bull; {fileDetails?.resolution}</p>
+                        <p className="text-[10px] text-white/30">{fileDetails?.size} &bull; {fileDetails?.resolution} &bull; {fileDetails?.format}</p>
                       </div>
                       <button onClick={handleResetUpload} className="text-xs text-xtube-red hover:underline">Change</button>
                     </div>
 
-                    {/* SELECT PRESETS */}
+                    {/* SELECT PRESETS / CAPTURED FRAMES */}
                     <div>
-                      <p className="text-[11px] font-medium text-white/60 mb-1.5">Preset Styles</p>
+                      <p className="text-[11px] font-medium text-white/60 mb-1.5">
+                        {adTab === 'video' ? 'Select Active Thumbnail (10 Generated Frame Captures)' : 'Preset Styles'}
+                      </p>
                       <div className="grid grid-cols-5 gap-1.5">
-                        {extractedThumbnails.slice(0, 5).map((url, i) => (
+                        {extractedThumbnails.slice(0, 10).map((url, i) => (
                           <button
                             key={i}
                             onClick={() => setSelectedThumbnail(i)}
                             className={`relative aspect-video overflow-hidden rounded border-2 transition-all ${
-                              selectedThumbnail === i ? 'border-xtube-red scale-95' : 'border-transparent hover:border-white/20'
+                              selectedThumbnail === i
+                                ? 'border-xtube-red shadow-[0_0_8px_rgba(229,9,20,0.4)] scale-95'
+                                : 'border-transparent hover:border-white/20 hover:scale-105'
                             }`}
                           >
                             <img src={url} alt="preset" className="h-full w-full object-cover" />
+                            {selectedThumbnail === i && (
+                              <div className="absolute top-0.5 right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-xtube-red">
+                                <CheckCircle2 className="h-2 w-2 text-white" />
+                              </div>
+                            )}
                           </button>
                         ))}
                       </div>
@@ -663,21 +736,19 @@ export function HeroFooterAdsPage() {
                     value={adTitle}
                     onChange={(e) => setAdTitle(e.target.value)}
                     className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#ff1e1e]/40"
-                    placeholder="e.g. Featured landing promo"
+                    placeholder="e.g. Nike Anchored Footer"
                   />
                 </div>
-                {sectionTab === 'footer' && (
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-medium text-white/50">Destination Redirect Link *</label>
-                    <input
-                      type="text"
-                      value={adLink}
-                      onChange={(e) => setAdLink(e.target.value)}
-                      className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#ff1e1e]/40"
-                      placeholder="e.g. https://domain.com"
-                    />
-                  </div>
-                )}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-white/50">Destination Redirect Link *</label>
+                  <input
+                    type="text"
+                    value={adLink}
+                    onChange={(e) => setAdLink(e.target.value)}
+                    className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#ff1e1e]/40"
+                    placeholder="e.g. https://nike.com"
+                  />
+                </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
@@ -702,18 +773,23 @@ export function HeroFooterAdsPage() {
 
                 <motion.button
                   onClick={handleSaveAd}
-                  disabled={saving || uploadStage === 'uploading'}
+                  disabled={saving || uploadStage === 'uploading' || uploadStage === 'processing'}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-xtube-red px-5 py-2 text-sm font-semibold text-white shadow-[0_0_15px_rgba(229,9,20,0.3)] transition-all hover:bg-xtube-red-hover disabled:opacity-50"
                 >
-                  {saving ? 'Deploying...' : `Deploy ${sectionTab === 'hero' ? 'Hero' : 'Footer'} Banner`}
+                  {saving ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <CloudUpload className="h-4 w-4" />
+                  )}
+                  {saving ? 'Deploying to database...' : 'Deploy Footer Ad Campaign'}
                 </motion.button>
               </div>
             </div>
           </motion.div>
 
-          {/* COLUMN 2: DUAL PLACEMENT SIMULATOR */}
+          {/* COLUMN 2: INTERACTIVE LIVE PREVIEW PLAYER */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -750,29 +826,10 @@ export function HeroFooterAdsPage() {
 
                 <div className="relative aspect-video overflow-hidden rounded-lg bg-[#08080c] border border-white/5 shadow-2xl flex flex-col justify-between">
                   
-                  {/* MOCK HERO CINEMATIC (If 'hero' selected, renders full width on top) */}
-                  <div className="w-full relative">
-                    {sectionTab === 'hero' ? (
-                      <div className="w-full aspect-[21/9] relative overflow-hidden border-b border-white/5 bg-black">
-                        <img
-                          src={mediaUrl || extractedThumbnails[selectedThumbnail] || premiumPlaceholderImages[selectedThumbnail % 10]}
-                          alt="Hero layout banner"
-                          className="h-full w-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/40 to-transparent flex items-center px-4">
-                          <div className="max-w-[140px] space-y-1">
-                            <span className="text-[6px] bg-xtube-red text-white px-1.5 py-0.5 rounded font-extrabold uppercase tracking-widest">Featured</span>
-                            <h4 className="text-[10px] font-extrabold text-white uppercase truncate">{adTitle || 'Cinematic header'}</h4>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Plain Mock Header */
-                      <div className="w-full h-8 bg-black/40 border-b border-white/5 flex items-center px-3 justify-between">
-                        <span className="text-[8px] font-bold text-white uppercase">Xtube Landing</span>
-                        <span className="text-[7px] text-white/40">Mock Viewport</span>
-                      </div>
-                    )}
+                  {/* Mock Site Header */}
+                  <div className="w-full h-8 bg-black/40 border-b border-white/5 flex items-center px-3 justify-between">
+                    <span className="text-[8px] font-bold text-white uppercase">Xtube Landing</span>
+                    <span className="text-[7px] text-white/40 font-semibold">Mock Viewport</span>
                   </div>
 
                   {/* Mock Site Body Content */}
@@ -781,17 +838,28 @@ export function HeroFooterAdsPage() {
                     <div className="h-1.5 w-1/2 bg-white/5 rounded" />
                   </div>
 
-                  {/* MOCK FOOTER ANCHOR (If 'footer' selected, sticky on bottom) */}
+                  {/* STICKY FOOTER ANCHORED AD PLAYBACK CONTAINER */}
                   <div className="w-full">
-                    {sectionTab === 'footer' ? (
-                      <div className="w-full h-10 border-t border-white/10 bg-black/90 px-3 flex items-center justify-between">
+                    <div className="w-full h-10 border-t border-white/10 bg-black/90 px-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0 w-full justify-between">
                         <div className="flex items-center gap-2 min-w-0">
                           <div className="h-6 w-10 rounded overflow-hidden flex-shrink-0 bg-white/5">
-                            <img
-                              src={mediaUrl || extractedThumbnails[selectedThumbnail] || premiumPlaceholderImages[selectedThumbnail % 10]}
-                              alt="footer thumbnail"
-                              className="h-full w-full object-cover"
-                            />
+                            {adTab === 'video' && mediaUrl ? (
+                              <video
+                                src={mediaUrl}
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <img
+                                src={extractedThumbnails[selectedThumbnail] || mediaUrl || premiumPlaceholderImages[selectedThumbnail % 10]}
+                                alt="footer thumbnail"
+                                className="h-full w-full object-cover"
+                              />
+                            )}
                           </div>
                           <div className="min-w-0">
                             <span className="text-[6px] text-xtube-red font-bold uppercase leading-none block">Anchored ad</span>
@@ -799,23 +867,17 @@ export function HeroFooterAdsPage() {
                           </div>
                         </div>
                         {adLink && (
-                          <span className="text-[7px] bg-white/10 text-white border border-white/15 px-2 py-0.5 rounded font-extrabold">Learn More</span>
+                          <span className="text-[7px] bg-white/10 text-white border border-white/15 px-2 py-0.5 rounded font-extrabold flex-shrink-0">Learn More</span>
                         )}
                       </div>
-                    ) : (
-                      /* Plain Mock Footer */
-                      <div className="w-full h-6 border-t border-white/5 bg-black/20 flex items-center justify-center">
-                        <span className="text-[6px] text-white/20 uppercase tracking-widest">&copy; 2026 Xtube Live</span>
-                      </div>
-                    )}
+                    </div>
                   </div>
-
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   {[
-                    { label: 'Active Placement', value: (sectionTab === 'hero' ? 'Hero Placement' : 'Footer Placement').toUpperCase() },
-                    { label: 'Target size', value: sectionTab === 'hero' ? '1920×600 px' : '970×250 px' },
+                    { label: 'Active Placement', value: 'ANCHORED FOOTER' },
+                    { label: 'Target Size', value: '970×250 px' },
                     { label: 'Auto Rotate', value: '30s rotation enabled' },
                     { label: 'Redirect Link', value: adLink || '—' },
                   ].map((detail) => (
@@ -837,7 +899,7 @@ export function HeroFooterAdsPage() {
             className="space-y-4"
           >
             <div className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]/80 p-4 backdrop-blur-xl">
-              <h2 className="mb-3 text-sm font-bold text-white">Placement Share</h2>
+              <h2 className="mb-3 text-sm font-bold text-white">Creative Ratio</h2>
               <div className="h-44">
                 <ResponsiveContainer width="99%" height="100%">
                   <PieChart>
@@ -864,7 +926,7 @@ export function HeroFooterAdsPage() {
         >
           <div className="p-3 lg:p-4">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-base font-bold text-white">Active Placement Campaigns</h2>
+              <h2 className="text-base font-bold text-white">Active Footer Campaigns</h2>
               <div className="flex items-center gap-2">
                 <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v) }}>
                   <SelectTrigger className="h-8 w-28 rounded-lg border-white/10 bg-[#0a0a0a] text-xs text-white/60 [&_svg]:text-white/30">
@@ -906,7 +968,13 @@ export function HeroFooterAdsPage() {
                       <td className="py-2.5">
                         <span className="text-xs font-semibold text-white group-hover:text-xtube-red transition-colors">{ad.title}</span>
                       </td>
-                      <td className="py-2.5 text-xs text-white/45">{ad.type}</td>
+                      <td className="py-2.5 text-xs text-white/45">
+                        <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold ${
+                          ad.type === 'Video' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                        }`}>
+                          {ad.type}
+                        </span>
+                      </td>
                       <td className="py-2.5 text-xs text-white/40">{ad.placement}</td>
                       <td className="py-2.5 text-xs text-white/40">{ad.size}</td>
                       <td className="py-2.5 text-xs text-white/70">{ad.impressions}</td>
@@ -914,7 +982,7 @@ export function HeroFooterAdsPage() {
                       <td className="py-2.5 text-xs font-semibold text-emerald-400">{ad.revenue}</td>
                       <td className="py-2.5">
                         <button
-                          onClick={() => toggleAdStatus(ad.id, ad.isHero, ad.status !== 'Active')}
+                          onClick={() => toggleAdStatus(ad.id, ad.status !== 'Active')}
                           className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold transition-all hover:scale-105 active:scale-95 ${statusStyles[ad.status]}`}
                         >
                           <span className={`h-1.5 w-1.5 rounded-full ${ad.status === 'Active' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
@@ -923,7 +991,7 @@ export function HeroFooterAdsPage() {
                       </td>
                       <td className="py-2.5 text-right">
                         <button
-                          onClick={() => deleteAd(ad.id, ad.isHero)}
+                          onClick={() => deleteAd(ad.id)}
                           className="rounded p-1 text-white/30 hover:bg-xtube-red/10 hover:text-xtube-red opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           <Trash2 className="h-3.5 w-3.5" />

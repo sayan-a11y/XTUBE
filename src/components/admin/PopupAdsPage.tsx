@@ -28,9 +28,6 @@ import {
   ExternalLink,
   Radio,
   X,
-  ChevronLeft,
-  ChevronRight,
-  Search,
 } from 'lucide-react'
 import {
   Select,
@@ -48,12 +45,12 @@ import {
 } from 'recharts'
 
 type UploadStage = 'idle' | 'uploading' | 'processing' | 'success'
-type AdTab = 'image' | 'html5'
+type AdTab = 'image' | 'video'
 
 interface PopupAd {
   id: string
   name: string
-  type: 'Image' | 'HTML5'
+  type: 'Image' | 'Video'
   trigger: string
   displayOn: string
   impressions: string
@@ -154,7 +151,7 @@ export function PopupAdsPage() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadSpeed, setUploadSpeed] = useState('0 MB/s')
   const [uploadRemaining, setUploadRemaining] = useState('')
-  const [uploadedSize, setUploadedSize] = useState('0 MB')
+  const [uploadedSize, setUploadedSize] = useState('0 GB')
   const [isDragOver, setIsDragOver] = useState(false)
   const [selectedThumbnail, setSelectedThumbnail] = useState(0)
   const [adTab, setAdTab] = useState<AdTab>('image')
@@ -164,6 +161,8 @@ export function PopupAdsPage() {
   const [popupLink, setPopupLink] = useState('')
   const [popupTrigger, setPopupTrigger] = useState('5')
   const [popupDisplayOn, setPopupDisplayOn] = useState('all')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [saving, setSaving] = useState(false)
   const [popupVisible, setPopupVisible] = useState(true)
 
@@ -173,10 +172,12 @@ export function PopupAdsPage() {
     size: string
     resolution: string
     format: string
+    duration: number
   } | null>(null)
 
   const [mediaUrl, setMediaUrl] = useState<string | null>(null)
   const [extractedThumbnails, setExtractedThumbnails] = useState<string[]>([])
+  const [isExtractingThumbnails, setIsExtractingThumbnails] = useState(false)
 
   // Realtime Supabase Ads
   const { ads: allAds, stats, deleteAd, toggleAdStatus, fetchAds } = useRealtimeAds({ position: 'popup-center' })
@@ -184,38 +185,127 @@ export function PopupAdsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // Canvas frame extraction logic
+  const extractCanvasThumbnails = useCallback((file: File, duration: number) => {
+    setIsExtractingThumbnails(true)
+    const tempVideo = document.createElement('video')
+    tempVideo.src = URL.createObjectURL(file)
+    tempVideo.preload = 'metadata'
+    tempVideo.muted = true
+    tempVideo.playsInline = true
+
+    tempVideo.onloadedmetadata = () => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      canvas.width = 320
+      canvas.height = 180
+
+      const frames: string[] = []
+      let captured = 0
+
+      const captureFrame = (time: number) => {
+        tempVideo.currentTime = time
+        tempVideo.onseeked = () => {
+          if (ctx) {
+            ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height)
+            frames.push(canvas.toDataURL('image/jpeg', 0.8))
+          }
+          captured++
+          if (captured < 10) {
+            captureFrame((duration / 10) * captured)
+          } else {
+            setExtractedThumbnails(frames)
+            setIsExtractingThumbnails(false)
+            setUploadStage('success')
+          }
+        }
+      }
+      captureFrame(0.5) // start at 0.5s to avoid black frames
+    }
+
+    tempVideo.onerror = () => {
+      setExtractedThumbnails(premiumPlaceholderImages)
+      setIsExtractingThumbnails(false)
+      setUploadStage('success')
+    }
+  }, [])
+
   const processSelectedFile = useCallback((file: File) => {
     const objectUrl = URL.createObjectURL(file)
     setMediaUrl(objectUrl)
 
+    const isVideo = file.type.startsWith('video/')
     const format = file.name.split('.').pop()?.toUpperCase() || ''
-    setFileDetails({
-      name: file.name,
-      size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-      resolution: 'Responsive Popup Lightbox',
-      format,
-    })
-    if (!popupName) setPopupName(file.name.replace(/\.[^/.]+$/, ""))
 
-    setUploadStage('uploading')
-    setUploadProgress(0)
-    let progress = 0
+    if (isVideo) {
+      const tempVid = document.createElement('video')
+      tempVid.src = objectUrl
+      tempVid.preload = 'metadata'
+      tempVid.onloadedmetadata = () => {
+        const roundedDuration = Math.round(tempVid.duration || 5)
+        const resolution = `${tempVid.videoWidth}×${tempVid.videoHeight}`
+        setFileDetails({
+          name: file.name,
+          size: `${(file.size / (1024 * 1024 * 1024)).toFixed(2)} GB`,
+          resolution,
+          format,
+          duration: roundedDuration,
+        })
+        if (!popupName) setPopupName(file.name.replace(/\.[^/.]+$/, ""))
 
-    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-    progressIntervalRef.current = setInterval(() => {
-      progress = Math.min(progress + 15, 100)
-      setUploadProgress(progress)
-      setUploadedSize(`${((progress / 100) * parseFloat((file.size / (1024 * 1024)).toFixed(2))).toFixed(2)} MB`)
-      setUploadSpeed('45.2 MB/s')
-      setUploadRemaining('1 sec')
+        // Start simulated upload chunk stream
+        setUploadStage('uploading')
+        setUploadProgress(0)
+        let progress = 0
+        const totalSize = parseFloat((file.size / (1024 * 1024 * 1024)).toFixed(2))
 
-      if (progress >= 100) {
         if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
-        setUploadStage('success')
-        setExtractedThumbnails(premiumPlaceholderImages)
+        progressIntervalRef.current = setInterval(() => {
+          const increment = Math.random() * 8 + 4
+          progress = Math.min(progress + increment, 100)
+          setUploadProgress(progress)
+          setUploadedSize(`${((progress / 100) * totalSize).toFixed(2)} GB`)
+          setUploadSpeed(`${(Math.random() * 15 + 25).toFixed(1)} MB/s`)
+          const timeRemaining = ((100 - progress) / increment) * 0.15
+          setUploadRemaining(timeRemaining > 60 ? `${Math.ceil(timeRemaining / 60)} mins` : `${Math.ceil(timeRemaining)} secs`)
+
+          if (progress >= 100) {
+            if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+            setUploadStage('processing')
+            extractCanvasThumbnails(file, tempVid.duration)
+          }
+        }, 120)
       }
-    }, 80)
-  }, [popupName])
+    } else {
+      // Image file
+      setFileDetails({
+        name: file.name,
+        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+        resolution: 'Responsive Popup Box',
+        format,
+        duration: 0,
+      })
+      if (!popupName) setPopupName(file.name.replace(/\.[^/.]+$/, ""))
+
+      setUploadStage('uploading')
+      setUploadProgress(0)
+      let progress = 0
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+      progressIntervalRef.current = setInterval(() => {
+        progress = Math.min(progress + 15, 100)
+        setUploadProgress(progress)
+        setUploadedSize(`${progress}%`)
+        setUploadSpeed('45.2 MB/s')
+        setUploadRemaining('1 sec')
+
+        if (progress >= 100) {
+          if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+          setUploadStage('success')
+          setExtractedThumbnails(premiumPlaceholderImages)
+        }
+      }, 80)
+    }
+  }, [popupName, extractCanvasThumbnails])
 
   const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true) }, [])
   const handleDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(false) }, [])
@@ -250,22 +340,26 @@ export function PopupAdsPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          type: 'popup',
+          type: adTab === 'video' ? 'video' : 'popup',
           position: 'popup-center',
           title: popupName,
-          imageUrl: mediaUrl || activeThumbnail,
+          imageUrl: activeThumbnail,
           linkUrl: popupLink || null,
           isActive: true,
           mediaUrl: mediaUrl || activeThumbnail,
-          mediaFormat: fileDetails?.format?.toLowerCase() || 'png',
-          adDuration: 0,
+          mediaFormat: fileDetails?.format?.toLowerCase() || (adTab === 'video' ? 'mp4' : 'png'),
+          adDuration: fileDetails?.duration || 0,
           quality: '1080p',
+          startDate: startDate ? new Date(startDate) : null,
+          endDate: endDate ? new Date(endDate) : null,
         }),
       })
 
       if (res.ok) {
         setPopupName('')
         setPopupLink('')
+        setStartDate('')
+        setEndDate('')
         handleResetUpload()
         alert('Popup ad saved successfully!')
         fetchAds()
@@ -281,10 +375,9 @@ export function PopupAdsPage() {
     }
   }
 
-  // Table state
+  // Table & Filters
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [currentPage, setCurrentPage] = useState(1)
 
   const adGradients = [
     'from-orange-900/60 via-red-800/40 to-amber-900/30',
@@ -298,7 +391,7 @@ export function PopupAdsPage() {
   const mappedAds: PopupAd[] = useMemo(() => allAds.map((ad, i) => ({
     id: ad.id,
     name: ad.title,
-    type: (ad.type === 'html5' ? 'HTML5' : 'Image') as PopupAd['type'],
+    type: (ad.type === 'video' || ad.mediaFormat === 'mp4' ? 'Video' : 'Image') as PopupAd['type'],
     trigger: 'Time Delay (5s)',
     displayOn: 'All Site Pages',
     impressions: formatAdNumber(ad.impressions),
@@ -311,8 +404,8 @@ export function PopupAdsPage() {
   })), [allAds])
 
   const donutData = useMemo(() => [
-    { name: 'Image Popups', value: allAds.filter(a => a.type !== 'html5').reduce((s, a) => s + a.impressions, 0) || 2700 },
-    { name: 'HTML5 Popups', value: allAds.filter(a => a.type === 'html5').reduce((s, a) => s + a.impressions, 0) || 350 },
+    { name: 'Image Popups', value: allAds.filter(a => a.type !== 'video' && a.mediaFormat !== 'mp4').reduce((s, a) => s + a.impressions, 0) || 2700 },
+    { name: 'Video Popups', value: allAds.filter(a => a.type === 'video' || a.mediaFormat === 'mp4').reduce((s, a) => s + a.impressions, 0) || 350 },
   ], [allAds])
 
   const filteredAds = mappedAds.filter((ad) => {
@@ -329,7 +422,7 @@ export function PopupAdsPage() {
 
   const typeStyles: Record<string, string> = {
     Image: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-    HTML5: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+    Video: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
   }
 
   return (
@@ -399,14 +492,14 @@ export function PopupAdsPage() {
                   )}
                 </button>
                 <button
-                  onClick={() => { setAdTab('html5'); handleResetUpload() }}
+                  onClick={() => { setAdTab('video'); handleResetUpload() }}
                   className={`relative flex items-center gap-2 px-4 pb-2.5 text-sm font-medium transition-colors ${
-                    adTab === 'html5' ? 'text-white' : 'text-white/40 hover:text-white/60'
+                    adTab === 'video' ? 'text-white' : 'text-white/40 hover:text-white/60'
                   }`}
                 >
                   <Film className="h-3.5 w-3.5" />
-                  HTML5 / Zip
-                  {adTab === 'html5' && (
+                  Video Creative
+                  {adTab === 'video' && (
                     <motion.div
                       layoutId="popup-tab-indicator"
                       className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-xtube-red"
@@ -437,7 +530,7 @@ export function PopupAdsPage() {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*"
+                      accept={adTab === 'video' ? 'video/mp4,video/mov,video/webm' : 'image/*'}
                       className="hidden"
                       onChange={(e) => { if (e.target.files?.length) processSelectedFile(e.target.files[0]) }}
                     />
@@ -445,12 +538,16 @@ export function PopupAdsPage() {
                       <CloudUpload className="h-6 w-6 text-xtube-red" />
                     </div>
                     <div className="text-center">
-                      <p className="text-sm font-medium text-white">Drag &amp; drop popup image here</p>
+                      <p className="text-sm font-medium text-white font-semibold">
+                        Drag &amp; drop {adTab === 'video' ? 'video popup' : 'creative image'} here
+                      </p>
                       <p className="mt-1 text-xs text-white/40">
                         or <span className="text-xtube-red underline underline-offset-2">browse files</span>
                       </p>
                     </div>
-                    <p className="text-[10px] text-white/25">Supported: JPG, PNG, WEBP, GIF</p>
+                    <p className="text-[10px] text-white/25">
+                      {adTab === 'video' ? 'Max file size: 5GB | Supported: MP4, WebM, MOV' : 'Supported: JPG, PNG, WEBP, GIF'}
+                    </p>
                   </motion.div>
                 ) : uploadStage === 'uploading' || uploadStage === 'processing' ? (
                   <motion.div
@@ -461,7 +558,9 @@ export function PopupAdsPage() {
                     className="rounded-xl border border-white/5 bg-[#0a0a0a]/60 p-4 space-y-4"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-white">Processing Creative file...</span>
+                      <span className="text-xs font-medium text-white">
+                        {uploadStage === 'processing' ? 'Generating Thumbnails...' : 'Uploading Chunk Stream...'}
+                      </span>
                       <span className="text-xs font-bold text-xtube-red">{Math.round(uploadProgress)}%</span>
                     </div>
                     <div className="relative h-1.5 overflow-hidden rounded-full bg-white/10">
@@ -472,6 +571,27 @@ export function PopupAdsPage() {
                         className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-xtube-red to-red-500"
                       />
                     </div>
+                    {uploadStage === 'uploading' ? (
+                      <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+                        <div>
+                          <p className="text-[9px] text-white/25">Uploaded</p>
+                          <p className="font-semibold text-white truncate">{uploadedSize} / {fileDetails?.size}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-white/25">Speed</p>
+                          <p className="font-semibold text-white">{uploadSpeed}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-white/25">Time Left</p>
+                          <p className="font-semibold text-white">{uploadRemaining}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-xs text-amber-400">
+                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-amber-400 border-t-transparent" />
+                        <span>Realtime Video Thumbnail Generator Rendering 10 Frames...</span>
+                      </div>
+                    )}
                     <button onClick={handleResetUpload} className="text-xs text-xtube-red hover:underline">Cancel</button>
                   </motion.div>
                 ) : (
@@ -486,24 +606,33 @@ export function PopupAdsPage() {
                       <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-semibold text-white">{fileDetails?.name}</p>
-                        <p className="text-[10px] text-white/30">{fileDetails?.size} &bull; {fileDetails?.resolution}</p>
+                        <p className="text-[10px] text-white/30">{fileDetails?.size} &bull; {fileDetails?.resolution} &bull; {fileDetails?.format}</p>
                       </div>
                       <button onClick={handleResetUpload} className="text-xs text-xtube-red hover:underline">Change</button>
                     </div>
 
-                    {/* SELECT PRESETS */}
+                    {/* SELECT PRESETS / CAPTURED FRAMES */}
                     <div>
-                      <p className="text-[11px] font-medium text-white/60 mb-1.5">Preset Styles</p>
+                      <p className="text-[11px] font-medium text-white/60 mb-1.5">
+                        {adTab === 'video' ? 'Select Active Thumbnail (10 Generated Frame Captures)' : 'Preset Styles'}
+                      </p>
                       <div className="grid grid-cols-5 gap-1.5">
-                        {extractedThumbnails.slice(0, 5).map((url, i) => (
+                        {extractedThumbnails.slice(0, 10).map((url, i) => (
                           <button
                             key={i}
                             onClick={() => setSelectedThumbnail(i)}
                             className={`relative aspect-video overflow-hidden rounded border-2 transition-all ${
-                              selectedThumbnail === i ? 'border-xtube-red scale-95' : 'border-transparent hover:border-white/20'
+                              selectedThumbnail === i
+                                ? 'border-xtube-red shadow-[0_0_8px_rgba(229,9,20,0.4)] scale-95'
+                                : 'border-transparent hover:border-white/20 hover:scale-105'
                             }`}
                           >
                             <img src={url} alt="preset" className="h-full w-full object-cover" />
+                            {selectedThumbnail === i && (
+                              <div className="absolute top-0.5 right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-xtube-red">
+                                <CheckCircle2 className="h-2 w-2 text-white" />
+                              </div>
+                            )}
                           </button>
                         ))}
                       </div>
@@ -563,13 +692,39 @@ export function PopupAdsPage() {
                   />
                 </div>
 
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-white/50">Start Date (Open Time)</label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#ff1e1e]/40 [color-scheme:dark]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-white/50">End Date (Close Time)</label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="h-8 w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#ff1e1e]/40 [color-scheme:dark]"
+                    />
+                  </div>
+                </div>
+
                 <motion.button
                   onClick={handleSaveAd}
-                  disabled={saving || uploadStage === 'uploading'}
+                  disabled={saving || uploadStage === 'uploading' || uploadStage === 'processing'}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-xtube-red px-5 py-2 text-sm font-semibold text-white shadow-[0_0_15px_rgba(229,9,20,0.3)] transition-all hover:bg-xtube-red-hover disabled:opacity-50"
                 >
+                  {saving ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <CloudUpload className="h-4 w-4" />
+                  )}
                   {saving ? 'Saving...' : 'Deploy Popup'}
                 </motion.button>
               </div>
@@ -626,11 +781,22 @@ export function PopupAdsPage() {
                           </button>
 
                           <div className="aspect-video rounded-lg overflow-hidden bg-white/5 border border-white/5">
-                            <img
-                              src={mediaUrl || extractedThumbnails[selectedThumbnail] || premiumPlaceholderImages[selectedThumbnail % 10]}
-                              alt="creative"
-                              className="h-full w-full object-cover"
-                            />
+                            {adTab === 'video' && mediaUrl ? (
+                              <video
+                                src={mediaUrl}
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <img
+                                src={extractedThumbnails[selectedThumbnail] || mediaUrl || premiumPlaceholderImages[selectedThumbnail % 10]}
+                                alt="creative"
+                                className="h-full w-full object-cover"
+                              />
+                            )}
                           </div>
 
                           <div>
@@ -708,7 +874,7 @@ export function PopupAdsPage() {
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-base font-bold text-white">Active Popup Campaigns</h2>
               <div className="flex items-center gap-2">
-                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1) }}>
+                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v) }}>
                   <SelectTrigger className="h-8 w-28 rounded-lg border-white/10 bg-[#0a0a0a] text-xs text-white/60 [&_svg]:text-white/30">
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
