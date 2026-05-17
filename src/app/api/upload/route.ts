@@ -8,7 +8,7 @@ import { isR2Configured, initMultipartUpload, uploadPart, completeMultipartUploa
 // Constants
 const CHUNKS_BASE_DIR = join(process.cwd(), 'upload', 'video-chunks')
 const VIDEOS_DIR = join(process.cwd(), 'public', 'videos')
-const DEFAULT_CHUNK_SIZE = 3 * 1024 * 1024 // 3MB (safe from 4MB payload limits)
+const DEFAULT_CHUNK_SIZE = 6 * 1024 * 1024 // 6MB (satisfies Cloudflare R2 5MB minimum part size constraint)
 const MIDROLL_INTERVAL_SECONDS = 1800 // 30 minutes
 
 // Ensure directories exist
