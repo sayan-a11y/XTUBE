@@ -340,92 +340,136 @@ export function VideoUploadPage() {
         throw new Error(`Session initialization failed: ${await initRes.text()}`)
       }
 
-      const { sessionId, chunkSize, totalChunks } = await initRes.json()
+      const { sessionId, chunkSize, totalChunks, uploadUrl, directUpload } = await initRes.json()
 
-      // 2. Upload chunks in loop
-      let uploadedBytes = 0
+      // 2. Upload video
+      if (directUpload && uploadUrl) {
+        setUploadStatusText('Uploading video directly to R2 Storage...')
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest()
+          xhr.open('PUT', uploadUrl, true)
+          xhr.setRequestHeader('Content-Type', file.type || 'video/mp4')
 
-      for (let i = 0; i < totalChunks; i++) {
-        const chunkStart = i * chunkSize
-        const chunkEnd = Math.min(file.size, (i + 1) * chunkSize)
-        const chunkSlice = file.slice(chunkStart, chunkEnd)
-        const currentChunkSize = chunkEnd - chunkStart
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const progressPercent = Math.min((event.loaded / event.total) * 100, 100)
+              setUploadProgress(progressPercent)
 
-        const chunkStartTime = Date.now()
+              const elapsedSecs = (Date.now() - startTime) / 1000
+              const speedMBs = elapsedSecs > 0 ? (event.loaded / (1024 * 1024)) / elapsedSecs : 0
+              setUploadSpeed(`${speedMBs.toFixed(2)} MB/s`)
+              setUploadedSize(`${(event.loaded / (1024 * 1024 * 1024)).toFixed(2)} GB`)
 
-        // Upload chunk with retries
-        let retries = 0
-        const maxRetries = 5 // Increased to 5 for high reliability on mobile/tablet connections
-        let chunkUploaded = false
-
-        while (!chunkUploaded && retries < maxRetries) {
-          try {
-            if (retries > 0) {
-              setUploadStatusText(`Uploading chunk ${i + 1} of ${totalChunks} (Retry ${retries}/${maxRetries})...`)
-            } else {
-              setUploadStatusText(`Uploading chunk ${i + 1} of ${totalChunks}...`)
+              const remainingBytes = file.size - event.loaded
+              const remainingSecs = speedMBs > 0 ? (remainingBytes / (1024 * 1024)) / speedMBs : 0
+              if (remainingSecs > 60) {
+                setUploadRemaining(`${Math.ceil(remainingSecs / 60)} mins left`)
+              } else {
+                setUploadRemaining(`${Math.ceil(remainingSecs)} secs left`)
+              }
             }
-
-            const formData = new FormData()
-            formData.append('chunk', chunkSlice, `chunk_${i}`)
-
-            const res = await fetch(`/api/upload?chunkIndex=${i}&sessionId=${sessionId}`, {
-              method: 'PUT',
-              body: formData,
-            })
-
-            if (!res.ok) {
-              const text = await res.text()
-              throw new Error(`Chunk ${i} failed on server: ${text || res.statusText}`)
-            }
-            chunkUploaded = true
-          } catch (err: any) {
-            retries++
-            console.warn(`Chunk ${i} upload attempt ${retries} failed:`, err)
-            try {
-              await fetch('/api/system-logs', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  level: 'error',
-                  category: 'upload',
-                  message: `Chunk ${i} upload attempt ${retries} failed: ${err?.message || err}`,
-                  details: {
-                    sessionId,
-                    chunkIndex: i,
-                    retries,
-                    error: err?.stack || err?.message || String(err),
-                  }
-                })
-              })
-            } catch (e) {
-              console.error('Failed to log client error to server:', e)
-            }
-            if (retries >= maxRetries) throw err
-            // Exponential backoff: wait longer between retries (e.g., 1s, 2s, 4s, 8s)
-            await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, retries - 1)))
           }
-        }
 
-        uploadedBytes += currentChunkSize
+          xhr.onload = () => {
+            if (xhr.status === 200 || xhr.status === 201) {
+              resolve()
+            } else {
+              reject(new Error(`Direct upload failed with status ${xhr.status}: ${xhr.responseText || 'Upload failed'}`))
+            }
+          }
 
-        // Calculate Speed & Stats
-        const elapsedSecs = (Date.now() - startTime) / 1000
-        const chunkElapsedSecs = (Date.now() - chunkStartTime) / 1000
-        const progressPercent = Math.min(((i + 1) / totalChunks) * 100, 100)
-        setUploadProgress(progressPercent)
+          xhr.onerror = () => {
+            reject(new Error('Network error occurred during direct upload to R2.'))
+          }
 
-        setUploadedSize(`${(uploadedBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`)
+          xhr.send(file)
+        })
+      } else {
+        // Fallback to local chunked upload loop
+        let uploadedBytes = 0
 
-        const speedMBs = (currentChunkSize / (1024 * 1024)) / (chunkElapsedSecs || 0.1)
-        setUploadSpeed(`${speedMBs.toFixed(1)} MB/s`)
+        for (let i = 0; i < totalChunks; i++) {
+          const chunkStart = i * chunkSize
+          const chunkEnd = Math.min(file.size, (i + 1) * chunkSize)
+          const chunkSlice = file.slice(chunkStart, chunkEnd)
+          const currentChunkSize = chunkEnd - chunkStart
 
-        const remainingBytes = file.size - uploadedBytes
-        const remainingSecs = remainingBytes / ((uploadedBytes / elapsedSecs) || 1)
-        if (remainingSecs > 60) {
-          setUploadRemaining(`${Math.ceil(remainingSecs / 60)} mins left`)
-        } else {
-          setUploadRemaining(`${Math.ceil(remainingSecs)} secs left`)
+          const chunkStartTime = Date.now()
+
+          // Upload chunk with retries
+          let retries = 0
+          const maxRetries = 5 // Increased to 5 for high reliability on mobile/tablet connections
+          let chunkUploaded = false
+
+          while (!chunkUploaded && retries < maxRetries) {
+            try {
+              if (retries > 0) {
+                setUploadStatusText(`Uploading chunk ${i + 1} of ${totalChunks} (Retry ${retries}/${maxRetries})...`)
+              } else {
+                setUploadStatusText(`Uploading chunk ${i + 1} of ${totalChunks}...`)
+              }
+
+              const formData = new FormData()
+              formData.append('chunk', chunkSlice, `chunk_${i}`)
+
+              const res = await fetch(`/api/upload?chunkIndex=${i}&sessionId=${sessionId}`, {
+                method: 'PUT',
+                body: formData,
+              })
+
+              if (!res.ok) {
+                const text = await res.text()
+                throw new Error(`Chunk ${i} failed on server: ${text || res.statusText}`)
+              }
+              chunkUploaded = true
+            } catch (err: any) {
+              retries++
+              console.warn(`Chunk ${i} upload attempt ${retries} failed:`, err)
+              try {
+                await fetch('/api/system-logs', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    level: 'error',
+                    category: 'upload',
+                    message: `Chunk ${i} upload attempt ${retries} failed: ${err?.message || err}`,
+                    details: {
+                      sessionId,
+                      chunkIndex: i,
+                      retries,
+                      error: err?.stack || err?.message || String(err),
+                    }
+                  })
+                })
+              } catch (e) {
+                console.error('Failed to log client error to server:', e)
+              }
+              if (retries >= maxRetries) throw err
+              // Exponential backoff: wait longer between retries (e.g., 1s, 2s, 4s, 8s)
+              await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, retries - 1)))
+            }
+          }
+
+          uploadedBytes += currentChunkSize
+
+          // Calculate Speed & Stats
+          const elapsedSecs = (Date.now() - startTime) / 1000
+          const chunkElapsedSecs = (Date.now() - chunkStartTime) / 1000
+          const progressPercent = Math.min(((i + 1) / totalChunks) * 100, 100)
+          setUploadProgress(progressPercent)
+
+          setUploadedSize(`${(uploadedBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`)
+
+          const speedMBs = (currentChunkSize / (1024 * 1024)) / (chunkElapsedSecs || 0.1)
+          setUploadSpeed(`${speedMBs.toFixed(1)} MB/s`)
+
+          const remainingBytes = file.size - uploadedBytes
+          const remainingSecs = remainingBytes / ((uploadedBytes / elapsedSecs) || 1)
+          if (remainingSecs > 60) {
+            setUploadRemaining(`${Math.ceil(remainingSecs / 60)} mins left`)
+          } else {
+            setUploadRemaining(`${Math.ceil(remainingSecs)} secs left`)
+          }
         }
       }
 

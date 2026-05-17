@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { mkdirSync, existsSync, writeFileSync, readdirSync, readFileSync, unlinkSync, rmdirSync, createWriteStream } from 'fs'
 import { join } from 'path'
 import { broadcastRealtimeEvent } from '@/lib/realtime'
-import { isR2Configured, initMultipartUpload, uploadPart, completeMultipartUpload, generateStorageKey, uploadLocalFileToR2 } from '@/lib/storage/r2-client'
+import { isR2Configured, initMultipartUpload, uploadPart, completeMultipartUpload, generateStorageKey, uploadLocalFileToR2, getSignedUploadUrl } from '@/lib/storage/r2-client'
 
 // Constants
 const CHUNKS_BASE_DIR = join(process.cwd(), 'upload', 'video-chunks')
@@ -82,22 +82,18 @@ export async function POST(request: NextRequest) {
 
       const useR2 = isR2Configured()
       let r2Key = ''
-      let uploadId = ''
+      let uploadId = 'direct'
+      let uploadUrl = ''
 
       if (useR2) {
         r2Key = generateStorageKey(fileName, 'video')
         try {
-          // Initialize multipart upload on Cloudflare R2
-          const initResult = await initMultipartUpload(
-            r2Key,
-            mimeType || 'video/mp4',
-            parsedFileSize,
-            'video',
-            fileName
-          )
-          uploadId = initResult.uploadId
+          // Generate direct presigned PUT URL for single upload bypass
+          const signedRes = await getSignedUploadUrl(r2Key, 3600)
+          uploadUrl = signedRes.url
         } catch (r2Error) {
-          console.error('Failed to initialize R2 multipart upload, falling back to local:', r2Error)
+          console.error('Failed to generate direct R2 upload URL, falling back to local chunks:', r2Error)
+          uploadId = ''
         }
       }
 
@@ -106,27 +102,27 @@ export async function POST(request: NextRequest) {
           fileName,
           fileSize: BigInt(parsedFileSize),
           mimeType: mimeType || 'video/mp4',
-          chunkSize,
-          totalChunks,
+          chunkSize: uploadUrl ? parsedFileSize : chunkSize,
+          totalChunks: uploadUrl ? 1 : totalChunks,
           status: 'pending',
           uploadedChunks: '[]',
           storageKey: JSON.stringify({
-            provider: uploadId ? 'r2' : 'local',
+            provider: uploadUrl ? 'r2' : 'local',
             r2Key,
-            uploadId,
+            uploadId: uploadUrl ? 'direct' : '',
           }),
         },
       })
 
       // Only create local session directory if using local fallback mode
-      if (!uploadId) {
+      if (!uploadUrl) {
         ensureDir(CHUNKS_BASE_DIR)
         const sessionDir = join(CHUNKS_BASE_DIR, session.id)
         ensureDir(sessionDir)
       }
 
       // Generate local chunk routing URLs (which will be proxied to R2 in real-time or saved locally)
-      const chunkUrls = Array.from({ length: totalChunks }, (_, i) => ({
+      const chunkUrls = uploadUrl ? [] : Array.from({ length: totalChunks }, (_, i) => ({
         chunkIndex: i,
         uploadUrl: `/api/upload?chunkIndex=${i}&sessionId=${session.id}`,
         method: 'PUT',
@@ -134,9 +130,11 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         sessionId: session.id,
-        totalChunks,
-        chunkSize,
+        totalChunks: uploadUrl ? 1 : totalChunks,
+        chunkSize: uploadUrl ? parsedFileSize : chunkSize,
         chunkUrls,
+        uploadUrl,
+        directUpload: !!uploadUrl,
         status: 'pending',
       }, { status: 201 })
     }
@@ -194,7 +192,12 @@ export async function POST(request: NextRequest) {
       const qualityLevels = getQualityLevelsForResolution(resolution || '1080p', Number(session.fileSize))
 
       try {
-        if (isR2 && uploadId) {
+        if (isR2 && uploadId === 'direct') {
+          // Cloudflare R2 Direct Single Upload Complete (no multipart assembly needed)
+          finalVideoUrl = process.env.R2_PUBLIC_URL ? `${process.env.R2_PUBLIC_URL}/${r2Key}` : `/${r2Key}`
+          storageProvider = 'r2'
+          storageKeyVal = r2Key
+        } else if (isR2 && uploadId) {
           // Cloudflare R2 Multipart Complete
           const uploadedParts = JSON.parse(session.uploadedChunks || '[]')
           if (uploadedParts.length !== session.totalChunks) {

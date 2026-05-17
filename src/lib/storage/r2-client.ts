@@ -736,6 +736,32 @@ async function completeMultipartUploadLocal(
 }
 
 /**
+ * Generate a signed URL for secure file upload.
+ */
+export async function getSignedUploadUrl(
+  key: string,
+  expiresInSeconds: number = 3600
+): Promise<SignedUrlResult> {
+  const provider = getProvider()
+
+  if (provider === 'r2') {
+    const url = generatePresignedUrl(key, 'PUT', expiresInSeconds)
+    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString()
+
+    return {
+      url,
+      expiresAt,
+    }
+  }
+
+  // Local fallback
+  return {
+    url: `/api/upload/direct-fallback?key=${encodeURIComponent(key)}`,
+    expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
+  }
+}
+
+/**
  * Generate a signed URL for secure streaming/access.
  *
  * For R2: Generates an AWS Signature V4 presigned URL.
@@ -744,6 +770,7 @@ async function completeMultipartUploadLocal(
 export async function getSignedUrl(
   key: string,
   expiresInSeconds: number = 3600
+
 ): Promise<SignedUrlResult> {
   const provider = getProvider()
 
