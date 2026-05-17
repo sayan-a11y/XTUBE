@@ -202,6 +202,10 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
   const [showMoreMenu, setShowMoreMenu] = useState(false)
 
   // ─── Premium Upgrade: New State ────────────────────────────────────────────
+  const [isTouchDevice, setIsTouchDevice] = useState(false)
+  useEffect(() => {
+    setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0)
+  }, [])
 
   // Settings menu
   const [showSettings, setShowSettings] = useState(false)
@@ -408,6 +412,31 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
     }
     resetControlsTimeout()
   }, [resetControlsTimeout])
+
+  const handleVideoClick = useCallback((e: React.MouseEvent) => {
+    // If it's a double-tap, ignore single tap toggle to let double tap seek work
+    if (lastTapRef.current && Date.now() - lastTapRef.current.time < 300) {
+      return
+    }
+
+    if (isTouchDevice) {
+      // Toggle controls overlay on mobile/tablet
+      e.preventDefault()
+      e.stopPropagation()
+      setShowControls((prev) => {
+        if (!prev) {
+          resetControlsTimeout()
+          return true
+        } else {
+          if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
+          return false
+        }
+      })
+    } else {
+      // Regular desktop click-to-play/pause
+      togglePlay()
+    }
+  }, [isTouchDevice, togglePlay, resetControlsTimeout])
 
   const toggleMute = useCallback(() => {
     const vid = videoRef.current
@@ -755,6 +784,16 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
     }
   }, [autoPlayNext, relatedVideos, navigateToVideo])
 
+  // Synchronize controls visibility with playing state
+  useEffect(() => {
+    if (!isPlaying) {
+      setShowControls(true)
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
+    } else {
+      resetControlsTimeout()
+    }
+  }, [isPlaying, resetControlsTimeout])
+
   // ─── HLS Streaming Support ──────────────────────────────────────────────────
 
   useEffect(() => {
@@ -979,7 +1018,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
                 className="h-full w-full cursor-pointer aspect-video"
                 poster={video.thumbnail}
                 preload="metadata"
-                onClick={togglePlay}
+                onClick={handleVideoClick}
                 onDoubleClick={toggleFullscreen}
                 playsInline
                 style={{ transform: 'translateZ(0)', willChange: 'transform' }}
