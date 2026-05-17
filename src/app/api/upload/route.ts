@@ -206,6 +206,21 @@ export async function POST(request: NextRequest) {
       }, { status: 201 })
     }
 
+    if (action === 'delete-session') {
+      const { fileName, fileSize } = body
+      if (!fileName || !fileSize) {
+        return NextResponse.json({ error: 'fileName and fileSize are required' }, { status: 400 })
+      }
+      const parsedFileSize = Math.round(Number(fileSize))
+      await db.uploadSession.deleteMany({
+        where: {
+          fileName,
+          fileSize: BigInt(parsedFileSize),
+        }
+      })
+      return NextResponse.json({ success: true })
+    }
+
     if (action === 'record-part') {
       const { sessionId, partNumber, etag } = body
       if (!sessionId || !partNumber || !etag) {

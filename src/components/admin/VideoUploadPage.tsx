@@ -179,6 +179,8 @@ export function VideoUploadPage() {
   const [videoObjectUrl, setVideoObjectUrl] = useState<string>('')
   const [showControls, setShowControls] = useState(false)
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isRetryingStaleSessionRef = useRef(false)
+  const uploadSubmitRef = useRef<(() => Promise<void>) | undefined>(undefined)
 
   useEffect(() => {
     return () => {
@@ -193,6 +195,7 @@ export function VideoUploadPage() {
   // ─── Browser Metadata Extraction & Dynamic Client-Side 10 Thumbnail Extraction ───
 
   const processSelectedFile = useCallback((selectedFile: File) => {
+    isRetryingStaleSessionRef.current = false
     setFile(selectedFile)
     setErrorMessage(null)
     setUploadStage('idle')
@@ -560,10 +563,43 @@ export function VideoUploadPage() {
       setUploadStage('success')
     } catch (err: any) {
       console.error('Upload error:', err)
+
+      // Auto-heal expired/stale resume sessions (indicated by a 404 Not Found error from R2)
+      const is404 = err?.message?.includes('status 404')
+      if (is404 && file && !isRetryingStaleSessionRef.current) {
+        console.warn('Stale upload session detected on Cloudflare R2 (404). Purging database and restarting upload fresh...')
+        isRetryingStaleSessionRef.current = true
+        setUploadStatusText('Stale session detected on storage. Auto-healing and restarting upload...')
+
+        try {
+          await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'delete-session',
+              fileName: file.name,
+              fileSize: file.size,
+            }),
+          })
+
+          // Re-trigger upload fresh using Ref!
+          setTimeout(() => {
+            uploadSubmitRef.current?.()
+          }, 800)
+          return
+        } catch (purgeErr) {
+          console.error('Failed to purge stale session:', purgeErr)
+        }
+      }
+
       setErrorMessage(err.message || 'An error occurred during upload.')
       setUploadStage('idle')
     }
   }, [file, title, description, category, duration, quality, generatedThumbnails, selectedThumbnail])
+
+  useEffect(() => {
+    uploadSubmitRef.current = handleUploadSubmit
+  }, [handleUploadSubmit])
 
   // ─── Select Thumbnail ──────────────────────────────────────────────────
 
@@ -677,6 +713,7 @@ export function VideoUploadPage() {
   }, [])
 
   const handleResetUpload = useCallback(() => {
+    isRetryingStaleSessionRef.current = false
     if (videoObjectUrl) {
       URL.revokeObjectURL(videoObjectUrl)
     }
