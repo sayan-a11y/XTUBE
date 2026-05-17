@@ -201,6 +201,7 @@ export function HeroAdsPage() {
 
   const [mediaUrl, setMediaUrl] = useState<string | null>(null)
   const [extractedThumbnails, setExtractedThumbnails] = useState<string[]>([])
+  const [isExtractingThumbnails, setIsExtractingThumbnails] = useState(false)
   const [fileDetails, setFileDetails] = useState<{
     name: string
     size: string
@@ -245,132 +246,309 @@ export function HeroAdsPage() {
     }
   }, [fetchHeroAds])
 
+  // Canvas frame extraction logic
+  const extractCanvasThumbnails = useCallback((file: File, duration: number) => {
+    setIsExtractingThumbnails(true)
+    const tempVideo = document.createElement('video')
+    tempVideo.src = URL.createObjectURL(file)
+    tempVideo.preload = 'metadata'
+    tempVideo.muted = true
+    tempVideo.playsInline = true
+
+    tempVideo.onloadedmetadata = () => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      canvas.width = 320
+      canvas.height = 180
+
+      const frames: string[] = []
+      let captured = 0
+
+      const captureFrame = (time: number) => {
+        tempVideo.currentTime = time
+        tempVideo.onseeked = () => {
+          if (ctx) {
+            ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height)
+            frames.push(canvas.toDataURL('image/jpeg', 0.8))
+          }
+          captured++
+          if (captured < 10) {
+            captureFrame((duration / 10) * captured)
+          } else {
+            setExtractedThumbnails(frames)
+            setIsExtractingThumbnails(false)
+            setUploadStage('success')
+          }
+        }
+      }
+      captureFrame(0.5) // start at 0.5s to avoid black frames
+    }
+
+    tempVideo.onerror = () => {
+      setExtractedThumbnails(premiumPlaceholderImages)
+      setIsExtractingThumbnails(false)
+      setUploadStage('success')
+    }
+  }, [])
+
   const processSelectedFile = useCallback((file: File) => {
     const objectUrl = URL.createObjectURL(file)
     setMediaUrl(objectUrl)
 
+    const isVideo = file.type.startsWith('video/')
     const format = file.name.split('.').pop()?.toUpperCase() || ''
-    setFileDetails({
-      name: file.name,
-      size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-      resolution: '1920×1080',
-      format,
-    })
-    if (!adTitle) setAdTitle(file.name.replace(/\.[^/.]+$/, ""))
 
-    // Start REAL upload using XMLHttpRequest
-    setUploadStage('uploading')
-    setUploadProgress(0)
-
-    const startTime = Date.now()
-
-    // 1. Try Direct R2 upload bypass first if enabled
-    const startDirectUpload = async () => {
-      try {
-        const initRes = await fetch('/api/upload-ad', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'init',
-            fileName: file.name,
-            fileType: file.type,
-            category: 'ad',
-          }),
+    if (isVideo) {
+      setAdType('video')
+      const tempVid = document.createElement('video')
+      tempVid.src = objectUrl
+      tempVid.preload = 'metadata'
+      tempVid.onloadedmetadata = () => {
+        const resolution = `${tempVid.videoWidth}×${tempVid.videoHeight}`
+        setFileDetails({
+          name: file.name,
+          size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+          resolution,
+          format,
         })
+        if (!adTitle) setAdTitle(file.name.replace(/\.[^/.]+$/, ""))
 
-        if (initRes.ok) {
-          const { direct, uploadUrl, publicUrl } = await initRes.json()
-          if (direct && uploadUrl) {
-            const xhr = new XMLHttpRequest()
-            xhr.open('PUT', uploadUrl, true)
-            xhr.setRequestHeader('Content-Type', file.type || 'image/jpeg')
+        // Start REAL upload using XMLHttpRequest
+        setUploadStage('uploading')
+        setUploadProgress(0)
 
-            xhr.upload.onprogress = (event) => {
-              if (event.lengthComputable) {
-                const percent = (event.loaded / event.total) * 100
-                setUploadProgress(percent)
-                setUploadedSize(`${((event.loaded / (1024 * 1024))).toFixed(2)} MB`)
+        const startTime = Date.now()
 
-                const elapsedSeconds = (Date.now() - startTime) / 1000
-                const speedBytesPerSec = elapsedSeconds > 0 ? event.loaded / elapsedSeconds : 0
-                setUploadSpeed(`${(speedBytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`)
-                setUploadRemaining('Uploading...')
-              }
-            }
-
-            xhr.onload = () => {
-              if (xhr.status === 200 || xhr.status === 201) {
-                setMediaUrl(publicUrl)
-                setExtractedThumbnails([publicUrl])
-                setUploadStage('success')
-              } else {
-                fallbackUpload()
-              }
-            }
-
-            xhr.onerror = () => {
-              fallbackUpload()
-            }
-
-            xhr.send(file)
-            return true
-          }
-        }
-      } catch (err) {
-        console.warn('Direct upload failed to initialize, trying fallback...', err)
-      }
-      return false
-    }
-
-    const fallbackUpload = () => {
-      const xhr = new XMLHttpRequest()
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('category', 'ad')
-
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const percent = (event.loaded / event.total) * 100
-          setUploadProgress(percent)
-          setUploadedSize(`${((event.loaded / (1024 * 1024))).toFixed(2)} MB`)
-
-          const elapsedSeconds = (Date.now() - startTime) / 1000
-          const speedBytesPerSec = elapsedSeconds > 0 ? event.loaded / elapsedSeconds : 0
-          setUploadSpeed(`${(speedBytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`)
-          setUploadRemaining('Uploading...')
-        }
-      }
-
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
+        const startDirectUpload = async () => {
           try {
-            const response = JSON.parse(xhr.responseText)
-            setMediaUrl(response.url)
-            setExtractedThumbnails([response.url])
-            setUploadStage('success')
-          } catch (e) {
-            alert('Failed to parse upload response')
+            const initRes = await fetch('/api/upload-ad', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'init',
+                fileName: file.name,
+                fileType: file.type,
+                category: 'ad',
+              }),
+            })
+
+            if (initRes.ok) {
+              const { direct, uploadUrl, publicUrl } = await initRes.json()
+              if (direct && uploadUrl) {
+                const xhr = new XMLHttpRequest()
+                xhr.open('PUT', uploadUrl, true)
+                xhr.setRequestHeader('Content-Type', file.type || 'video/mp4')
+
+                xhr.upload.onprogress = (event) => {
+                  if (event.lengthComputable) {
+                    const percent = (event.loaded / event.total) * 100
+                    setUploadProgress(percent)
+                    setUploadedSize(`${((event.loaded / (1024 * 1024))).toFixed(2)} MB`)
+
+                    const elapsedSeconds = (Date.now() - startTime) / 1000
+                    const speedBytesPerSec = elapsedSeconds > 0 ? event.loaded / elapsedSeconds : 0
+                    setUploadSpeed(`${(speedBytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`)
+                    setUploadRemaining('Uploading...')
+                  }
+                }
+
+                xhr.onload = () => {
+                  if (xhr.status === 200 || xhr.status === 201) {
+                    setMediaUrl(publicUrl)
+                    setUploadStage('processing')
+                    extractCanvasThumbnails(file, tempVid.duration)
+                  } else {
+                    fallbackUpload()
+                  }
+                }
+
+                xhr.onerror = () => {
+                  fallbackUpload()
+                }
+
+                xhr.send(file)
+                return true
+              }
+            }
+          } catch (err) {
+            console.warn('Direct upload failed to initialize, trying fallback...', err)
+          }
+          return false
+        }
+
+        const fallbackUpload = () => {
+          const xhr = new XMLHttpRequest()
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('category', 'ad')
+
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const percent = (event.loaded / event.total) * 100
+              setUploadProgress(percent)
+              setUploadedSize(`${((event.loaded / (1024 * 1024))).toFixed(2)} MB`)
+
+              const elapsedSeconds = (Date.now() - startTime) / 1000
+              const speedBytesPerSec = elapsedSeconds > 0 ? event.loaded / elapsedSeconds : 0
+              setUploadSpeed(`${(speedBytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`)
+              setUploadRemaining('Uploading...')
+            }
+          }
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                const response = JSON.parse(xhr.responseText)
+                setMediaUrl(response.url)
+                setUploadStage('processing')
+                extractCanvasThumbnails(file, tempVid.duration)
+              } catch (e) {
+                alert('Failed to parse upload response')
+                setUploadStage('idle')
+              }
+            } else {
+              alert(`Upload failed: ${xhr.statusText || xhr.status}`)
+              setUploadStage('idle')
+            }
+          }
+
+          xhr.onerror = () => {
+            alert('Network upload error')
             setUploadStage('idle')
           }
-        } else {
-          alert(`Upload failed: ${xhr.statusText || xhr.status}`)
+
+          xhr.open('POST', '/api/upload-ad')
+          xhr.send(formData)
+        }
+
+        startDirectUpload().then((success) => {
+          if (!success) fallbackUpload()
+        })
+      }
+    } else {
+      // Image creative ad
+      setAdType('image')
+      setFileDetails({
+        name: file.name,
+        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+        resolution: '1920×1080',
+        format,
+      })
+      if (!adTitle) setAdTitle(file.name.replace(/\.[^/.]+$/, ""))
+
+      // Start REAL upload using XMLHttpRequest
+      setUploadStage('uploading')
+      setUploadProgress(0)
+
+      const startTime = Date.now()
+
+      const startDirectUpload = async () => {
+        try {
+          const initRes = await fetch('/api/upload-ad', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'init',
+              fileName: file.name,
+              fileType: file.type,
+              category: 'ad',
+            }),
+          })
+
+          if (initRes.ok) {
+            const { direct, uploadUrl, publicUrl } = await initRes.json()
+            if (direct && uploadUrl) {
+              const xhr = new XMLHttpRequest()
+              xhr.open('PUT', uploadUrl, true)
+              xhr.setRequestHeader('Content-Type', file.type || 'image/jpeg')
+
+              xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                  const percent = (event.loaded / event.total) * 100
+                  setUploadProgress(percent)
+                  setUploadedSize(`${((event.loaded / (1024 * 1024))).toFixed(2)} MB`)
+
+                  const elapsedSeconds = (Date.now() - startTime) / 1000
+                  const speedBytesPerSec = elapsedSeconds > 0 ? event.loaded / elapsedSeconds : 0
+                  setUploadSpeed(`${(speedBytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`)
+                  setUploadRemaining('Uploading...')
+                }
+              }
+
+              xhr.onload = () => {
+                if (xhr.status === 200 || xhr.status === 201) {
+                  setMediaUrl(publicUrl)
+                  setExtractedThumbnails([publicUrl])
+                  setUploadStage('success')
+                } else {
+                  fallbackUpload()
+                }
+              }
+
+              xhr.onerror = () => {
+                fallbackUpload()
+              }
+
+              xhr.send(file)
+              return true
+            }
+          }
+        } catch (err) {
+          console.warn('Direct upload failed to initialize, trying fallback...', err)
+        }
+        return false
+      }
+
+      const fallbackUpload = () => {
+        const xhr = new XMLHttpRequest()
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('category', 'ad')
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = (event.loaded / event.total) * 100
+            setUploadProgress(percent)
+            setUploadedSize(`${((event.loaded / (1024 * 1024))).toFixed(2)} MB`)
+
+            const elapsedSeconds = (Date.now() - startTime) / 1000
+            const speedBytesPerSec = elapsedSeconds > 0 ? event.loaded / elapsedSeconds : 0
+            setUploadSpeed(`${(speedBytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`)
+            setUploadRemaining('Uploading...')
+          }
+        }
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const response = JSON.parse(xhr.responseText)
+              setMediaUrl(response.url)
+              setExtractedThumbnails([response.url])
+              setUploadStage('success')
+            } catch (e) {
+              alert('Failed to parse upload response')
+              setUploadStage('idle')
+            }
+          } else {
+            alert(`Upload failed: ${xhr.statusText || xhr.status}`)
+            setUploadStage('idle')
+          }
+        }
+
+        xhr.onerror = () => {
+          alert('Network upload error')
           setUploadStage('idle')
         }
+
+        xhr.open('POST', '/api/upload-ad')
+        xhr.send(formData)
       }
 
-      xhr.onerror = () => {
-        alert('Network upload error')
-        setUploadStage('idle')
-      }
-
-      xhr.open('POST', '/api/upload-ad')
-      xhr.send(formData)
+      startDirectUpload().then((success) => {
+        if (!success) fallbackUpload()
+      })
     }
-
-    startDirectUpload().then((success) => {
-      if (!success) fallbackUpload()
-    })
-  }, [adTitle])
+  }, [adTitle, extractCanvasThumbnails])
 
   const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true) }, [])
   const handleDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(false) }, [])
@@ -457,7 +635,13 @@ export function HeroAdsPage() {
     setDisplayOrder(ad.displayOrder)
     setStatusActive(ad.isActive)
     setMediaUrl(ad.mediaUrl)
-    setExtractedThumbnails(premiumPlaceholderImages)
+    if (ad.thumbnailUrl) {
+      setExtractedThumbnails([ad.thumbnailUrl, ...premiumPlaceholderImages])
+      setSelectedThumbnail(0)
+    } else {
+      setExtractedThumbnails(premiumPlaceholderImages)
+      setSelectedThumbnail(0)
+    }
     setUploadStage('success')
   }, [])
 
@@ -646,9 +830,11 @@ export function HeroAdsPage() {
 
                     {/* SELECT PRESETS */}
                     <div>
-                      <p className="text-[11px] font-medium text-white/60 mb-1.5">Preset Styles</p>
+                      <p className="text-[11px] font-medium text-white/60 mb-1.5">
+                        {adType === 'video' ? 'Select Video Poster Frame' : 'Preset Styles'}
+                      </p>
                       <div className="grid grid-cols-5 gap-1.5">
-                        {extractedThumbnails.slice(0, 5).map((url, i) => (
+                        {extractedThumbnails.slice(0, 10).map((url, i) => (
                           <button
                             key={i}
                             onClick={() => setSelectedThumbnail(i)}
@@ -785,11 +971,22 @@ export function HeroAdsPage() {
                 <div className="relative aspect-video overflow-hidden rounded-lg bg-[#08080c] border border-white/5 shadow-2xl flex flex-col justify-end p-4">
                   {/* Cinematic Wide Image Background */}
                   <div className="absolute inset-0 z-0">
-                    <img
-                      src={mediaUrl || extractedThumbnails[selectedThumbnail] || premiumPlaceholderImages[selectedThumbnail % 10]}
-                      alt="cinematic background"
-                      className="h-full w-full object-cover"
-                    />
+                    {adType === 'video' && mediaUrl ? (
+                      <video
+                        src={mediaUrl}
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <img
+                        src={mediaUrl || extractedThumbnails[selectedThumbnail] || premiumPlaceholderImages[selectedThumbnail % 10]}
+                        alt="cinematic background"
+                        className="h-full w-full object-cover"
+                      />
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
                     <div className="absolute inset-0 bg-gradient-to-r from-black via-black/20 to-transparent" />
                   </div>
