@@ -116,7 +116,7 @@ export function useRealtimeAds(filters?: AdsFilterOptions) {
         if (f?.status) params.set('status', f.status)
         if (f?.search) params.set('search', f.search)
         promises.push(
-          fetch(`/api/ads?${params.toString()}`)
+          fetch(`/api/ads?${params.toString()}`, { cache: 'no-store' })
             .then(res => res.ok ? res.json() : { ads: [] })
             .catch(() => ({ ads: [] }))
         )
@@ -127,7 +127,7 @@ export function useRealtimeAds(filters?: AdsFilterOptions) {
       // 2. Fetch HeroAds table
       if (fetchHero) {
         promises.push(
-          fetch('/api/hero-ads')
+          fetch('/api/hero-ads', { cache: 'no-store' })
             .then(res => res.ok ? res.json() : { heroAds: [] })
             .catch(() => ({ heroAds: [] }))
         )
@@ -138,7 +138,7 @@ export function useRealtimeAds(filters?: AdsFilterOptions) {
       // 3. Fetch FooterAds table
       if (fetchFooter) {
         promises.push(
-          fetch('/api/footer-ads')
+          fetch('/api/footer-ads', { cache: 'no-store' })
             .then(res => res.ok ? res.json() : { footerAds: [] })
             .catch(() => ({ footerAds: [] }))
         )
