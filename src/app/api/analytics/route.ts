@@ -5,27 +5,35 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    // Get overall stats
-    let totalVideos = 0
-    let totalViews: any = { _sum: { views: 0 } }
-    let totalComments = 0
-    let totalAds = 0
-    let totalUsers = 0
-    let adStats: any = { _sum: { clicks: 0, impressions: 0 } }
-    let recentAnalytics: any[] = []
+    // Get overall stats in parallel for max performance
+    const [
+      videosCountRes,
+      viewsAggRes,
+      commentsCountRes,
+      adsCountRes,
+      usersCountRes,
+      adStatsRes,
+      recentAnalyticsRes,
+      categoryStatsRes
+    ] = await Promise.allSettled([
+      db.video.count(),
+      db.video.aggregate({ _sum: { views: true } }),
+      db.comment.count(),
+      db.ad.count(),
+      db.user.count(),
+      db.ad.aggregate({ _sum: { clicks: true, impressions: true } }),
+      db.analytics.findMany({ orderBy: { date: 'desc' }, take: 30 }),
+      db.video.groupBy({ by: ['category'], _count: { _all: true }, _sum: { views: true } })
+    ])
 
-    try { totalVideos = await db.video.count() } catch (e) { console.warn('video count failed', e) }
-    try { totalViews = await db.video.aggregate({ _sum: { views: true } }) } catch (e) { console.warn('video aggregate failed', e) }
-    try { totalComments = await db.comment.count() } catch (e) { console.warn('comment count failed', e) }
-    try { totalAds = await db.ad.count() } catch (e) { console.warn('ad count failed', e) }
-    try { totalUsers = await db.user.count() } catch (e) { console.warn('user count failed', e) }
-    try { adStats = await db.ad.aggregate({ _sum: { clicks: true, impressions: true } }) } catch (e) { console.warn('ad aggregate failed', e) }
-    try { 
-      recentAnalytics = await db.analytics.findMany({
-        orderBy: { date: 'desc' },
-        take: 30,
-      }) 
-    } catch (e) { console.warn('analytics findMany failed', e) }
+    const totalVideos = videosCountRes.status === 'fulfilled' ? videosCountRes.value : 0
+    const totalViews = viewsAggRes.status === 'fulfilled' ? viewsAggRes.value : { _sum: { views: 0 } }
+    const totalComments = commentsCountRes.status === 'fulfilled' ? commentsCountRes.value : 0
+    const totalAds = adsCountRes.status === 'fulfilled' ? adsCountRes.value : 0
+    const totalUsers = usersCountRes.status === 'fulfilled' ? usersCountRes.value : 0
+    const adStats = adStatsRes.status === 'fulfilled' ? adStatsRes.value : { _sum: { clicks: 0, impressions: 0 } }
+    const recentAnalytics = recentAnalyticsRes.status === 'fulfilled' ? recentAnalyticsRes.value : []
+    const categoryStats = categoryStatsRes.status === 'fulfilled' ? categoryStatsRes.value : []
 
     // Calculate views over time
     const viewsByDate = recentAnalytics.reduce((acc: Record<string, number>, a) => {
@@ -51,16 +59,6 @@ export async function GET() {
       acc[a.device] = (acc[a.device] || 0) + a.views
       return acc
     }, {})
-
-    // Category breakdown
-    let categoryStats: any[] = []
-    try {
-      categoryStats = await db.video.groupBy({
-        by: ['category'],
-        _count: { _all: true },
-        _sum: { views: true },
-      })
-    } catch (e) { console.warn('video groupBy failed', e) }
 
     return new NextResponse(JSON.stringify({
       totalVideos,

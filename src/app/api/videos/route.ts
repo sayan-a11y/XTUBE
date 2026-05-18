@@ -35,14 +35,15 @@ export async function GET(request: NextRequest) {
     if (sort === 'oldest') orderBy = { createdAt: 'asc' }
     if (sort === 'title') orderBy = { title: 'asc' }
 
-    const videos = await db.video.findMany({
-      where,
-      orderBy,
-      take: limit,
-      skip: offset,
-    })
-
-    const total = await db.video.count({ where })
+    const [videos, total] = await Promise.all([
+      db.video.findMany({
+        where,
+        orderBy,
+        take: limit,
+        skip: offset,
+      }),
+      db.video.count({ where })
+    ])
 
     return new NextResponse(JSON.stringify({ videos, total }), {
       status: 200,
