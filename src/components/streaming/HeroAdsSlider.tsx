@@ -35,7 +35,7 @@ interface HeroAdsSliderProps {
    Constants
    ──────────────────────────────────────────── */
 
-const AUTOPLAY_DELAY = 8000  // 8 seconds
+const AUTOPLAY_DELAY = 1800000  // 30 minutes
 const SWIPE_THRESHOLD = 50        // px minimum swipe distance
 const MAX_VISIBLE_ADS = 6         // Limit hero ads to display
 
@@ -207,6 +207,9 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
   const [videoLoaded, setVideoLoaded] = useState<Record<string, boolean>>({})
   const [isHovering, setIsHovering] = useState(false)
 
+  const [dragOffset, setDragOffset] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
   const autoplayRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -311,28 +314,37 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX
     touchStartY.current = e.touches[0].clientY
+    setIsDragging(true)
+    setDragOffset(0)
+  }, [])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchStartX.current) return
+    const currentX = e.touches[0].clientX
+    const deltaX = currentX - touchStartX.current
+    setDragOffset(deltaX)
   }, [])
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
-      if (touchStartX.current === null || touchStartY.current === null) return
-      if (!hasMultipleAds) return
-
+      if (!touchStartX.current) return
+      setIsDragging(false)
+      
       const deltaX = e.changedTouches[0].clientX - touchStartX.current
-      const deltaY = e.changedTouches[0].clientY - touchStartY.current
-
-      if (Math.abs(deltaX) > SWIPE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY)) {
+      
+      if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
         if (deltaX < 0) {
           goToNext()
         } else {
           goToPrev()
         }
       }
-
+      
+      setDragOffset(0)
       touchStartX.current = null
       touchStartY.current = null
     },
-    [goToNext, goToPrev, hasMultipleAds]
+    [goToNext, goToPrev]
   )
 
   /* ── Keyboard Support ── */
@@ -418,6 +430,7 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       role="region"
       aria-label="Hero advertisement slider"
@@ -437,14 +450,16 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
           return (
             <div
               key={ad.id}
-              className="absolute inset-0 transition-all duration-[1100ms] cubic-bezier(0.16, 1, 0.3, 1) will-change-transform"
+              className={`absolute inset-0 will-change-transform ${
+                isDragging ? '' : 'transition-all duration-[1100ms] cubic-bezier(0.16, 1, 0.3, 1)'
+              }`}
               style={{
                 opacity: isActive ? 1 : 0,
                 transform: isActive
-                  ? 'translate3d(0, 0, 0) scale(1)'
+                  ? `translate3d(${dragOffset}px, 0, 0) scale(1)`
                   : isNext
-                  ? 'translate3d(100%, 0, 0) scale(0.97)'
-                  : 'translate3d(-100%, 0, 0) scale(0.97)',
+                  ? `translate3d(calc(100% + ${dragOffset}px), 0, 0) scale(0.97)`
+                  : `translate3d(calc(-100% + ${dragOffset}px), 0, 0) scale(0.97)`,
                 pointerEvents: isActive ? 'auto' : 'none',
                 zIndex: isActive ? 10 : 0,
               }}
