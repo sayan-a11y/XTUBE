@@ -65,6 +65,9 @@ interface VideoPlayerProps {
     category: string
     isHd: boolean
     createdAt: string
+    hlsUrl?: string | null
+    resolution?: string | null
+    qualityLevels?: string | null
   }
   relatedVideos: Array<{
     id: string
@@ -637,6 +640,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
     if (value === 'auto') {
       hls.currentLevel = -1
       hls.nextLevel = -1
+      hls.loadLevel = -1
     } else {
       const targetHeight = QUALITY_OPTIONS.find((q) => q.value === value)?.height || 0
       // Find closest level to target height
@@ -650,8 +654,8 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
         }
       })
       if (closestIdx >= 0) {
-        hls.currentLevel = closestIdx
         hls.nextLevel = closestIdx
+        hls.loadLevel = closestIdx
       }
     }
     setQuality(value)
@@ -800,26 +804,36 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
     const vid = videoRef.current
     if (!vid) return
 
-    const url = video.videoUrl
+    const url = video.hlsUrl || video.videoUrl
     let hls: Hls | null = null
 
     if (url && url.includes('.m3u8')) {
       if (Hls.isSupported()) {
+        const isMobileOrTablet = /iPad|iPhone|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0)
         hls = new Hls({
           enableWorker: true,
-          lowLatencyMode: false,      // VOD content: disable LL for stability
-          maxBufferLength: 60,         // 60s forward buffer for long videos
-          maxMaxBufferLength: 300,      // Allow up to 5 min buffer for 5hr videos
-          backBufferLength: 60,         // 60s back buffer (reduced from 90 for memory)
-          maxBufferSize: 120 * 1000000, // 120MB max buffer size for 4K
-          maxBufferHole: 0.5,
-          startLevel: -1,              // auto quality
-          capLevelToPlayerSize: true,   // Don't load 4K on 720p screen
-          abrEwmaDefaultEstimate: 1000000, // Start with 1Mbps estimate (higher = better init quality)
-          abrBandWidthFactor: 0.95,     // Use 95% of estimated bandwidth
-          abrBandWidthUpFactor: 0.7,    // Be conservative when stepping up quality
-          startFragPrefetch: true,      // Prefetch first fragment for faster start
-          progressive: true,            // Progressive loading for long VOD
+          lowLatencyMode: false,        // Stable VOD profile
+          
+          // Tight memory bounds to prevent memory bloat and browser crashes on long videos
+          maxBufferLength: isMobileOrTablet ? 15 : 25,             // Cap forward buffer
+          maxMaxBufferLength: isMobileOrTablet ? 25 : 45,          // Max buffer constraint
+          backBufferLength: isMobileOrTablet ? 10 : 20,            // Aggressively clear played parts from memory
+          maxBufferSize: isMobileOrTablet ? 25 * 1000000 : 45 * 1000000, // Safe memory limits (25MB-45MB)
+          
+          maxBufferHole: 0.8,           // Prevent stalls on minor segment gaps
+          highBufferWatchdogPeriod: 3,  // Aggressive stall recovery
+          
+          startLevel: -1,               // Auto quality switching
+          capLevelToPlayerSize: true,     // Match player resolution (avoids wasting bandwidth)
+          
+          // Ultra-responsive bandwidth estimation
+          abrEwmaDefaultEstimate: 1500000, // Initial estimate 1.5Mbps
+          abrBandWidthFactor: 0.9,      // Conservative bandwidth usage (90%)
+          abrBandWidthUpFactor: 0.7,    // Safe steps up
+          
+          startFragPrefetch: true,      // Prefetch first segment instantly
+          progressive: true,            // Direct progressive stream reader
+          appendErrorMaxRetry: 5,       // Maximum retries for segment decode errors
         })
         hls.loadSource(url)
         hls.attachMedia(vid)
@@ -869,7 +883,61 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
       if (hls) hls.destroy()
       hlsRef.current = null
     }
-  }, [video.videoUrl])
+  }, [video.videoUrl, video.hlsUrl])
+
+  // ─── Playback Stability Watchdog & Stall Recovery ─────────────────────────
+  useEffect(() => {
+    const vid = videoRef.current
+    if (!vid) return
+
+    let stallTimer: ReturnType<typeof setTimeout> | null = null
+
+    const clearTimer = () => {
+      if (stallTimer) {
+        clearTimeout(stallTimer)
+        stallTimer = null
+      }
+    }
+
+    const onStallOrWait = () => {
+      // If we are playing but stalled/waiting, set a watchdog timer to recover
+      if (!vid.paused && !stallTimer) {
+        stallTimer = setTimeout(() => {
+          console.warn('[Playback Stability Watchdog] Stalled buffer detected. Attempting micro-seek recovery...')
+          const wasPlaying = !vid.paused
+          // Execute a silent seek by +0.05 seconds to force-flush the pipeline and re-establish HTTP Range connections
+          vid.currentTime = Math.min(vid.duration || 0, vid.currentTime + 0.05)
+          if (wasPlaying) {
+            vid.play().catch(() => {})
+          }
+          stallTimer = null
+        }, 3000) // 3 seconds timeout
+      }
+    }
+
+    const onPlaying = () => {
+      clearTimer()
+    }
+
+    const onPause = () => {
+      clearTimer()
+    }
+
+    vid.addEventListener('waiting', onStallOrWait)
+    vid.addEventListener('stalled', onStallOrWait)
+    vid.addEventListener('playing', onPlaying)
+    vid.addEventListener('pause', onPause)
+    vid.addEventListener('seeked', onPlaying)
+
+    return () => {
+      clearTimer()
+      vid.removeEventListener('waiting', onStallOrWait)
+      vid.removeEventListener('stalled', onStallOrWait)
+      vid.removeEventListener('playing', onPlaying)
+      vid.removeEventListener('pause', onPause)
+      vid.removeEventListener('seeked', onPlaying)
+    }
+  }, [])
 
   // Fullscreen change listener
   useEffect(() => {
@@ -1017,7 +1085,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
                 ref={videoRef}
                 className="h-full w-full cursor-pointer aspect-video"
                 poster={video.thumbnail}
-                preload="metadata"
+                preload={adsPlaying ? "none" : "metadata"}
                 onClick={handleVideoClick}
                 onDoubleClick={toggleFullscreen}
                 playsInline
@@ -1128,6 +1196,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
                 midrollTimings={midrollTimings}
                 onAdStart={(adId) => {
                   setAdsPlaying(true)
+                  hlsRef.current?.stopLoad() // Completely suspend background segment loading
                   if (videoRef.current) {
                     videoRef.current.pause()
                     setIsPlaying(false)
@@ -1135,6 +1204,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
                 }}
                 onAdEnd={(adId) => {
                   setAdsPlaying(false)
+                  hlsRef.current?.startLoad() // Resume background segment loading
                   if (videoRef.current) {
                     videoRef.current.play().catch(() => {})
                     setIsPlaying(true)
@@ -1142,6 +1212,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
                 }}
                 onAdSkip={(adId) => {
                   setAdsPlaying(false)
+                  hlsRef.current?.startLoad() // Resume background segment loading
                   if (videoRef.current) {
                     videoRef.current.play().catch(() => {})
                     setIsPlaying(true)
@@ -1149,6 +1220,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
                 }}
                 onAdComplete={(adId) => {
                   setAdsPlaying(false)
+                  hlsRef.current?.startLoad() // Resume background segment loading
                   if (videoRef.current) {
                     videoRef.current.play().catch(() => {})
                     setIsPlaying(true)

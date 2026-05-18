@@ -65,31 +65,50 @@ const AdVideoPlayer = memo(function AdVideoPlayer({
   const videoRef = useRef<HTMLVideoElement>(null)
   const hlsRef = useRef<Hls | null>(null)
   const [loaded, setLoaded] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
 
-  // 1. Initialize HLS when active or adjacent (preloading first segment)
+  // 1. Check viewport visibility of the hero area to pause if scrolled away
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
 
-    // Points to the new streaming-optimized HLS ad endpoint
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0]
+        setIsVisible(entry.isIntersecting)
+      },
+      { threshold: 0.05 }
+    )
+
+    observer.observe(video)
+
+    return () => {
+      observer.unobserve(video)
+    }
+  }, [])
+
+  // 2. Initialize HLS when visible AND (active or adjacent)
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
     const hlsUrl = `/api/streaming/hls/ad/${adId}?type=master`
     let hls: Hls | null = null
 
-    // Smart preloading: Load the video stream if the slide is active or adjacent (next/prev)
-    const shouldLoad = isActive || isAdjacent
+    const shouldLoad = isVisible && (isActive || isAdjacent)
 
     if (shouldLoad) {
       if (Hls.isSupported()) {
         hls = new Hls({
           enableWorker: true,
-          lowLatencyMode: true,       // instant playback start
-          maxBufferLength: 8,         // ads are short, buffer max 8s to save memory
-          maxMaxBufferLength: 12,
-          backBufferLength: 4,        // purge back buffer to prevent tablet memory leak
-          maxBufferSize: 6 * 1024 * 1024, // 6MB cap (ultra-lightweight on iPad/Android tablets)
-          startLevel: -1,             // Adaptive bitrate switching
-          capLevelToPlayerSize: true,  // Never load 4K quality on small screens
-          startFragPrefetch: true,     // Prefetch first segment instantly for <1s play start
+          lowLatencyMode: true,
+          maxBufferLength: isActive ? 6 : 2,         // Adjacent slides buffer only 2 seconds!
+          maxMaxBufferLength: isActive ? 10 : 3,
+          backBufferLength: 2,
+          maxBufferSize: (isActive ? 4 : 1) * 1024 * 1024, // Tiny memory budget
+          startLevel: -1,
+          capLevelToPlayerSize: true,
+          startFragPrefetch: true,
         })
         hls.loadSource(hlsUrl)
         hls.attachMedia(video)
@@ -98,6 +117,9 @@ const AdVideoPlayer = memo(function AdVideoPlayer({
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           setLoaded(true)
           onLoaded()
+          if (isActive) {
+            video.play().catch(() => {})
+          }
         })
 
         hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -116,21 +138,34 @@ const AdVideoPlayer = memo(function AdVideoPlayer({
           }
         })
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        // Native HLS for Safari/iOS
         video.src = hlsUrl
         video.onloadeddata = () => {
-          setLoaded(false)
           setLoaded(true)
           onLoaded()
+          if (isActive) {
+            video.play().catch(() => {})
+          }
         }
       } else {
-        // Fallback to direct URL if HLS completely unsupported
         video.src = mediaUrl
         video.onloadeddata = () => {
           setLoaded(true)
           onLoaded()
+          if (isActive) {
+            video.play().catch(() => {})
+          }
         }
       }
+    } else {
+      // Suspend loading when off-screen or not active/adjacent
+      if (hlsRef.current) {
+        hlsRef.current.destroy()
+        hlsRef.current = null
+      }
+      video.pause()
+      video.removeAttribute('src')
+      video.load()
+      setLoaded(false)
     }
 
     return () => {
@@ -138,34 +173,29 @@ const AdVideoPlayer = memo(function AdVideoPlayer({
         hls.destroy()
         hlsRef.current = null
       }
-      if (video) {
-        video.pause()
-        video.removeAttribute('src')
-        video.load()
-      }
+      video.pause()
+      video.removeAttribute('src')
+      video.load()
       setLoaded(false)
     }
-  }, [adId, mediaUrl, isActive, isAdjacent, onLoaded])
+  }, [adId, mediaUrl, isActive, isAdjacent, isVisible, onLoaded])
 
-  // 2. Play/Pause based on active state
+  // 3. Play/Pause based on active state and visibility
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
 
-    if (isActive) {
-      // Auto-play immediately with safety check
+    if (isActive && isVisible) {
       const playPromise = video.play()
       if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          // Silence autoplay block exceptions
-        })
+        playPromise.catch(() => {})
       }
     } else {
       video.pause()
     }
-  }, [isActive])
+  }, [isActive, isVisible])
 
-  // 3. Sync mute status
+  // 4. Sync mute status
   useEffect(() => {
     const video = videoRef.current
     if (!video) return

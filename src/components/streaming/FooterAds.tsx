@@ -71,10 +71,45 @@ const HlsAdPlayer = memo(function HlsAdPlayer({
   const videoRef = useRef<HTMLVideoElement>(null)
   const hlsRef = useRef<Hls | null>(null)
   const [loaded, setLoaded] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
 
+  // 1. Intersection Observer to check if the video ad is inside the viewport
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0]
+        setIsVisible(entry.isIntersecting)
+      },
+      { threshold: 0.05 } // Trigger when at least 5% of the card is visible
+    )
+
+    observer.observe(video)
+
+    return () => {
+      observer.unobserve(video)
+    }
+  }, [])
+
+  // 2. Initialize and manage HLS streaming based on visibility
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    // Completely suspend loading and stream connections if off-screen to preserve resources
+    if (!isVisible) {
+      if (hlsRef.current) {
+        hlsRef.current.destroy()
+        hlsRef.current = null
+      }
+      video.pause()
+      video.removeAttribute('src')
+      video.load()
+      setLoaded(false)
+      return
+    }
 
     const hlsUrl = `/api/streaming/hls/ad/${adId}?type=master`
     let hls: Hls | null = null
@@ -83,13 +118,13 @@ const HlsAdPlayer = memo(function HlsAdPlayer({
       hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
-        maxBufferLength: 6,           // Very short buffer for lightweight footers
-        maxMaxBufferLength: 10,
-        backBufferLength: 3,
-        maxBufferSize: 4 * 1024 * 1024, // Tiny 4MB limit to safeguard memory on low-end iPads
-        startLevel: -1,               // Adaptive streaming quality
-        capLevelToPlayerSize: true,    // cap based on layout size
-        startFragPrefetch: true,
+        maxBufferLength: 4,             // Capped at 4 seconds to minimize overhead
+        maxMaxBufferLength: 6,
+        backBufferLength: 2,
+        maxBufferSize: 3 * 1024 * 1024, // Lightweight 3MB buffer budget
+        startLevel: -1,                 // ABR active
+        capLevelToPlayerSize: true,      // Lock quality to physical size
+        startFragPrefetch: true,        // Prefetch first chunk instantly
       })
       hls.loadSource(hlsUrl)
       hls.attachMedia(video)
@@ -97,6 +132,8 @@ const HlsAdPlayer = memo(function HlsAdPlayer({
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setLoaded(true)
+        // Auto-play when visible
+        video.play().catch(() => {})
       })
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -116,10 +153,16 @@ const HlsAdPlayer = memo(function HlsAdPlayer({
       })
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = hlsUrl
-      video.onloadeddata = () => setLoaded(true)
+      video.onloadeddata = () => {
+        setLoaded(true)
+        video.play().catch(() => {})
+      }
     } else {
       video.src = mediaUrl
-      video.onloadeddata = () => setLoaded(true)
+      video.onloadeddata = () => {
+        setLoaded(true)
+        video.play().catch(() => {})
+      }
     }
 
     return () => {
@@ -127,14 +170,12 @@ const HlsAdPlayer = memo(function HlsAdPlayer({
         hls.destroy()
         hlsRef.current = null
       }
-      if (video) {
-        video.pause()
-        video.removeAttribute('src')
-        video.load()
-      }
+      video.pause()
+      video.removeAttribute('src')
+      video.load()
       setLoaded(false)
     }
-  }, [adId, mediaUrl])
+  }, [adId, mediaUrl, isVisible])
 
   // Sync mute state
   useEffect(() => {
