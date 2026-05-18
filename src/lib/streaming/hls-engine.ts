@@ -64,7 +64,7 @@ export function generateMasterManifest(qualities: QualityName[]): string {
 
     lines.push(
       `#EXT-X-STREAM-INF:BANDWIDTH=${bandwidth},RESOLUTION=${resolution},CODECS="avc1.640028,mp4a.40.2",FRAME-RATE=30.000`,
-      `playlist?quality=${cfg.name}`
+      `?type=playlist&quality=${cfg.name}`
     )
   }
 
@@ -103,7 +103,7 @@ export function generateMediaPlaylist(
       : segmentDuration
 
     lines.push(`#EXTINF:${dur.toFixed(3)},`)
-    lines.push(`segment?quality=${quality}&index=${i}`)
+    lines.push(`?type=segment&quality=${quality}&index=${i}`)
   }
 
   lines.push('#EXT-X-ENDLIST')
@@ -131,7 +131,7 @@ export function generatePseudoHlsManifest(
     '#EXT-X-VERSION:6',
     '#EXT-X-INDEPENDENT-SEGMENTS',
     `#EXT-X-STREAM-INF:BANDWIDTH=${bandwidth},RESOLUTION=${resolution},CODECS="avc1.640028,mp4a.40.2",FRAME-RATE=30.000`,
-    `playlist?quality=${quality}`,
+    `?type=playlist&quality=${quality}`,
   ]
 
   const playlistLines: string[] = [

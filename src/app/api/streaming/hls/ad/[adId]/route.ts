@@ -79,7 +79,7 @@ export async function GET(
         '#EXT-X-MEDIA-SEQUENCE:0',
         '#EXT-X-PLAYLIST-TYPE:VOD',
         `#EXTINF:${duration.toFixed(3)},`,
-        `segment?quality=${validQuality}&index=0`,
+        `?type=segment&quality=${validQuality}&index=0`,
         '#EXT-X-ENDLIST',
       ]
 
