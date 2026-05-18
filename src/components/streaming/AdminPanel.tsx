@@ -509,10 +509,12 @@ export function AdminPanel() {
       setDataLoading(true)
     }
     try {
-      const [analyticsRes, videosRes, adsRes] = await Promise.all([
+      const [analyticsRes, videosRes, adsRes, heroRes, footerRes] = await Promise.all([
         fetch('/api/analytics'),
         fetch('/api/videos?limit=100'),
-        fetch('/api/ads'),
+        fetch('/api/ads?admin=true&limit=200'),
+        fetch('/api/hero-ads').catch(() => null),
+        fetch('/api/footer-ads').catch(() => null),
       ])
 
       if (analyticsRes.ok) {
@@ -527,7 +529,49 @@ export function AdminPanel() {
 
       if (adsRes.ok) {
         const adsData = await adsRes.json()
-        setAdminAds(adsData.ads || [])
+        const standardAds = adsData.ads || []
+
+        let heroAds: any[] = []
+        if (heroRes && heroRes.ok) {
+          const heroData = await heroRes.json()
+          heroAds = (heroData.heroAds || []).map((h: any) => ({
+            id: h.id,
+            type: 'banner',
+            position: 'hero',
+            title: h.title,
+            imageUrl: h.thumbnailUrl || h.mediaUrl,
+            linkUrl: null,
+            impressions: h.impressions || 0,
+            clicks: h.clicks || 0,
+            revenue: 0,
+            isActive: h.isActive,
+            createdAt: h.createdAt,
+            updatedAt: h.updatedAt,
+          }))
+        }
+
+        let footerAds: any[] = []
+        if (footerRes && footerRes.ok) {
+          const footerData = await footerRes.json()
+          footerAds = (footerData.footerAds || []).map((f: any) => ({
+            id: f.id,
+            type: 'banner',
+            position: 'footer',
+            title: f.title,
+            imageUrl: f.thumbnailUrl || f.mediaUrl,
+            linkUrl: f.linkUrl || null,
+            impressions: f.impressions || 0,
+            clicks: f.clicks || 0,
+            revenue: 0,
+            isActive: f.isActive,
+            createdAt: f.createdAt,
+            updatedAt: f.updatedAt,
+          }))
+        }
+
+        const combined = [...standardAds, ...heroAds, ...footerAds]
+        combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        setAdminAds(combined)
       }
     } catch (err) {
       console.error('Error fetching admin data:', err)
