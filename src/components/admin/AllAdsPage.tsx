@@ -312,21 +312,6 @@ export function AllAdsPage() {
               <Upload className="h-3.5 w-3.5" />
               Export Report
             </button>
-            <button className="relative flex items-center gap-2 rounded-xl border border-white/10 bg-[#0B0B0F]/60 px-2.5 py-2 text-white/60 backdrop-blur-xl transition-colors hover:border-white/20 hover:text-white">
-              <Bell className="h-4 w-4" />
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#ff0000] text-[8px] font-bold text-white">12</span>
-            </button>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#ff0000] to-red-700 shadow-[0_0_12px_rgba(255,0,0,0.3)]">
-              <span className="text-xs font-bold text-white">A</span>
-            </div>
-            <motion.button
-              whileHover={{ scale: 1.03, boxShadow: '0 0 25px rgba(255,0,0,0.4)' }}
-              whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#ff0000] to-[#cc0000] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_15px_rgba(255,0,0,0.3)] transition-all hover:from-[#ff1111] hover:to-[#dd0000]"
-            >
-              <Plus className="h-4 w-4" />
-              Create New Ad
-            </motion.button>
           </div>
         </div>
 
