@@ -101,23 +101,25 @@ const HlsAdPlayer = memo(function HlsAdPlayer({
     const hlsUrl = `/api/streaming/hls/ad/${adId}?type=master`
     let hls: Hls | null = null
 
-    if (Hls.isSupported()) {
+    const isHlsFormat = mediaUrl.includes('.m3u8')
+
+    if (isHlsFormat && Hls.isSupported()) {
       hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: false,                     // Disabled for stable 4K VOD streams
-        maxBufferLength: 30,                       // 30s buffer cushion to prevent stuttering
+        lowLatencyMode: false,
+        maxBufferLength: 30,
         maxMaxBufferLength: 45,
         backBufferLength: 15,
-        maxBufferSize: 60 * 1024 * 1024,           // Massive 60MB buffer size (highly secure and smooth for 4K VOD)
-        startLevel: -1,                            // Adaptive quality startup
-        capLevelToPlayerSize: false,               // Disable size capping to allow true 4K resolution on all displays!
-        startFragPrefetch: true,                   // Fetch first chunk instantly
-        abrEwmaDefaultEstimate: 5000000,           // Fast-track initial quality by assuming 5Mbps
-        abrBandWidthFactor: 0.95,                  // Secure bandwidth utilization
-        maxBufferHole: 0.5,                        // Bridge minor chunk gaps
-        highBufferWatchdogPeriod: 2,               // Aggressive watchdog stall recovery
+        maxBufferSize: 60 * 1024 * 1024,
+        startLevel: -1,
+        capLevelToPlayerSize: false,
+        startFragPrefetch: true,
+        abrEwmaDefaultEstimate: 5000000,
+        abrBandWidthFactor: 0.95,
+        maxBufferHole: 0.5,
+        highBufferWatchdogPeriod: 2,
       })
-      hls.loadSource(hlsUrl)
+      hls.loadSource(mediaUrl)
       hls.attachMedia(video)
       hlsRef.current = hls
 
@@ -125,30 +127,18 @@ const HlsAdPlayer = memo(function HlsAdPlayer({
         setLoaded(true)
       })
 
-      hls.on(Hls.Events.ERROR, (_event, data) => {
-        if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              hls?.startLoad()
-              break
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              hls?.recoverMediaError()
-              break
-            default:
-              hls?.destroy()
-              break
-          }
-        }
-      })
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = hlsUrl
-      video.onloadeddata = () => {
+    } else {
+      // Standard MP4 playback (Native) - Much faster and prevents MEDIA_ERROR
+      video.src = mediaUrl
+      
+      const handleLoaded = () => {
         setLoaded(true)
       }
-    } else {
-      video.src = mediaUrl
-      video.onloadeddata = () => {
-        setLoaded(true)
+
+      if (video.readyState >= 2) {
+        handleLoaded()
+      } else {
+        video.onloadeddata = handleLoaded
       }
     }
 

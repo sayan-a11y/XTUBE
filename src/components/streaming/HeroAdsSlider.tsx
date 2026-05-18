@@ -87,34 +87,24 @@ const AdVideoPlayer = memo(function AdVideoPlayer({
     }
   }, [])
 
-  // 2. Initialize HLS when visible AND (active or adjacent)
+  // 2. Initialize video source when visible AND (active or adjacent)
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
 
-    const hlsUrl = `/api/streaming/hls/ad/${adId}?type=master`
     let hls: Hls | null = null
-
     const shouldLoad = isVisible && (isActive || isAdjacent)
 
     if (shouldLoad) {
-      if (Hls.isSupported()) {
+      const isHlsFormat = mediaUrl.includes('.m3u8')
+      
+      if (isHlsFormat && Hls.isSupported()) {
         hls = new Hls({
           enableWorker: true,
-          lowLatencyMode: false,                     // Disabled for stable 4K VOD streams
-          maxBufferLength: isActive ? 30 : 6,        // 30s buffer cushion for active slide to prevent stuttering
-          maxMaxBufferLength: isActive ? 45 : 10,
-          backBufferLength: isActive ? 15 : 4,
-          maxBufferSize: isActive ? 60 * 1024 * 1024 : 1 * 1024 * 1024, // 60MB for active, highly restricted 1MB for adjacent to save bandwidth
-          startLevel: -1,                            // Adaptive quality startup
-          capLevelToPlayerSize: false,               // Disable size capping to allow true 4K playback on all screens!
-          startFragPrefetch: true,                   // Fetch first chunk instantly
-          abrEwmaDefaultEstimate: 5000000,           // Fast-track initial quality by assuming 5Mbps
-          abrBandWidthFactor: 0.95,                  // Secure bandwidth utilization
-          maxBufferHole: 0.5,                        // Bridge minor chunk gaps
-          highBufferWatchdogPeriod: 2,               // Aggressive stall watchdog recovery
+          lowLatencyMode: false,
+          startLevel: -1,
         })
-        hls.loadSource(hlsUrl)
+        hls.loadSource(mediaUrl)
         hls.attachMedia(video)
         hlsRef.current = hls
 
@@ -125,39 +115,22 @@ const AdVideoPlayer = memo(function AdVideoPlayer({
             video.play().catch(() => {})
           }
         })
-
-        hls.on(Hls.Events.ERROR, (_event, data) => {
-          if (data.fatal) {
-            switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR:
-                hls?.startLoad()
-                break
-              case Hls.ErrorTypes.MEDIA_ERROR:
-                hls?.recoverMediaError()
-                break
-              default:
-                hls?.destroy()
-                break
-            }
-          }
-        })
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = hlsUrl
-        video.onloadeddata = () => {
+      } else {
+        // Standard MP4 playback (Native) - Much faster and doesn't crash on standard MP4s
+        video.src = mediaUrl
+        
+        const handleLoaded = () => {
           setLoaded(true)
           onLoaded()
           if (isActive) {
             video.play().catch(() => {})
           }
         }
-      } else {
-        video.src = mediaUrl
-        video.onloadeddata = () => {
-          setLoaded(true)
-          onLoaded()
-          if (isActive) {
-            video.play().catch(() => {})
-          }
+
+        if (video.readyState >= 2) {
+          handleLoaded()
+        } else {
+          video.onloadeddata = handleLoaded
         }
       }
     } else {
@@ -182,7 +155,7 @@ const AdVideoPlayer = memo(function AdVideoPlayer({
       video.load()
       setLoaded(false)
     }
-  }, [adId, mediaUrl, isActive, isAdjacent, isVisible, onLoaded])
+  }, [mediaUrl, isActive, isAdjacent, isVisible, onLoaded])
 
   // 3. Play/Pause based on active state and visibility
   useEffect(() => {
