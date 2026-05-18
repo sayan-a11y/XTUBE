@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react'
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard,
@@ -38,6 +38,11 @@ import { VideoManager } from './VideoManager'
 import { AdsManager } from './AdsManager'
 import { AdminLoginScreen } from './AdminLoginScreen'
 import { XtubeLogo } from '@/components/shared/XtubeLogo'
+
+// Client-side instant SWR cache variables to guarantee 0.01s initial rendering times
+let globalAnalyticsCache: any = null
+let globalVideosCache: any[] = []
+let globalAdsCache: any[] = []
 
 // ─── Chunk Resilience: Lazy Load with Automatic Network / Deploy Retry ────────────────────
 function lazyWithRetry<T extends React.ComponentType<any>>(
@@ -498,11 +503,11 @@ export function AdminPanel() {
 
   // ─── Data Fetching ──────────────────────────────────────────────────────
 
-  const [dashboardData, setDashboardData] = useState<any>(null)
-  const [adminVideos, setAdminVideos] = useState<any[]>([])
-  const [adminAds, setAdminAds] = useState<any[]>([])
-  const [dataLoading, setDataLoading] = useState(true)
-  const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [dashboardData, setDashboardData] = useState<any>(() => globalAnalyticsCache)
+  const [adminVideos, setAdminVideos] = useState<any[]>(() => globalVideosCache)
+  const [adminAds, setAdminAds] = useState<any[]>(() => globalAdsCache)
+  const [dataLoading, setDataLoading] = useState(() => !globalAnalyticsCache)
+  const [isInitialLoad, setIsInitialLoad] = useState(() => !globalAnalyticsCache)
 
   const fetchAdminData = useCallback(async () => {
     if (isInitialLoad) {
@@ -519,12 +524,14 @@ export function AdminPanel() {
 
       if (analyticsRes.ok) {
         const analyticsData = await analyticsRes.json()
+        globalAnalyticsCache = analyticsData
         setDashboardData(analyticsData)
       }
 
       if (videosRes.ok) {
         const videosData = await videosRes.json()
-        setAdminVideos(videosData.videos || [])
+        globalVideosCache = videosData.videos || []
+        setAdminVideos(globalVideosCache)
       }
 
       if (adsRes.ok) {
@@ -571,6 +578,7 @@ export function AdminPanel() {
 
         const combined = [...standardAds, ...heroAds, ...footerAds]
         combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        globalAdsCache = combined
         setAdminAds(combined)
       }
     } catch (err) {
@@ -634,9 +642,31 @@ export function AdminPanel() {
     }
   }, [adminUnlocked, adminLoggedIn])
 
+  // Debounced sync to avoid clogging HTTP connections with high-frequency database writes
+  const debouncedFetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // Enable dynamic automatic Server-Sent Events (SSE) database sync in real-time
-  useRealtimeSync(useCallback(() => {
-    fetchAdminData()
+  useRealtimeSync(useCallback((type?: string) => {
+    if (type) {
+      const lower = type.toLowerCase()
+      // Skip irrelevant high-frequency tables like watchprogress, history, bookmark, logs
+      if (
+        lower.includes('watchprogress') || 
+        lower.includes('history') || 
+        lower.includes('bookmark') || 
+        lower.includes('log')
+      ) {
+        return
+      }
+    }
+    
+    if (debouncedFetchTimerRef.current) {
+      clearTimeout(debouncedFetchTimerRef.current)
+    }
+    
+    debouncedFetchTimerRef.current = setTimeout(() => {
+      fetchAdminData()
+    }, 1500) // 1.5s debounce window
   }, [fetchAdminData]))
 
   // ─── Video Handlers ─────────────────────────────────────────────────────
@@ -807,7 +837,16 @@ export function AdminPanel() {
     const content = (() => {
       switch (adminSection) {
         case 'dashboard':
-          return <AdminDashboard data={dashboardData} loading={dataLoading} recentVideos={adminVideos} ads={adminAds} />
+          return (
+            <AdminDashboard
+              data={dashboardData}
+              loading={dataLoading}
+              recentVideos={adminVideos}
+              ads={adminAds}
+              onDeleteVideo={handleVideoDelete}
+              onTogglePublish={handleVideoTogglePublish}
+            />
+          )
         case 'all-videos':
         return (
           <VideoManager

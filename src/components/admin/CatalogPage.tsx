@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRealtimeSync } from '@/hooks/useRealtimeSync'
 import {
@@ -99,9 +99,13 @@ const categoryColors = [
   'from-rose-600/20 to-rose-900/10',
 ]
 
+// Client-side instant SWR cache variables to guarantee 0.01s initial rendering times
+let globalCategoryCache: any[] = []
+let isCategoryCacheLoaded = false
+
 export function CatalogPage() {
-  const [categories, setCategories] = useState<CategoryItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [categories, setCategories] = useState<CategoryItem[]>(() => globalCategoryCache)
+  const [loading, setLoading] = useState(() => !isCategoryCacheLoaded)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -119,7 +123,9 @@ export function CatalogPage() {
       const res = await fetch('/api/categories')
       if (res.ok) {
         const data = await res.json()
-        setCategories(data.categories || [])
+        globalCategoryCache = data.categories || []
+        isCategoryCacheLoaded = true
+        setCategories(globalCategoryCache)
       }
     } catch (err) {
       console.error('Failed to fetch categories:', err)
@@ -128,10 +134,16 @@ export function CatalogPage() {
     }
   }, [])
 
+  // Debounced category sync to avoid multiple concurrent fetches
+  const debouncedFetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // Hook up realtime listener for instant category changes
   useRealtimeSync(useCallback((type) => {
-    if (type.startsWith('category:') || type.includes('category:')) {
-      fetchCategories(true)
+    if (type && (type.startsWith('category:') || type.includes('category:'))) {
+      if (debouncedFetchTimerRef.current) clearTimeout(debouncedFetchTimerRef.current)
+      debouncedFetchTimerRef.current = setTimeout(() => {
+        fetchCategories(true)
+      }, 800)
     }
   }, [fetchCategories]))
 

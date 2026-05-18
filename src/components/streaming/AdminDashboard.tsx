@@ -50,6 +50,7 @@ import {
   Legend,
 } from 'recharts'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useAppStore } from '@/lib/store'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -71,6 +72,8 @@ interface AdminDashboardProps {
   loading?: boolean
   recentVideos?: any[]
   ads?: any[]
+  onDeleteVideo?: (id: string) => void
+  onTogglePublish?: (id: string) => void
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -279,7 +282,14 @@ function StatusBadge({ status }: { status: 'Published' | 'Processing' | 'Draft' 
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export const AdminDashboard = memo(function AdminDashboard({ data, loading, recentVideos = [], ads = [] }: AdminDashboardProps) {
+export const AdminDashboard = memo(function AdminDashboard({
+  data,
+  loading,
+  recentVideos = [],
+  ads = [],
+  onDeleteVideo,
+  onTogglePublish,
+}: AdminDashboardProps) {
   if (loading || !data) {
     return <LoadingSkeleton />
   }
@@ -748,17 +758,53 @@ export const AdminDashboard = memo(function AdminDashboard({ data, loading, rece
                       </span>
                     </td>
                     <td className="py-3 pr-4">
-                      <StatusBadge status={video.status} />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onTogglePublish?.(video.id)
+                        }}
+                        className="transition-transform hover:scale-105 active:scale-95 text-left cursor-pointer"
+                        title="Click to toggle publish status"
+                      >
+                        <StatusBadge status={video.status} />
+                      </button>
                     </td>
                     <td className="py-3">
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white" aria-label="View">
+                      <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            useAppStore.getState().setView('home')
+                            useAppStore.getState().navigateToVideo(video.id)
+                          }}
+                          className="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+                          aria-label="View"
+                          title="View Video on Platform"
+                        >
                           <ViewIcon className="h-3.5 w-3.5" />
                         </button>
-                        <button className="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white" aria-label="Edit">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            useAppStore.getState().setAdminSection('all-videos')
+                          }}
+                          className="rounded-md p-1.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+                          aria-label="Edit"
+                          title="Edit Video details"
+                        >
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
-                        <button className="rounded-md p-1.5 text-white/40 transition-colors hover:bg-xtube-red/10 hover:text-xtube-red" aria-label="Delete">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (confirm(`Are you sure you want to delete "${video.title}"?`)) {
+                              onDeleteVideo?.(video.id)
+                            }
+                          }}
+                          className="rounded-md p-1.5 text-white/40 transition-colors hover:bg-xtube-red/10 hover:text-xtube-red"
+                          aria-label="Delete"
+                          title="Delete Video permanently"
+                        >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
