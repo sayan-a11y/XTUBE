@@ -117,14 +117,14 @@ const HlsAdPlayer = memo(function HlsAdPlayer({
     if (Hls.isSupported()) {
       hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: true,
-        maxBufferLength: 4,             // Capped at 4 seconds to minimize overhead
-        maxMaxBufferLength: 6,
-        backBufferLength: 2,
-        maxBufferSize: 3 * 1024 * 1024, // Lightweight 3MB buffer budget
-        startLevel: -1,                 // ABR active
-        capLevelToPlayerSize: true,      // Lock quality to physical size
-        startFragPrefetch: true,        // Prefetch first chunk instantly
+        lowLatencyMode: false,                     // Disabled for stable 4K VOD streams
+        maxBufferLength: 15,                       // 15s cushion to prevent stuttering
+        maxMaxBufferLength: 25,
+        backBufferLength: 8,
+        maxBufferSize: 30 * 1024 * 1024,           // 30MB buffer size (highly secure and smooth for 4K VOD)
+        startLevel: -1,                            // Adaptive quality startup
+        capLevelToPlayerSize: false,               // Disable size capping to allow true 4K resolution on all displays!
+        startFragPrefetch: true,                   // Fetch first chunk instantly
       })
       hls.loadSource(hlsUrl)
       hls.attachMedia(video)

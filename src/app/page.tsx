@@ -1,10 +1,10 @@
 import { db } from '@/lib/db'
 import { XtubeHomeClient } from '@/components/streaming/XtubeHomeClient'
 
-// Enable Incremental Static Regeneration (ISR) with 1-second cache revalidation
-// This allows Vercel's Edge CDN to serve the page instantly (0.0s) from cache,
-// while updating the cache in the background.
-export const revalidate = 1
+// Enable Incremental Static Regeneration (ISR) with 60-second cache revalidation.
+// Since the frontend client has reactive realtime sync listeners to push updates instantly,
+// caching the HTML at the CDN edge for 60 seconds guarantees 0.01s loading time with zero server overhead.
+export const revalidate = 60
 
 export default async function Page() {
   const now = new Date()

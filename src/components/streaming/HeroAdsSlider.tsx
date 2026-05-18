@@ -101,14 +101,18 @@ const AdVideoPlayer = memo(function AdVideoPlayer({
       if (Hls.isSupported()) {
         hls = new Hls({
           enableWorker: true,
-          lowLatencyMode: true,
-          maxBufferLength: isActive ? 6 : 2,         // Adjacent slides buffer only 2 seconds!
-          maxMaxBufferLength: isActive ? 10 : 3,
-          backBufferLength: 2,
-          maxBufferSize: (isActive ? 4 : 1) * 1024 * 1024, // Tiny memory budget
-          startLevel: -1,
-          capLevelToPlayerSize: true,
-          startFragPrefetch: true,
+          lowLatencyMode: false,                     // Disabled for stable 4K VOD streams
+          maxBufferLength: isActive ? 30 : 6,        // 30s buffer cushion for active slide to prevent stuttering
+          maxMaxBufferLength: isActive ? 45 : 10,
+          backBufferLength: isActive ? 15 : 4,
+          maxBufferSize: isActive ? 60 * 1024 * 1024 : 1 * 1024 * 1024, // 60MB for active, highly restricted 1MB for adjacent to save bandwidth
+          startLevel: -1,                            // Adaptive quality startup
+          capLevelToPlayerSize: false,               // Disable size capping to allow true 4K playback on all screens!
+          startFragPrefetch: true,                   // Fetch first chunk instantly
+          abrEwmaDefaultEstimate: 5000000,           // Fast-track initial quality by assuming 5Mbps
+          abrBandWidthFactor: 0.95,                  // Secure bandwidth utilization
+          maxBufferHole: 0.5,                        // Bridge minor chunk gaps
+          highBufferWatchdogPeriod: 2,               // Aggressive stall watchdog recovery
         })
         hls.loadSource(hlsUrl)
         hls.attachMedia(video)
