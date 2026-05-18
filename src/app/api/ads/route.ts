@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         db.ad.count({ where }),
       ])
 
-      return NextResponse.json({
+      return new NextResponse(JSON.stringify({
         ads,
         pagination: {
           page,
@@ -44,6 +44,12 @@ export async function GET(request: NextRequest) {
           total,
           totalPages: Math.ceil(total / limit),
         },
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=0, s-maxage=1, stale-while-revalidate=59',
+        }
       })
     }
 

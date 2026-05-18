@@ -60,7 +60,7 @@ export async function GET() {
       })
     } catch (e) { console.warn('video groupBy failed', e) }
 
-    return NextResponse.json({
+    return new NextResponse(JSON.stringify({
       totalVideos,
       totalViews: totalViews._sum.views || 0,
       totalClicks: adStats._sum.clicks || 0,
@@ -76,6 +76,12 @@ export async function GET() {
         count: c._count?._all || 0,
         views: c._sum?.views || 0,
       })),
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=0, s-maxage=1, stale-while-revalidate=59',
+      },
     })
   } catch (error) {
     console.error('Error fetching analytics:', error)
