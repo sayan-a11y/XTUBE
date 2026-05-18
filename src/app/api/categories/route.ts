@@ -8,25 +8,35 @@ export async function GET() {
       orderBy: { order: 'asc' },
     })
 
-    // Fetch all videos to calculate live video counts and total views per category
-    const videos = await db.video.findMany({
-      select: {
-        category: true,
+    // Fetch aggregated category stats directly from the database in a single super fast call!
+    const statsGroup = await db.video.groupBy({
+      by: ['category'],
+      _count: {
+        _all: true,
+      },
+      _sum: {
         views: true,
       },
     })
 
+    // Create a fast-lookup map for stats
+    const statsMap = new Map<string, { videoCount: number; viewCount: number }>()
+    statsGroup.forEach((group) => {
+      if (group.category) {
+        statsMap.set(group.category.toLowerCase().trim(), {
+          videoCount: group._count._all || 0,
+          viewCount: group._sum.views || 0,
+        })
+      }
+    })
+
     // Compute live stats for each category
     const categoryStats = categories.map((cat) => {
-      const catVideos = videos.filter(
-        (v) => v.category.toLowerCase().trim() === cat.name.toLowerCase().trim()
-      )
-      const videoCount = catVideos.length
-      const viewCount = catVideos.reduce((sum, v) => sum + v.views, 0)
+      const stats = statsMap.get(cat.name.toLowerCase().trim())
       return {
         ...cat,
-        videoCount,
-        viewCount,
+        videoCount: stats ? stats.videoCount : 0,
+        viewCount: stats ? stats.viewCount : 0,
       }
     })
 
