@@ -2,6 +2,8 @@ import { db } from '@/lib/db'
 import { broadcastRealtimeEvent } from '@/lib/realtime'
 import { NextRequest, NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/hero-ads?active=true
 export async function GET(request: NextRequest) {
   try {
@@ -32,7 +34,7 @@ export async function GET(request: NextRequest) {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=15, s-maxage=30, stale-while-revalidate=15',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
         },
       })
     }

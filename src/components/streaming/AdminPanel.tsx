@@ -510,11 +510,11 @@ export function AdminPanel() {
     }
     try {
       const [analyticsRes, videosRes, adsRes, heroRes, footerRes] = await Promise.all([
-        fetch('/api/analytics'),
-        fetch('/api/videos?admin=true&limit=100'),
-        fetch('/api/ads?admin=true&limit=200'),
-        fetch('/api/hero-ads').catch(() => null),
-        fetch('/api/footer-ads').catch(() => null),
+        fetch('/api/analytics', { cache: 'no-store' }),
+        fetch('/api/videos?admin=true&limit=100', { cache: 'no-store' }),
+        fetch('/api/ads?admin=true&limit=200', { cache: 'no-store' }),
+        fetch('/api/hero-ads', { cache: 'no-store' }).catch(() => null),
+        fetch('/api/footer-ads', { cache: 'no-store' }).catch(() => null),
       ])
 
       if (analyticsRes.ok) {
