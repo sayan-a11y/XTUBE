@@ -424,7 +424,7 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
       aria-roledescription="carousel"
     >
       {/* ── Slide Deck Area ── */}
-      <div className="relative h-[40vh] sm:h-[45vh] md:h-[50vh] lg:h-[65vh] overflow-hidden">
+      <div className="relative h-[35vh] sm:h-[40vh] md:h-[45vh] lg:h-[55vh] overflow-hidden">
         {visibleAds.map((ad, idx) => {
           const isActive = idx === safeIndex
           const isNext = idx === nextIndex
@@ -478,7 +478,7 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
                       fetchPriority={idx === 0 ? 'high' : 'low'}
                       decoding={isActive ? 'sync' : 'async'}
                       className={`h-full w-full object-cover transition-transform duration-[20s] linear ${
-                        isActive ? 'scale-106' : 'scale-100'
+                        isActive ? 'scale-103' : 'scale-100'
                       }`}
                       style={{ willChange: 'transform' }}
                     />
@@ -520,13 +520,13 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
               )}
 
               {/* Title */}
-              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-white leading-[1.05] tracking-tight transition-all duration-300">
+              <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-extrabold text-white leading-[1.05] tracking-tight transition-all duration-300">
                 {currentAd.title}
               </h2>
 
               {/* Description */}
               {currentAd.description && (
-                <p className="line-clamp-2 text-sm sm:text-base text-white/50 max-w-md leading-relaxed">
+                <p className="line-clamp-2 text-xs sm:text-sm text-white/50 max-w-md leading-relaxed">
                   {currentAd.description}
                 </p>
               )}
@@ -535,14 +535,14 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
               <div className="flex items-center gap-3 pt-2 sm:pt-3">
                 <button
                   onClick={handleWatchNow}
-                  className="flex items-center gap-2 rounded-md bg-[#ff1e1e] px-5 py-2.5 sm:px-7 sm:py-3 md:px-8 md:py-3.5 text-sm sm:text-base font-semibold text-white transition-all hover:bg-[#ff2e2e] shadow-[0_0_20px_rgba(255,30,30,0.4)] hover:scale-104 active:scale-96 cursor-pointer"
+                  className="flex items-center gap-2 rounded-md bg-[#ff1e1e] px-4 py-2 sm:px-5 sm:py-2.5 md:px-6 md:py-3 text-xs sm:text-sm font-semibold text-white transition-all hover:bg-[#ff2e2e] shadow-[0_0_20px_rgba(255,30,30,0.4)] hover:scale-104 active:scale-96 cursor-pointer"
                 >
                   <Play className="h-4 w-4 sm:h-5 sm:w-5" fill="currentColor" />
                   Watch Now
                 </button>
 
                 <button
-                  className="glass flex items-center gap-2 rounded-md px-5 py-2.5 sm:px-7 sm:py-3 md:px-8 md:py-3.5 text-sm sm:text-base font-semibold text-white transition-all hover:bg-white/12 hover:scale-104 active:scale-96 cursor-pointer"
+                  className="glass flex items-center gap-2 rounded-md px-4 py-2 sm:px-5 sm:py-2.5 md:px-6 md:py-3 text-xs sm:text-sm font-semibold text-white transition-all hover:bg-white/12 hover:scale-104 active:scale-96 cursor-pointer"
                 >
                   <Info className="h-4 w-4 sm:h-5 sm:w-5" />
                   More Info

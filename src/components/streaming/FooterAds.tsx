@@ -267,7 +267,7 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
         className={`
           relative
           mx-auto max-w-[1600px]
-          h-[115px] sm:h-[155px] md:h-[185px] lg:h-[215px] xl:h-[235px]
+          h-[90px] sm:h-[120px] md:h-[150px] lg:h-[180px] xl:h-[200px]
           rounded-none sm:rounded-2xl
           border-y sm:border border-[#e50914]/20
           bg-gradient-to-r from-[#08080c] via-[#0d0d16] to-[#08080c]
@@ -320,7 +320,7 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
               </span>
             )}
           </div>
-          <h3 className="text-white text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-black tracking-tight leading-tight uppercase truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)]">
+          <h3 className="text-white text-xs sm:text-sm md:text-base lg:text-lg xl:text-xl font-black tracking-tight leading-tight uppercase truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)]">
             {ad.title}
           </h3>
           {ad.adType === 'video' && (
