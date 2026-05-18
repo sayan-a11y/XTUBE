@@ -341,10 +341,11 @@ export function useRealtimeAds(filters?: AdsFilterOptions) {
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail
+      const typeLower = detail?.type?.toLowerCase() || ''
       if (
-        detail?.type?.startsWith('ad:') ||
-        detail?.type?.startsWith('hero_ad:') ||
-        detail?.type?.startsWith('footer_ad:')
+        typeLower.startsWith('ad:') ||
+        typeLower.startsWith('hero_ad:') ||
+        typeLower.startsWith('footer_ad:')
       ) {
         fetchAds()
       }
