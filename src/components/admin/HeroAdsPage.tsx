@@ -624,6 +624,21 @@ export function HeroAdsPage() {
     }
   }, [fetchHeroAds])
 
+  const toggleAdStatus = useCallback(async (id: string, isActive: boolean) => {
+    try {
+      const res = await fetch('/api/hero-ads', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, isActive }),
+      })
+      if (res.ok) {
+        await fetchHeroAds()
+      }
+    } catch (err) {
+      console.error('Error toggling hero ad status:', err)
+    }
+  }, [fetchHeroAds])
+
   const handleEdit = useCallback((ad: HeroAd) => {
     setEditingAd(ad)
     setAdTitle(ad.title)
@@ -1108,10 +1123,13 @@ export function HeroAdsPage() {
                       <td className="py-2.5 text-xs font-bold text-xtube-red">{ad.ctr}%</td>
                       <td className="py-2.5 text-xs font-semibold text-emerald-400">{ad.clicks}</td>
                       <td className="py-2.5">
-                        <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold transition-all ${statusStyles[ad.isActive ? 'Active' : 'Paused']}`}>
+                        <button
+                          onClick={() => toggleAdStatus(ad.id, !ad.isActive)}
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-bold transition-all hover:scale-105 active:scale-95 ${statusStyles[ad.isActive ? 'Active' : 'Paused']}`}
+                        >
                           <span className={`h-1.5 w-1.5 rounded-full ${ad.isActive ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                           {ad.isActive ? 'Active' : 'Paused'}
-                        </span>
+                        </button>
                       </td>
                       <td className="py-2.5 text-right flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
