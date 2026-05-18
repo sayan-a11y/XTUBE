@@ -441,6 +441,8 @@ export function HeroAdsPage() {
       setUploadProgress(0)
 
       const startTime = Date.now()
+      let lastProgressTime = Date.now()
+      let lastUploadedBytes = 0
 
       const startDirectUpload = async () => {
         try {
@@ -468,10 +470,22 @@ export function HeroAdsPage() {
                   setUploadProgress(percent)
                   setUploadedSize(`${((event.loaded / (1024 * 1024))).toFixed(2)} MB`)
 
+                  const now = Date.now()
+                  const timeDiff = (now - lastProgressTime) / 1000
+                  if (timeDiff >= 0.4) {
+                    const bytesDiff = event.loaded - lastUploadedBytes
+                    const speedMBs = timeDiff > 0 ? (bytesDiff / (1024 * 1024)) / timeDiff : 0
+                    if (speedMBs > 0) {
+                      setUploadSpeed(`${speedMBs.toFixed(2)} MB/s`)
+                    }
+                    lastProgressTime = now
+                    lastUploadedBytes = event.loaded
+                  }
+
                   const elapsedSeconds = (Date.now() - startTime) / 1000
-                  const speedBytesPerSec = elapsedSeconds > 0 ? event.loaded / elapsedSeconds : 0
-                  setUploadSpeed(`${(speedBytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`)
-                  setUploadRemaining('Uploading...')
+                  const avgSpeedMBs = elapsedSeconds > 0 ? event.loaded / (1024 * 1024) / elapsedSeconds : 0
+                  const remainingSecs = avgSpeedMBs > 0 ? ((event.total - event.loaded) / (1024 * 1024)) / avgSpeedMBs : 0
+                  setUploadRemaining(remainingSecs > 0 ? `${Math.ceil(remainingSecs)}s left` : 'Finalizing...')
                 }
               }
 
@@ -511,10 +525,22 @@ export function HeroAdsPage() {
             setUploadProgress(percent)
             setUploadedSize(`${((event.loaded / (1024 * 1024))).toFixed(2)} MB`)
 
+            const now = Date.now()
+            const timeDiff = (now - lastProgressTime) / 1000
+            if (timeDiff >= 0.4) {
+              const bytesDiff = event.loaded - lastUploadedBytes
+              const speedMBs = timeDiff > 0 ? (bytesDiff / (1024 * 1024)) / timeDiff : 0
+              if (speedMBs > 0) {
+                setUploadSpeed(`${speedMBs.toFixed(2)} MB/s`)
+              }
+              lastProgressTime = now
+              lastUploadedBytes = event.loaded
+            }
+
             const elapsedSeconds = (Date.now() - startTime) / 1000
-            const speedBytesPerSec = elapsedSeconds > 0 ? event.loaded / elapsedSeconds : 0
-            setUploadSpeed(`${(speedBytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`)
-            setUploadRemaining('Uploading...')
+            const avgSpeedMBs = elapsedSeconds > 0 ? event.loaded / (1024 * 1024) / elapsedSeconds : 0
+            const remainingSecs = avgSpeedMBs > 0 ? ((event.total - event.loaded) / (1024 * 1024)) / avgSpeedMBs : 0
+            setUploadRemaining(remainingSecs > 0 ? `${Math.ceil(remainingSecs)}s left` : 'Finalizing...')
           }
         }
 

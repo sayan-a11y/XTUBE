@@ -328,6 +328,8 @@ export function VideoUploadPage() {
       setUploadStatusText('Uploading video to server...')
 
       const startTime = Date.now()
+      let lastProgressTime = Date.now()
+      let lastUploadedBytes = 0
 
       // 1. Initialize upload session
       const initRes = await fetch('/api/upload', {
@@ -379,11 +381,11 @@ export function VideoUploadPage() {
         })
       }
 
-      // Optimize concurrency dynamically: 2 on tablet/mobile to avoid browser lag, 4 on desktop
+      // Optimize concurrency dynamically: 3 on tablet/mobile to avoid browser lag, 6 on desktop for ultra fast R2 upload!
       const isMobileOrTablet = /Mobi|Android|iPhone|iPad|iPod|Tablet|Windows Phone/i.test(
         typeof navigator !== 'undefined' ? navigator.userAgent : ''
       )
-      const CONCURRENCY = isMobileOrTablet ? 2 : 4
+      const CONCURRENCY = isMobileOrTablet ? 3 : 6
       let partIndexToUpload = 0
 
       const uploadPartWorker = async () => {
@@ -433,13 +435,25 @@ export function VideoUploadPage() {
                     const progressPercent = Math.min((totalUploadedBytes / file.size) * 100, 100)
                     setUploadProgress(prev => Math.max(prev, progressPercent))
 
-                    const elapsedSecs = (Date.now() - startTime) / 1000
-                    const speedMBs = elapsedSecs > 0 ? (totalUploadedBytes / (1024 * 1024)) / elapsedSecs : 0
-                    setUploadSpeed(`${speedMBs.toFixed(2)} MB/s`)
+                    // Dynamic rolling window speed tracker for high peak responsiveness!
+                    const now = Date.now()
+                    const timeDiff = (now - lastProgressTime) / 1000
+                    if (timeDiff >= 0.4) {
+                      const bytesDiff = totalUploadedBytes - lastUploadedBytes
+                      const speedMBs = timeDiff > 0 ? (bytesDiff / (1024 * 1024)) / timeDiff : 0
+                      if (speedMBs > 0) {
+                        setUploadSpeed(`${speedMBs.toFixed(2)} MB/s`)
+                      }
+                      lastProgressTime = now
+                      lastUploadedBytes = totalUploadedBytes
+                    }
+
                     setUploadedSize(`${formatBytes(totalUploadedBytes)} / ${formatBytes(file.size)}`)
 
                     const remainingBytes = file.size - totalUploadedBytes
-                    const remainingSecs = speedMBs > 0 ? (remainingBytes / (1024 * 1024)) / speedMBs : 0
+                    const elapsedSecs = (Date.now() - startTime) / 1000
+                    const avgSpeedMBs = elapsedSecs > 0 ? (totalUploadedBytes / (1024 * 1024)) / elapsedSecs : 0
+                    const remainingSecs = avgSpeedMBs > 0 ? (remainingBytes / (1024 * 1024)) / avgSpeedMBs : 0
                     if (remainingSecs > 60) {
                       setUploadRemaining(`${Math.ceil(remainingSecs / 60)} mins left`)
                     } else {
