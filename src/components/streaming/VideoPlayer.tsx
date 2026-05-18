@@ -152,8 +152,8 @@ const QUALITY_OPTIONS = [
   { label: '720p', value: '720', height: 720 },
   { label: '1080p', value: '1080', height: 1080 },
   { label: '1440p', value: '1440', height: 1440 },
-  { label: '2K', value: '2k', height: 2160 },
-  { label: '4K', value: '4k', height: 3840 },
+  { label: '2K', value: '2k', height: 1440 },
+  { label: '4K', value: '4k', height: 2160 },
 ]
 
 const SPEED_OPTIONS = [
@@ -804,10 +804,10 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
     const vid = videoRef.current
     if (!vid) return
 
-    const url = video.hlsUrl || video.videoUrl
+    const url = video.hlsUrl || `/api/streaming/hls/${video.id}?type=master`
     let hls: Hls | null = null
 
-    if (url && url.includes('.m3u8')) {
+    if (url && (url.includes('.m3u8') || url.includes('/api/streaming/hls/'))) {
       if (Hls.isSupported()) {
         const isMobileOrTablet = /iPad|iPhone|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0)
         hls = new Hls({
@@ -853,6 +853,8 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
             else if (level.height >= 1080) label = 'Auto (1080p)'
             else if (level.height >= 720) label = 'Auto (720p)'
             else if (level.height >= 480) label = 'Auto (480p)'
+            else if (level.height >= 360) label = 'Auto (360p)'
+            else if (level.height >= 240) label = 'Auto (240p)'
             setCurrentAutoQuality(label)
           }
         })
@@ -883,7 +885,7 @@ export function VideoPlayer({ video, relatedVideos, comments, onAddComment }: Vi
       if (hls) hls.destroy()
       hlsRef.current = null
     }
-  }, [video.videoUrl, video.hlsUrl])
+  }, [video.videoUrl, video.hlsUrl, video.id])
 
   // ─── Playback Stability Watchdog & Stall Recovery ─────────────────────────
   useEffect(() => {

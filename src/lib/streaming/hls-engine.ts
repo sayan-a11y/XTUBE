@@ -9,9 +9,11 @@ export const QUALITY_LADDER = [
   { name: '1080p', width: 1920, height: 1080, bitrate: 4500,  codec: 'h264' },
   { name: '720p',  width: 1280, height: 720,  bitrate: 2500,  codec: 'h264' },
   { name: '480p',  width: 854,  height: 480,  bitrate: 1000,  codec: 'h264' },
+  { name: '360p',  width: 640,  height: 360,  bitrate: 600,   codec: 'h264' },
+  { name: '240p',  width: 426,  height: 240,  bitrate: 300,   codec: 'h264' },
 ] as const
 
-export type QualityName = '4K' | '2K' | '1440p' | '1080p' | '720p' | '480p'
+export type QualityName = '4K' | '2K' | '1440p' | '1080p' | '720p' | '480p' | '360p' | '240p'
 
 export interface StreamInfo {
   videoId: string
@@ -299,8 +301,8 @@ export function resolveAvailableQualities(
     '1080p': '1080p',
     '720p': '720p',
     '480p': '480p',
-    '360p': '480p',
-    '240p': '480p',
+    '360p': '360p',
+    '240p': '240p',
   }
 
   const maxQuality = maxPixels[resolution] || '1080p'

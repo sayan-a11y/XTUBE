@@ -113,18 +113,39 @@ export function CatalogPage() {
   const [formIcon, setFormIcon] = useState('flame')
   const [formOrder, setFormOrder] = useState('1')
 
+  // Load cached categories on mount for 0.0s visual load speeds
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('xtube_cached_catalog_categories')
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached)
+          setCategories(parsed)
+          setLoading(false)
+        } catch (err) {}
+      }
+    }
+  }, [])
+
   const fetchCategories = useCallback(async (silent = false) => {
     try {
-      if (!silent) setLoading(true)
+      if (!silent) {
+        setCategories((prev) => {
+          if (prev.length === 0) setLoading(true)
+          return prev
+        })
+      }
       const res = await fetch('/api/categories')
       if (res.ok) {
         const data = await res.json()
-        setCategories(data.categories || [])
+        const fetched = data.categories || []
+        setCategories(fetched)
+        localStorage.setItem('xtube_cached_catalog_categories', JSON.stringify(fetched))
       }
     } catch (err) {
       console.error('Failed to fetch categories:', err)
     } finally {
-      if (!silent) setLoading(false)
+      setLoading(false)
     }
   }, [])
 
@@ -166,6 +187,31 @@ export function CatalogPage() {
   const handleSave = async () => {
     if (!formName.trim() || !formSlug.trim()) return
 
+    const tempId = editingCategory ? editingCategory.id : 'temp-' + Date.now()
+    const optimisticCategory: CategoryItem = {
+      id: tempId,
+      name: formName,
+      slug: formSlug,
+      icon: formIcon,
+      order: parseInt(formOrder, 10),
+      videoCount: editingCategory ? editingCategory.videoCount : 0,
+      viewCount: editingCategory ? editingCategory.viewCount : 0,
+    }
+
+    // Capture previous state for fallback/rollback if API fails
+    const previousCategories = [...categories]
+
+    // Instantly update UI state optimistically (0.0s response)
+    setCategories((prev) => {
+      if (editingCategory) {
+        return prev.map((c) => (c.id === editingCategory.id ? optimisticCategory : c))
+      } else {
+        return [...prev, optimisticCategory]
+      }
+    })
+
+    setDialogOpen(false)
+
     try {
       if (editingCategory) {
         const res = await fetch('/api/categories', {
@@ -179,8 +225,10 @@ export function CatalogPage() {
             order: parseInt(formOrder, 10),
           }),
         })
-        if (res.ok) {
-          fetchCategories()
+        if (!res.ok) {
+          setCategories(previousCategories)
+        } else {
+          fetchCategories(true)
         }
       } else {
         const res = await fetch('/api/categories', {
@@ -193,31 +241,44 @@ export function CatalogPage() {
             order: parseInt(formOrder, 10),
           }),
         })
-        if (res.ok) {
-          fetchCategories()
+        if (!res.ok) {
+          setCategories(previousCategories)
+        } else {
+          fetchCategories(true)
         }
       }
     } catch (err) {
       console.error('Error saving category:', err)
+      setCategories(previousCategories)
     }
 
-    setDialogOpen(false)
     resetForm()
   }
 
   const handleDelete = async () => {
     if (!deletingCategory) return
+
+    // Capture previous state for fallback
+    const previousCategories = [...categories]
+
+    // Instantly remove category optimistically
+    setCategories((prev) => prev.filter((c) => c.id !== deletingCategory.id))
+    setDeleteDialogOpen(false)
+
     try {
       const res = await fetch(`/api/categories?id=${deletingCategory.id}`, {
         method: 'DELETE',
       })
-      if (res.ok) {
-        fetchCategories()
+      if (!res.ok) {
+        setCategories(previousCategories)
+      } else {
+        fetchCategories(true)
       }
     } catch (err) {
       console.error('Error deleting category:', err)
+      setCategories(previousCategories)
     }
-    setDeleteDialogOpen(false)
+    
     setDeletingCategory(null)
   }
 

@@ -174,6 +174,28 @@ export function XtubeHomeClient({
   const [loading, setLoading] = useState(initialVideos.length === 0)
   const [seeded, setSeeded] = useState(false)
 
+  // Load cached home page states on mount for instant visual load
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const cachedVideos = localStorage.getItem('xtube_cached_videos')
+      const cachedCategories = localStorage.getItem('xtube_cached_categories')
+      const cachedAds = localStorage.getItem('xtube_cached_ads')
+      const cachedHeroAds = localStorage.getItem('xtube_cached_hero_ads')
+      const cachedFooterAds = localStorage.getItem('xtube_cached_footer_ads')
+
+      if (cachedVideos) {
+        try {
+          setVideos(JSON.parse(cachedVideos))
+          if (cachedCategories) setCategories(JSON.parse(cachedCategories))
+          if (cachedAds) setAds(JSON.parse(cachedAds))
+          if (cachedHeroAds) setHeroAds(JSON.parse(cachedHeroAds))
+          if (cachedFooterAds) setFooterAds(JSON.parse(cachedFooterAds))
+          setLoading(false)
+        } catch (err) {}
+      }
+    }
+  }, [])
+
   // ─── Fetch Videos ──────────────────────────────────────────────────────────
 
   const fetchVideos = useCallback(async () => {
@@ -181,7 +203,9 @@ export function XtubeHomeClient({
       const res = await fetch('/api/videos?limit=50')
       if (res.ok) {
         const data = await res.json()
-        setVideos(data.videos || [])
+        const fetched = data.videos || []
+        setVideos(fetched)
+        localStorage.setItem('xtube_cached_videos', JSON.stringify(fetched))
       }
     } catch (err) {
       console.error('Error fetching videos:', err)
@@ -195,7 +219,9 @@ export function XtubeHomeClient({
       const res = await fetch('/api/categories')
       if (res.ok) {
         const data = await res.json()
-        setCategories(data.categories || [])
+        const fetched = data.categories || []
+        setCategories(fetched)
+        localStorage.setItem('xtube_cached_categories', JSON.stringify(fetched))
       }
     } catch (err) {
       console.error('Error fetching categories:', err)
@@ -209,7 +235,9 @@ export function XtubeHomeClient({
       const res = await fetch('/api/ads?position=hero')
       if (res.ok) {
         const data = await res.json()
-        setAds(data.ads || [])
+        const fetched = data.ads || []
+        setAds(fetched)
+        localStorage.setItem('xtube_cached_ads', JSON.stringify(fetched))
       }
     } catch (err) {
       console.error('Error fetching ads:', err)
@@ -223,7 +251,9 @@ export function XtubeHomeClient({
       const res = await fetch('/api/hero-ads?active=true')
       if (res.ok) {
         const data = await res.json()
-        setHeroAds(data.heroAds || [])
+        const fetched = data.heroAds || []
+        setHeroAds(fetched)
+        localStorage.setItem('xtube_cached_hero_ads', JSON.stringify(fetched))
       }
     } catch (err) {
       console.error('Error fetching hero ads:', err)
@@ -237,7 +267,9 @@ export function XtubeHomeClient({
       const res = await fetch('/api/footer-ads?active=true')
       if (res.ok) {
         const data = await res.json()
-        setFooterAds(data.footerAds || [])
+        const fetched = data.footerAds || []
+        setFooterAds(fetched)
+        localStorage.setItem('xtube_cached_footer_ads', JSON.stringify(fetched))
       }
     } catch (err) {
       console.error('Error fetching footer ads:', err)
@@ -305,6 +337,13 @@ export function XtubeHomeClient({
 
   useEffect(() => {
     if (!selectedVideoId) return
+
+    // Instantly find and set current video from local state
+    const localVid = videos.find((v) => v.id === selectedVideoId)
+    if (localVid) {
+      setCurrentVideo(localVid)
+    }
+
     let cancelled = false
     const load = async () => {
       try {
