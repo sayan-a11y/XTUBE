@@ -93,7 +93,25 @@ export async function POST() {
       },
     })
 
-    return NextResponse.json({ success: true, message: 'Database initialized with admin and guest users' })
+    // Seed a sample hero ad if none exist to ensure the hero section is visible
+    const heroAdCount = await db.heroAd.count()
+    if (heroAdCount === 0) {
+      await db.heroAd.create({
+        data: {
+          title: 'Premium Video Streaming',
+          description: 'Experience the best video streaming platform with high quality and zero lag.',
+          category: 'Premium',
+          mediaUrl: 'https://picsum.photos/seed/hero/1920/1080',
+          adType: 'image',
+          mediaFormat: 'jpg',
+          isActive: true,
+          displayOrder: 0,
+        },
+      })
+    }
+
+    return NextResponse.json({ success: true, message: 'Database initialized with admin, guest users, and sample hero ad' })
+
   } catch (error) {
     console.error('Error seeding database:', error)
     return NextResponse.json({ error: 'Failed to initialize database' }, { status: 500 })
