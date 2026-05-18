@@ -93,23 +93,10 @@ const HlsAdPlayer = memo(function HlsAdPlayer({
     }
   }, [])
 
-  // 2. Initialize and manage HLS streaming based on visibility
+  // 2. Initialize and pre-buffer HLS streaming on mount
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
-
-    // Completely suspend loading and stream connections if off-screen to preserve resources
-    if (!isVisible) {
-      if (hlsRef.current) {
-        hlsRef.current.destroy()
-        hlsRef.current = null
-      }
-      video.pause()
-      video.removeAttribute('src')
-      video.load()
-      setLoaded(false)
-      return
-    }
 
     const hlsUrl = `/api/streaming/hls/ad/${adId}?type=master`
     let hls: Hls | null = null
@@ -118,13 +105,17 @@ const HlsAdPlayer = memo(function HlsAdPlayer({
       hls = new Hls({
         enableWorker: true,
         lowLatencyMode: false,                     // Disabled for stable 4K VOD streams
-        maxBufferLength: 15,                       // 15s cushion to prevent stuttering
-        maxMaxBufferLength: 25,
-        backBufferLength: 8,
-        maxBufferSize: 30 * 1024 * 1024,           // 30MB buffer size (highly secure and smooth for 4K VOD)
+        maxBufferLength: 30,                       // 30s buffer cushion to prevent stuttering
+        maxMaxBufferLength: 45,
+        backBufferLength: 15,
+        maxBufferSize: 60 * 1024 * 1024,           // Massive 60MB buffer size (highly secure and smooth for 4K VOD)
         startLevel: -1,                            // Adaptive quality startup
         capLevelToPlayerSize: false,               // Disable size capping to allow true 4K resolution on all displays!
         startFragPrefetch: true,                   // Fetch first chunk instantly
+        abrEwmaDefaultEstimate: 5000000,           // Fast-track initial quality by assuming 5Mbps
+        abrBandWidthFactor: 0.95,                  // Secure bandwidth utilization
+        maxBufferHole: 0.5,                        // Bridge minor chunk gaps
+        highBufferWatchdogPeriod: 2,               // Aggressive watchdog stall recovery
       })
       hls.loadSource(hlsUrl)
       hls.attachMedia(video)
@@ -132,8 +123,6 @@ const HlsAdPlayer = memo(function HlsAdPlayer({
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setLoaded(true)
-        // Auto-play when visible
-        video.play().catch(() => {})
       })
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -155,13 +144,11 @@ const HlsAdPlayer = memo(function HlsAdPlayer({
       video.src = hlsUrl
       video.onloadeddata = () => {
         setLoaded(true)
-        video.play().catch(() => {})
       }
     } else {
       video.src = mediaUrl
       video.onloadeddata = () => {
         setLoaded(true)
-        video.play().catch(() => {})
       }
     }
 
@@ -175,7 +162,19 @@ const HlsAdPlayer = memo(function HlsAdPlayer({
       video.load()
       setLoaded(false)
     }
-  }, [adId, mediaUrl, isVisible])
+  }, [adId, mediaUrl])
+
+  // 3. Play/Pause reactively based on viewport visibility
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !loaded) return
+
+    if (isVisible) {
+      video.play().catch(() => {})
+    } else {
+      video.pause()
+    }
+  }, [isVisible, loaded])
 
   // Sync mute state
   useEffect(() => {
