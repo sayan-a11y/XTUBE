@@ -1028,14 +1028,14 @@ function VideoCard({
   onWatch: (id: string) => void
   onEdit?: (video: any) => void
 }) {
-  const gradientIdx = parseInt(video.id) % thumbnailGradients.length
+  const gradientIdx = (video.id.charCodeAt(video.id.length - 1) || 0) % thumbnailGradients.length
   const catColor = categoryColors[video.category] || 'bg-xtube-red/15 text-xtube-red border-xtube-red/20'
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.97 }}
+      initial={{ opacity: 0, y: 10, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay: index * 0.04, duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
       className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#111111]/90 backdrop-blur-xl transition-all duration-300 hover:border-white/10 hover:shadow-[0_0_25px_rgba(229,9,20,0.12)]"
     >
       {/* Thumbnail */}
@@ -1202,14 +1202,14 @@ function VideoListRow({
   onWatch: (id: string) => void
   onEdit?: (video: any) => void
 }) {
-  const gradientIdx = parseInt(video.id) % thumbnailGradients.length
+  const gradientIdx = (video.id.charCodeAt(video.id.length - 1) || 0) % thumbnailGradients.length
   const catColor = categoryColors[video.category] || 'bg-xtube-red/15 text-xtube-red border-xtube-red/20'
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: -10 }}
+      initial={{ opacity: 0, x: -5 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.03, duration: 0.3 }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
       className="group flex items-center gap-3 rounded-xl border border-white/5 bg-[#111111]/80 p-3 backdrop-blur-xl transition-all duration-200 hover:border-white/10 hover:bg-[#111111]/95 hover:shadow-[0_0_15px_rgba(229,9,20,0.08)]"
     >
       {/* Thumbnail */}
@@ -1374,7 +1374,7 @@ function AllVideosView({
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: 'easeOut' }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
       className="space-y-4 p-3 lg:p-5"
     >
       {/* ═══════════════════════════════════════════════════════════════════
@@ -1437,7 +1437,7 @@ function AllVideosView({
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.3 }}
+        transition={{ duration: 0.15, ease: 'easeOut' }}
         className="flex flex-col gap-3 rounded-xl border border-white/5 bg-[#0f0f0f]/80 p-4 backdrop-blur-xl transition-shadow hover:border-white/10 md:flex-row md:items-center"
       >
         {/* Search Bar */}
@@ -1500,7 +1500,7 @@ function AllVideosView({
       <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.15 }}
+        transition={{ duration: 0.15, ease: 'easeOut' }}
         className="text-sm text-white/40"
       >
         Showing <span className="font-semibold text-white/70">{filteredVideos.length}</span> video{filteredVideos.length !== 1 ? 's' : ''}
@@ -1568,7 +1568,7 @@ function AllVideosView({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
           className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between"
         >
           <p className="text-sm text-white/40">
