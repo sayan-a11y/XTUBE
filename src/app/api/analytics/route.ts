@@ -4,26 +4,26 @@ import { NextResponse } from 'next/server'
 export async function GET() {
   try {
     // Get overall stats
-    const [
-      totalVideos,
-      totalViews,
-      totalComments,
-      totalAds,
-      totalUsers,
-      adStats,
-      recentAnalytics,
-    ] = await Promise.all([
-      db.video.count(),
-      db.video.aggregate({ _sum: { views: true } }),
-      db.comment.count(),
-      db.ad.count(),
-      db.user.count(),
-      db.ad.aggregate({ _sum: { clicks: true, impressions: true } }),
-      db.analytics.findMany({
+    let totalVideos = 0
+    let totalViews: any = { _sum: { views: 0 } }
+    let totalComments = 0
+    let totalAds = 0
+    let totalUsers = 0
+    let adStats: any = { _sum: { clicks: 0, impressions: 0 } }
+    let recentAnalytics: any[] = []
+
+    try { totalVideos = await db.video.count() } catch (e) { console.warn('video count failed', e) }
+    try { totalViews = await db.video.aggregate({ _sum: { views: true } }) } catch (e) { console.warn('video aggregate failed', e) }
+    try { totalComments = await db.comment.count() } catch (e) { console.warn('comment count failed', e) }
+    try { totalAds = await db.ad.count() } catch (e) { console.warn('ad count failed', e) }
+    try { totalUsers = await db.user.count() } catch (e) { console.warn('user count failed', e) }
+    try { adStats = await db.ad.aggregate({ _sum: { clicks: true, impressions: true } }) } catch (e) { console.warn('ad aggregate failed', e) }
+    try { 
+      recentAnalytics = await db.analytics.findMany({
         orderBy: { date: 'desc' },
         take: 30,
-      }),
-    ])
+      }) 
+    } catch (e) { console.warn('analytics findMany failed', e) }
 
     // Calculate views over time
     const viewsByDate = recentAnalytics.reduce((acc: Record<string, number>, a) => {
@@ -51,11 +51,14 @@ export async function GET() {
     }, {})
 
     // Category breakdown
-    const categoryStats = await db.video.groupBy({
-      by: ['category'],
-      _count: { id: true },
-      _sum: { views: true },
-    })
+    let categoryStats: any[] = []
+    try {
+      categoryStats = await db.video.groupBy({
+        by: ['category'],
+        _count: { _all: true },
+        _sum: { views: true },
+      })
+    } catch (e) { console.warn('video groupBy failed', e) }
 
     return NextResponse.json({
       totalVideos,
@@ -70,8 +73,8 @@ export async function GET() {
       deviceBreakdown,
       categoryStats: categoryStats.map((c) => ({
         category: c.category,
-        count: c._count.id,
-        views: c._sum.views || 0,
+        count: c._count?._all || 0,
+        views: c._sum?.views || 0,
       })),
     })
   } catch (error) {

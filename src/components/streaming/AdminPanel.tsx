@@ -511,7 +511,7 @@ export function AdminPanel() {
     try {
       const [analyticsRes, videosRes, adsRes, heroRes, footerRes] = await Promise.all([
         fetch('/api/analytics'),
-        fetch('/api/videos?limit=100'),
+        fetch('/api/videos?admin=true&limit=100'),
         fetch('/api/ads?admin=true&limit=200'),
         fetch('/api/hero-ads').catch(() => null),
         fetch('/api/footer-ads').catch(() => null),

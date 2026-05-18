@@ -10,8 +10,12 @@ export async function GET(request: NextRequest) {
     const sort = searchParams.get('sort') || 'latest'
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = parseInt(searchParams.get('offset') || '0')
+    const admin = searchParams.get('admin')
 
-    const where: any = { isPublished: true }
+    const where: any = {}
+    if (admin !== 'true') {
+      where.isPublished = true
+    }
 
     if (category && category !== 'all') {
       where.category = category
