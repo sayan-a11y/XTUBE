@@ -101,20 +101,61 @@ export async function GET(
         })
       }
 
-      // Pseudo-HLS: single segment covering the entire video
+      // Byte-Range HLS for long videos to prevent memory overload
       const qualities = resolveAvailableQualities(video.resolution, video.qualityLevels)
       const validQuality = qualities.includes(quality) ? quality : qualities[0]
+      const fileSize = video.fileSize ? Number(video.fileSize) : 0
+
+      // If we don't have file size or it's very short, use single segment
+      if (fileSize === 0 || duration < 120) {
+        const playlistLines = [
+          '#EXTM3U',
+          '#EXT-X-VERSION:6',
+          `#EXT-X-TARGETDURATION:${Math.max(Math.ceil(duration), 1)}`,
+          '#EXT-X-MEDIA-SEQUENCE:0',
+          '#EXT-X-PLAYLIST-TYPE:VOD',
+          `#EXTINF:${duration.toFixed(3)},`,
+          video.videoUrl,
+          '#EXT-X-ENDLIST',
+        ]
+
+        return new NextResponse(playlistLines.join('\n') + '\n', {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/vnd.apple.mpegurl',
+            'Cache-Control': 'public, max-age=30',
+            'Access-Control-Allow-Origin': '*',
+          },
+        })
+      }
+
+      // Generate virtual segments (e.g., 4 seconds each)
+      const segmentDuration = 4 
+      const totalSegments = Math.ceil(duration / segmentDuration)
+      const bytesPerSegment = Math.floor(fileSize / totalSegments)
 
       const playlistLines = [
         '#EXTM3U',
         '#EXT-X-VERSION:6',
-        `#EXT-X-TARGETDURATION:${Math.max(Math.ceil(duration), 1)}`,
+        `#EXT-X-TARGETDURATION:${segmentDuration}`,
         '#EXT-X-MEDIA-SEQUENCE:0',
         '#EXT-X-PLAYLIST-TYPE:VOD',
-        `#EXTINF:${duration.toFixed(3)},`,
-        video.videoUrl,
-        '#EXT-X-ENDLIST',
       ]
+
+      let offset = 0
+      for (let i = 0; i < totalSegments; i++) {
+        const isLast = i === totalSegments - 1
+        const len = isLast ? fileSize - offset : bytesPerSegment
+        const dur = isLast ? duration - (i * segmentDuration) : segmentDuration
+
+        playlistLines.push(`#EXTINF:${dur.toFixed(3)},`)
+        playlistLines.push(`#EXT-X-BYTERANGE:${len}@${offset}`)
+        playlistLines.push(video.videoUrl)
+        
+        offset += len
+      }
+
+      playlistLines.push('#EXT-X-ENDLIST')
 
       return new NextResponse(playlistLines.join('\n') + '\n', {
         status: 200,
@@ -124,6 +165,7 @@ export async function GET(
           'Access-Control-Allow-Origin': '*',
         },
       })
+
     }
 
     // ─── Segment proxy ────────────────────────────────────────────────────
