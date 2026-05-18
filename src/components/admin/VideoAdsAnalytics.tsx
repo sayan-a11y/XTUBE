@@ -69,9 +69,27 @@ interface LocalAdRow {
 // Donut colors
 const DONUT_COLORS = ['#dc2626', '#2563eb', '#16a34a', '#d97706', '#8b5cf6']
 
-export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
+export function VideoAdsAnalytics({ ads: rawAds }: VideoAdsAnalyticsProps) {
   const [tableRows, setTableRows] = useState<LocalAdRow[]>([])
   const [refreshing, setRefreshing] = useState(false)
+
+  // Filter rawAds to strictly include ONLY Pre-roll, Mid-roll, Post-roll, and Overlay ads
+  const ads = useMemo(() => {
+    return rawAds.filter(ad => {
+      const pos = (ad.position || '').toLowerCase()
+      const type = (ad.type || '').toLowerCase()
+      return (
+        pos.includes('pre') ||
+        pos.includes('mid') ||
+        pos.includes('post') ||
+        pos.includes('overlay') ||
+        type.includes('pre') ||
+        type.includes('mid') ||
+        type.includes('post') ||
+        type.includes('overlay')
+      )
+    })
+  }, [rawAds])
 
   // ─── DYNAMIC STATISTICS CALCULATIONS FROM SUPABASE (100% PURE REALTIME) ─────────
   
@@ -206,7 +224,6 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
     let midRoll = 0
     let postRoll = 0
     let overlay = 0
-    let otherType = 0
 
     ads.forEach(ad => {
       const pos = ad.position.toLowerCase()
@@ -215,7 +232,6 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
       else if (pos.includes('mid')) midRoll += imp
       else if (pos.includes('post')) postRoll += imp
       else if (pos.includes('overlay')) overlay += imp
-      else otherType += imp
     })
 
     const formatDisplay = (val: number) => {
@@ -225,14 +241,13 @@ export function VideoAdsAnalytics({ ads }: VideoAdsAnalyticsProps) {
     }
 
     // Find the maximum value to scale relative height of bars properly
-    const maxVal = Math.max(preRoll, midRoll, postRoll, overlay, otherType) || 1
+    const maxVal = Math.max(preRoll, midRoll, postRoll, overlay) || 1
 
     return [
       { name: 'Pre-roll', value: preRoll, maxVal, display: formatDisplay(preRoll), color: '#dc2626' },
       { name: 'Mid-roll', value: midRoll, maxVal, display: formatDisplay(midRoll), color: '#2563eb' },
       { name: 'Post-roll', value: postRoll, maxVal, display: formatDisplay(postRoll), color: '#16a34a' },
-      { name: 'Overlay', value: overlay, maxVal, display: formatDisplay(overlay), color: '#d97706' },
-      { name: 'Other', value: otherType, maxVal, display: formatDisplay(otherType), color: '#8b5cf6' }
+      { name: 'Overlay', value: overlay, maxVal, display: formatDisplay(overlay), color: '#d97706' }
     ]
   }, [ads])
 

@@ -61,7 +61,7 @@ import {
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type AdType = 'Banner' | 'Popup' | 'Hero/Footer' | 'Pre-Roll' | 'Mid-Roll' | 'Post-Roll' | 'Overlay' | 'Image Banner'
+type AdType = 'Banner' | 'Popup' | 'Hero' | 'Footer' | 'Pre-Roll' | 'Mid-Roll' | 'Post-Roll' | 'Overlay' | 'Image Banner'
 
 interface AllAd {
   id: string
@@ -84,7 +84,8 @@ const STAT_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#ec4899', '#f97316']
 const AD_TYPE_COLORS: Record<AdType, string> = {
   'Banner': '#3b82f6',
   'Popup': '#ec4899',
-  'Hero/Footer': '#8b5cf6',
+  'Hero': '#8b5cf6',
+  'Footer': '#a855f7',
   'Pre-Roll': '#f97316',
   'Mid-Roll': '#06b6d4',
   'Post-Roll': '#8b5cf6',
@@ -95,7 +96,8 @@ const AD_TYPE_COLORS: Record<AdType, string> = {
 const AD_TYPE_STYLES: Record<AdType, string> = {
   'Banner': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
   'Popup': 'bg-pink-500/10 text-pink-400 border-pink-500/20',
-  'Hero/Footer': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  'Hero': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  'Footer': 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
   'Pre-Roll': 'bg-orange-500/10 text-orange-400 border-orange-500/20',
   'Mid-Roll': 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
   'Post-Roll': 'bg-violet-500/10 text-violet-400 border-violet-500/20',
@@ -165,17 +167,50 @@ export function AllAdsPage() {
   const [activeTypeFilter, setActiveTypeFilter] = useState<string>('all')
 
   // ─── Realtime Supabase Ads ────────────────────────────────────────────
-  const { ads: allAds, stats, deleteAd, toggleAdStatus } = useRealtimeAds()
+  const { ads: allAdsRaw, deleteAd, toggleAdStatus } = useRealtimeAds()
 
   const typeColorMap: Record<string, string> = { 'banner': '#3b82f6', 'popup': '#ec4899', 'hero': '#8b5cf6', 'footer': '#8b5cf6', 'sidebar': '#8b5cf6', 'overlay': '#eab308', 'video': '#f97316' }
   const typeGradientMap: Record<string, string> = { 'banner': 'from-blue-900/60 via-indigo-800/40 to-violet-900/30', 'popup': 'from-pink-900/60 via-rose-800/40 to-red-900/30', 'hero': 'from-purple-900/60 via-violet-800/40 to-fuchsia-900/30', 'footer': 'from-violet-900/60 via-purple-800/40 to-fuchsia-900/30', 'overlay': 'from-yellow-900/60 via-amber-800/40 to-orange-900/30', 'sidebar': 'from-emerald-900/60 via-green-800/40 to-teal-900/30' }
+  
   const getAdDisplayType = (ad: AdRecord): AdType => {
+    if (ad.position === 'hero') return 'Hero'
+    if (ad.position === 'footer') return 'Footer'
     if (ad.type === 'banner') return 'Banner'
     if (ad.type === 'popup') return 'Popup'
     if (ad.type === 'overlay') return 'Overlay'
-    if (ad.position === 'hero' || ad.position === 'footer') return 'Hero/Footer'
     return 'Banner'
   }
+
+  // Filter to show ONLY Banner, Popup, Hero, Footer ads
+  const allAds = useMemo(() => {
+    return allAdsRaw.filter(ad => {
+      const displayType = getAdDisplayType(ad)
+      return ['Banner', 'Popup', 'Hero', 'Footer'].includes(displayType)
+    })
+  }, [allAdsRaw])
+
+  // Recalculate stats reactively over only our filtered ad categories
+  const stats = useMemo(() => {
+    const totalAds = allAds.length
+    const activeAds = allAds.filter(a => a.isActive).length
+    const pausedAds = allAds.filter(a => !a.isActive).length
+    const totalImpressions = allAds.reduce((s, a) => s + (a.impressions || 0), 0)
+    const totalClicks = allAds.reduce((s, a) => s + (a.clicks || 0), 0)
+    const totalRevenue = allAds.reduce((s, a) => s + (a.revenue || 0), 0)
+    const avgCTR = allAds.length > 0
+      ? (allAds.reduce((s, a) => s + (a.impressions > 0 ? (a.clicks / a.impressions) * 100 : 0), 0) / allAds.length)
+      : 0
+
+    return {
+      totalAds,
+      activeAds,
+      pausedAds,
+      totalImpressions,
+      totalClicks,
+      totalRevenue,
+      avgCTR
+    }
+  }, [allAds])
 
   const mappedAds: AllAd[] = useMemo(() => allAds.map((ad) => ({
     id: ad.id,
@@ -197,7 +232,12 @@ export function AllAdsPage() {
       const typeName = getAdDisplayType(ad) + ' Ads'
       counts[typeName] = (counts[typeName] || 0) + 1
     })
-    const typeColors: Record<string, string> = { 'Banner Ads': '#3b82f6', 'Popup Ads': '#ec4899', 'Hero/Footer Ads': '#8b5cf6', 'Overlay Ads': '#eab308', 'Pre-Roll Ads': '#f97316', 'Mid-Roll Ads': '#06b6d4', 'Post-Roll Ads': '#a855f7' }
+    const typeColors: Record<string, string> = { 
+      'Banner Ads': '#3b82f6', 
+      'Popup Ads': '#ec4899', 
+      'Hero Ads': '#8b5cf6', 
+      'Footer Ads': '#a855f7' 
+    }
     return Object.entries(counts).map(([name, value]) => ({ name, value, color: typeColors[name] || '#10b981' }))
   }, [allAds])
 
@@ -216,9 +256,10 @@ export function AllAdsPage() {
       if (statusFilter !== 'all' && ad.status.toLowerCase() !== statusFilter) return false
       if (activeTypeFilter !== 'all') {
         const typeMap: Record<string, string> = {
-          'banner': 'Banner', 'popup': 'Popup', 'hero-footer': 'Hero/Footer',
-          'pre-roll': 'Pre-Roll', 'mid-roll': 'Mid-Roll', 'post-roll': 'Post-Roll',
-          'overlay': 'Overlay', 'image-banner': 'Image Banner',
+          'banner': 'Banner', 
+          'popup': 'Popup', 
+          'hero': 'Hero',
+          'footer': 'Footer'
         }
         if (ad.type !== typeMap[activeTypeFilter]) return false
       }
@@ -236,12 +277,8 @@ export function AllAdsPage() {
     { key: 'all', label: 'All Ads' },
     { key: 'banner', label: 'Banner Ads' },
     { key: 'popup', label: 'Popup Ads' },
-    { key: 'hero-footer', label: 'Hero/Footer' },
-    { key: 'pre-roll', label: 'Pre-Roll' },
-    { key: 'mid-roll', label: 'Mid-Roll' },
-    { key: 'post-roll', label: 'Post-Roll' },
-    { key: 'overlay', label: 'Overlay' },
-    { key: 'image-banner', label: 'Image Banner' },
+    { key: 'hero', label: 'Hero Ads' },
+    { key: 'footer', label: 'Footer Ads' }
   ]
 
   return (
@@ -513,7 +550,7 @@ export function AllAdsPage() {
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-base font-bold text-white">All Ads List</h2>
               <div className="flex items-center gap-2 flex-wrap">
-                <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setCurrentPage(1) }}>
+                <Select value={activeTypeFilter} onValueChange={(v) => { setActiveTypeFilter(v); setCurrentPage(1) }}>
                   <SelectTrigger className="h-8 w-28 rounded-lg border-white/10 bg-[#0a0a0a] text-xs text-white/60 [&_svg]:text-white/30">
                     <SelectValue placeholder="All Types" />
                   </SelectTrigger>
@@ -521,12 +558,8 @@ export function AllAdsPage() {
                     <SelectItem value="all" className="text-xs text-white focus:bg-white/5">All Types</SelectItem>
                     <SelectItem value="banner" className="text-xs text-white focus:bg-white/5">Banner</SelectItem>
                     <SelectItem value="popup" className="text-xs text-white focus:bg-white/5">Popup</SelectItem>
-                    <SelectItem value="hero-footer" className="text-xs text-white focus:bg-white/5">Hero/Footer</SelectItem>
-                    <SelectItem value="pre-roll" className="text-xs text-white focus:bg-white/5">Pre-Roll</SelectItem>
-                    <SelectItem value="mid-roll" className="text-xs text-white focus:bg-white/5">Mid-Roll</SelectItem>
-                    <SelectItem value="post-roll" className="text-xs text-white focus:bg-white/5">Post-Roll</SelectItem>
-                    <SelectItem value="overlay" className="text-xs text-white focus:bg-white/5">Overlay</SelectItem>
-                    <SelectItem value="image-banner" className="text-xs text-white focus:bg-white/5">Image Banner</SelectItem>
+                    <SelectItem value="hero" className="text-xs text-white focus:bg-white/5">Hero</SelectItem>
+                    <SelectItem value="footer" className="text-xs text-white focus:bg-white/5">Footer</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setCurrentPage(1) }}>
