@@ -40,7 +40,13 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: 'desc' },
       });
 
-      return NextResponse.json({ footerAds });
+      return new NextResponse(JSON.stringify({ footerAds }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=15, s-maxage=30, stale-while-revalidate=15',
+        },
+      });
     }
 
     // Default: fetch all footer ads (for admin panel)

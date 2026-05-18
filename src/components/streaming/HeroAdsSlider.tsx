@@ -6,10 +6,10 @@ import {
   useCallback,
   useRef,
   useMemo,
+  memo,
 } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import Hls from 'hls.js'
 import { Play, Info, ChevronLeft, ChevronRight, Volume2, VolumeX, Megaphone, Maximize2 } from 'lucide-react'
-import { useAppStore } from '@/lib/store'
 
 /* ────────────────────────────────────────────
    Types
@@ -35,47 +35,163 @@ interface HeroAdsSliderProps {
    Constants
    ──────────────────────────────────────────── */
 
-const AUTOPLAY_DELAY = 8000  // 8 seconds in ms
-const TRANSITION_SPEED = 1200    // ms
+const AUTOPLAY_DELAY = 8000  // 8 seconds
 const SWIPE_THRESHOLD = 50        // px minimum swipe distance
-const MAX_VISIBLE_ADS = 6         // Maximum hero ads to display
+const MAX_VISIBLE_ADS = 6         // Limit hero ads to display
 
 /* ────────────────────────────────────────────
-   Staggered content animation variants
+   Optimized HLS Ad Video Player Component
    ──────────────────────────────────────────── */
 
-const contentVariants = {
-  hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.1, delayChildren: 0.3 },
-  },
-  exit: {
-    transition: { staggerChildren: 0.04, staggerDirection: -1 },
-  },
+interface AdVideoPlayerProps {
+  adId: string
+  mediaUrl: string
+  poster?: string
+  isActive: boolean
+  isMuted: boolean
+  isAdjacent: boolean
+  onLoaded: () => void
 }
 
-const contentItem: any = {
-  hidden: { opacity: 0, y: 28, filter: 'blur(6px)' },
-  visible: {
-    opacity: 1,
-    y: 0,
-    filter: 'blur(0px)',
-    transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] },
-  },
-  exit: {
-    opacity: 0,
-    y: -14,
-    filter: 'blur(3px)',
-    transition: { duration: 0.3, ease: 'easeIn' },
-  },
-}
+const AdVideoPlayer = memo(function AdVideoPlayer({
+  adId,
+  mediaUrl,
+  poster,
+  isActive,
+  isMuted,
+  isAdjacent,
+  onLoaded,
+}: AdVideoPlayerProps) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const hlsRef = useRef<Hls | null>(null)
+  const [loaded, setLoaded] = useState(false)
+
+  // 1. Initialize HLS when active or adjacent (preloading first segment)
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    // Points to the new streaming-optimized HLS ad endpoint
+    const hlsUrl = `/api/streaming/hls/ad/${adId}?type=master`
+    let hls: Hls | null = null
+
+    // Smart preloading: Load the video stream if the slide is active or adjacent (next/prev)
+    const shouldLoad = isActive || isAdjacent
+
+    if (shouldLoad) {
+      if (Hls.isSupported()) {
+        hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,       // instant playback start
+          maxBufferLength: 8,         // ads are short, buffer max 8s to save memory
+          maxMaxBufferLength: 12,
+          backBufferLength: 4,        // purge back buffer to prevent tablet memory leak
+          maxBufferSize: 6 * 1024 * 1024, // 6MB cap (ultra-lightweight on iPad/Android tablets)
+          startLevel: -1,             // Adaptive bitrate switching
+          capLevelToPlayerSize: true,  // Never load 4K quality on small screens
+          startFragPrefetch: true,     // Prefetch first segment instantly for <1s play start
+        })
+        hls.loadSource(hlsUrl)
+        hls.attachMedia(video)
+        hlsRef.current = hls
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          setLoaded(true)
+          onLoaded()
+        })
+
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                hls?.startLoad()
+                break
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls?.recoverMediaError()
+                break
+              default:
+                hls?.destroy()
+                break
+            }
+          }
+        })
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        // Native HLS for Safari/iOS
+        video.src = hlsUrl
+        video.onloadeddata = () => {
+          setLoaded(false)
+          setLoaded(true)
+          onLoaded()
+        }
+      } else {
+        // Fallback to direct URL if HLS completely unsupported
+        video.src = mediaUrl
+        video.onloadeddata = () => {
+          setLoaded(true)
+          onLoaded()
+        }
+      }
+    }
+
+    return () => {
+      if (hls) {
+        hls.destroy()
+        hlsRef.current = null
+      }
+      if (video) {
+        video.pause()
+        video.removeAttribute('src')
+        video.load()
+      }
+      setLoaded(false)
+    }
+  }, [adId, mediaUrl, isActive, isAdjacent, onLoaded])
+
+  // 2. Play/Pause based on active state
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    if (isActive) {
+      // Auto-play immediately with safety check
+      const playPromise = video.play()
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // Silence autoplay block exceptions
+        })
+      }
+    } else {
+      video.pause()
+    }
+  }, [isActive])
+
+  // 3. Sync mute status
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    video.muted = isMuted
+  }, [isMuted])
+
+  return (
+    <video
+      ref={videoRef}
+      poster={poster}
+      loop
+      playsInline
+      className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+        loaded ? 'opacity-100' : 'opacity-0'
+      }`}
+      style={{ willChange: 'opacity, transform' }}
+    />
+  )
+})
 
 /* ────────────────────────────────────────────
-   Component
+   Main Component
    ──────────────────────────────────────────── */
 
 export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
-  // Limit to max 6 ads
+  // Limit display to max visible ads
   const visibleAds = useMemo(() => ads.slice(0, MAX_VISIBLE_ADS), [ads])
 
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -87,14 +203,11 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
   const autoplayRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({})
   const containerRef = useRef<HTMLDivElement>(null)
-
-  const navigateToVideo = useAppStore((s) => s.navigateToVideo)
 
   const hasMultipleAds = visibleAds.length > 1
 
-  // Reset index if out of bounds (e.g. ad array shrinks)
+  // Handle bounds check
   useEffect(() => {
     if (currentIndex >= visibleAds.length && visibleAds.length > 0) {
       setCurrentIndex(0)
@@ -105,20 +218,19 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
 
   /* ── Derived indices ── */
   const nextIndex = useMemo(
-    () => visibleAds.length > 0 ? (safeIndex + 1) % visibleAds.length : 0,
-    [safeIndex, visibleAds.length],
+    () => (visibleAds.length > 0 ? (safeIndex + 1) % visibleAds.length : 0),
+    [safeIndex, visibleAds.length]
   )
 
-  /* ── Go to slide ── */
-  const goToSlide = useCallback(
-    (index: number) => {
-      setCurrentIndex((prev) => {
-        if (prev === index) return prev
-        return index
-      })
-    },
-    [],
+  const prevIndex = useMemo(
+    () => (visibleAds.length > 0 ? (safeIndex - 1 + visibleAds.length) % visibleAds.length : 0),
+    [safeIndex, visibleAds.length]
   )
+
+  /* ── Navigation ── */
+  const goToSlide = useCallback((index: number) => {
+    setCurrentIndex(index)
+  }, [])
 
   const goToNext = useCallback(() => {
     if (!visibleAds.length) return
@@ -130,30 +242,19 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
     setCurrentIndex((prev) => (prev - 1 + visibleAds.length) % visibleAds.length)
   }, [visibleAds.length])
 
-  /* ── Autoplay (30 minutes) ── */
+  /* ── Autoplay ── */
   useEffect(() => {
-    if (!hasMultipleAds) return
-
-    // Clear any existing timer
-    if (autoplayRef.current) {
-      clearInterval(autoplayRef.current)
-      autoplayRef.current = null
-    }
-
-    // Don't start if paused (hover on desktop)
-    if (isPaused) return
+    if (!hasMultipleAds || isPaused) return
 
     autoplayRef.current = setInterval(goToNext, AUTOPLAY_DELAY)
 
     return () => {
       if (autoplayRef.current) {
         clearInterval(autoplayRef.current)
-        autoplayRef.current = null
       }
     }
   }, [goToNext, hasMultipleAds, isPaused])
 
-  /* ── Pause on hover (desktop only) ── */
   const handleMouseEnter = useCallback(() => {
     if (window.innerWidth >= 768) {
       setIsPaused(true)
@@ -166,7 +267,7 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
     setIsHovering(false)
   }, [])
 
-  /* ── Impression & Click tracking ── */
+  /* ── Click and Impression Tracking ── */
   const impressionFiredRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
@@ -174,16 +275,13 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
     const currentAd = visibleAds[safeIndex]
     if (!currentAd || impressionFiredRef.current.has(currentAd.id)) return
 
-    // Fire impression once per ad
-    impressionFiredRef.current = new Set(impressionFiredRef.current).add(currentAd.id)
+    impressionFiredRef.current.add(currentAd.id)
 
     fetch('/api/hero-ads', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: currentAd.id, incrementImpressions: true }),
-    }).catch(() => {
-      // Silently fail — tracking should not break UI
-    })
+    }).catch(() => {})
   }, [safeIndex, visibleAds])
 
   const handleWatchNow = useCallback(() => {
@@ -191,36 +289,18 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
     const currentAd = visibleAds[safeIndex]
     if (!currentAd) return
 
-    // Track click
     fetch('/api/hero-ads', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: currentAd.id, incrementClicks: true }),
     }).catch(() => {})
 
-    // Navigate if there's a link or video
     if (currentAd.linkUrl) {
       window.open(currentAd.linkUrl, '_blank', 'noopener,noreferrer')
     }
   }, [safeIndex, visibleAds])
 
-  /* ── Video: pause when not active, play when active ── */
-  useEffect(() => {
-    Object.entries(videoRefs.current).forEach(([id, video]) => {
-      if (!video) return
-      const ad = visibleAds[safeIndex]
-      if (ad && id === ad.id && ad.adType === 'video') {
-        const timer = setTimeout(() => {
-          video.play().catch(() => {})
-        }, 300)
-        return () => clearTimeout(timer)
-      } else {
-        video.pause()
-      }
-    })
-  }, [safeIndex, visibleAds])
-
-  /* ── Touch / Swipe support ── */
+  /* ── Swipe Support ── */
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX
     touchStartY.current = e.touches[0].clientY
@@ -234,7 +314,6 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
       const deltaX = e.changedTouches[0].clientX - touchStartX.current
       const deltaY = e.changedTouches[0].clientY - touchStartY.current
 
-      // Only trigger if horizontal swipe is dominant and exceeds threshold
       if (Math.abs(deltaX) > SWIPE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY)) {
         if (deltaX < 0) {
           goToNext()
@@ -246,10 +325,10 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
       touchStartX.current = null
       touchStartY.current = null
     },
-    [goToNext, goToPrev, hasMultipleAds],
+    [goToNext, goToPrev, hasMultipleAds]
   )
 
-  /* ── Keyboard support ── */
+  /* ── Keyboard Support ── */
   useEffect(() => {
     if (!hasMultipleAds) return
 
@@ -270,24 +349,19 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [goToNext, goToPrev, hasMultipleAds])
 
-  /* ── Video loaded handler ── */
   const handleVideoLoaded = useCallback((id: string) => {
     setVideoLoaded((prev) => ({ ...prev, [id]: true }))
   }, [])
 
-  /* ── Fullscreen handler ── */
   const handleFullscreen = useCallback(() => {
     if (!containerRef.current) return
     if (document.fullscreenElement) {
-      document.exitFullscreen()
+      document.exitFullscreen().catch(() => {})
     } else {
       containerRef.current.requestFullscreen().catch(() => {})
     }
   }, [])
 
-  /* ────────────────────────────────────────────
-     No Ads Placeholder
-     ──────────────────────────────────────────── */
   if (!visibleAds.length) {
     return (
       <div
@@ -297,56 +371,30 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
         aria-label="Hero advertisement space"
       >
         <div className="relative h-[40vh] sm:h-[45vh] md:h-[50vh] lg:h-[65vh] flex items-center justify-center">
-          {/* Cinematic dark background with subtle gradients */}
           <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#050505] to-[#080810]" />
-          
-          {/* Subtle red glow orb */}
           <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[400px] w-[600px] rounded-full bg-[#ff1e1e]/[0.03] blur-[120px]" />
-          
-          {/* Grid pattern overlay */}
           <div className="absolute inset-0 opacity-[0.03]" style={{
             backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
             backgroundSize: '60px 60px',
           }} />
-          
-          {/* Content */}
           <div className="relative z-10 flex flex-col items-center gap-4 px-6 text-center">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-              className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl"
-            >
+            <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl border border-white/5 bg-[#0B0B0F]/80 backdrop-blur-xl">
               <Megaphone className="h-8 w-8 sm:h-10 sm:w-10 text-[#ff1e1e]/40" />
-            </motion.div>
-            
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-              className="space-y-2"
-            >
+            </div>
+            <div className="space-y-2">
               <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white/30 tracking-tight">
                 No Hero Ads Available
               </h2>
               <p className="text-sm text-white/15 max-w-md">
                 Hero ads will appear here once uploaded from the admin panel
               </p>
-            </motion.div>
-            
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-              className="flex items-center gap-2 rounded-full border border-dashed border-white/10 bg-white/[0.02] px-4 py-2"
-            >
+            </div>
+            <div className="flex items-center gap-2 rounded-full border border-dashed border-white/10 bg-white/[0.02] px-4 py-2">
               <div className="h-1.5 w-1.5 rounded-full bg-[#ff1e1e]/30" />
               <span className="text-[11px] text-white/20 font-medium">Hero Ad Space</span>
               <div className="h-1.5 w-1.5 rounded-full bg-[#ff1e1e]/30" />
-            </motion.div>
+            </div>
           </div>
-          
-          {/* Bottom gradient fade */}
           <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#050505] to-transparent z-10 pointer-events-none" />
         </div>
       </div>
@@ -354,10 +402,6 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
   }
 
   const currentAd = visibleAds[safeIndex]
-
-  /* ────────────────────────────────────────────
-     Render
-     ──────────────────────────────────────────── */
 
   return (
     <div
@@ -372,190 +416,142 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
       aria-label="Hero advertisement slider"
       aria-roledescription="carousel"
     >
-      {/* ── Slide area: responsive heights ── */}
-      <div className="relative h-[40vh] sm:h-[45vh] md:h-[50vh] lg:h-[65vh]">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentAd.id}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: TRANSITION_SPEED / 1000, ease: [0.4, 0, 0.2, 1] }}
-            className="absolute inset-0 will-change-transform"
-          >
-            {/* ── Background media ── */}
-            {currentAd.adType === 'video' ? (
-              <>
-                {/* Shimmer placeholder while video loads */}
-                {!videoLoaded[currentAd.id] && (
-                  <div className="absolute inset-0 animate-shimmer z-0" />
-                )}
+      {/* ── Slide Deck Area ── */}
+      <div className="relative h-[40vh] sm:h-[45vh] md:h-[50vh] lg:h-[65vh] overflow-hidden">
+        {visibleAds.map((ad, idx) => {
+          const isActive = idx === safeIndex
+          const isNext = idx === nextIndex
+          const isPrev = idx === prevIndex
+          // Smart window: Only render the active, next, or previous slide to keep DOM/memory light
+          const isRendered = isActive || isNext || isPrev
 
-                <video
-                  ref={(el) => {
-                    videoRefs.current[currentAd.id] = el
-                  }}
-                  src={currentAd.mediaUrl}
-                  poster={currentAd.thumbnailUrl || undefined}
-                  autoPlay
-                  muted={videoMuted}
-                  loop
-                  playsInline
-                  onLoadedData={() => handleVideoLoaded(currentAd.id)}
-                  className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
-                    videoLoaded[currentAd.id] ? 'opacity-100' : 'opacity-0'
-                  }`}
-                  style={{ willChange: 'transform' }}
-                />
+          if (!isRendered) return null
 
-                {/* Video gradient overlay for readability */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#050505]/90 via-[#050505]/30 to-transparent" />
-              </>
-            ) : (
-              <>
-                {/* Parallax zoom image */}
-                <motion.div
-                  className="absolute inset-0 overflow-hidden"
-                  initial={{ scale: 1 }}
-                  animate={{ scale: 1.06 }}
-                  transition={{
-                    duration: 30,
-                    ease: 'linear',
-                  }}
-                  style={{ willChange: 'transform' }}
-                >
-                  <img
-                    src={currentAd.mediaUrl}
-                    alt={currentAd.title}
-                    loading={currentIndex === 0 ? 'eager' : 'lazy'}
-                    fetchPriority={currentIndex === 0 ? 'high' : 'auto'}
-                    className="h-full w-full object-cover"
+          return (
+            <div
+              key={ad.id}
+              className="absolute inset-0 transition-all duration-[1100ms] cubic-bezier(0.16, 1, 0.3, 1) will-change-transform"
+              style={{
+                opacity: isActive ? 1 : 0,
+                transform: isActive
+                  ? 'translate3d(0, 0, 0) scale(1)'
+                  : isNext
+                  ? 'translate3d(100%, 0, 0) scale(0.97)'
+                  : 'translate3d(-100%, 0, 0) scale(0.97)',
+                pointerEvents: isActive ? 'auto' : 'none',
+                zIndex: isActive ? 10 : 0,
+              }}
+            >
+              {ad.adType === 'video' ? (
+                <>
+                  {!videoLoaded[ad.id] && (
+                    <div className="absolute inset-0 animate-shimmer z-0" />
+                  )}
+                  <AdVideoPlayer
+                    adId={ad.id}
+                    mediaUrl={ad.mediaUrl}
+                    poster={ad.thumbnailUrl || undefined}
+                    isActive={isActive}
+                    isMuted={videoMuted}
+                    isAdjacent={isNext || isPrev}
+                    onLoaded={() => handleVideoLoaded(ad.id)}
                   />
-                </motion.div>
-
-                {/* Cinematic dark overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/50 to-[#050505]/10" />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#050505]/90 via-[#050505]/40 to-transparent" />
-              </>
-            )}
-
-            {/* ── Subtle vignette ── */}
-            <div className="absolute inset-0" style={{
-              background: 'radial-gradient(ellipse at center, transparent 50%, rgba(5,5,5,0.4) 100%)',
-            }} />
-          </motion.div>
-        </AnimatePresence>
-
-        {/* ── Preload next slide (hidden) ── */}
-        {hasMultipleAds && (
-          <div className="pointer-events-none absolute inset-0 opacity-0" aria-hidden="true">
-            {visibleAds[nextIndex]?.adType === 'image' && (
-              <img
-                src={visibleAds[nextIndex].mediaUrl}
-                alt=""
-                loading="eager"
-                className="h-full w-full object-cover"
-              />
-            )}
-            {visibleAds[nextIndex]?.adType === 'video' && (
-              <video
-                src={visibleAds[nextIndex].mediaUrl}
-                poster={visibleAds[nextIndex].thumbnailUrl || undefined}
-                muted
-                preload="auto"
-                className="h-full w-full object-cover"
-              />
-            )}
-          </div>
-        )}
-
-        {/* ── Content overlay ── */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={`content-${currentAd.id}`}
-            variants={contentVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="absolute inset-0 flex items-end"
-          >
-            <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 md:px-8 pb-16 sm:pb-20 md:pb-24 lg:pb-28 xl:pb-32">
-              <div className="max-w-xl space-y-3 sm:space-y-4">
-                {/* Sponsored badge */}
-                <motion.div variants={contentItem} className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 rounded-full bg-[#ff1e1e]/10 border border-[#ff1e1e]/20 px-3 py-1">
-                    <Megaphone className="h-3 w-3 text-[#ff1e1e]" />
-                    <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-[#ff1e1e]">
-                      Sponsored
-                    </span>
+                  {/* Gradients */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#050505]/90 via-[#050505]/30 to-transparent" />
+                </>
+              ) : (
+                <>
+                  {/* Highly optimized parallax image */}
+                  <div className="absolute inset-0 overflow-hidden">
+                    <img
+                      src={ad.mediaUrl}
+                      alt={ad.title}
+                      loading={idx === 0 ? 'eager' : 'lazy'}
+                      fetchPriority={idx === 0 ? 'high' : 'low'}
+                      decoding={isActive ? 'sync' : 'async'}
+                      className={`h-full w-full object-cover transition-transform duration-[20s] linear ${
+                        isActive ? 'scale-106' : 'scale-100'
+                      }`}
+                      style={{ willChange: 'transform' }}
+                    />
                   </div>
-                </motion.div>
+                  {/* Cinematic overlays */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/50 to-[#050505]/10" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#050505]/90 via-[#050505]/40 to-transparent" />
+                </>
+              )}
+              {/* Subtle vignette */}
+              <div className="absolute inset-0" style={{
+                background: 'radial-gradient(ellipse at center, transparent 50%, rgba(5,5,5,0.4) 100%)',
+              }} />
+            </div>
+          )
+        })}
 
-                {/* Category badge */}
-                {currentAd.category && (
-                  <motion.div variants={contentItem}>
-                    <span className="inline-flex items-center rounded-sm bg-[#ff1e1e] px-2.5 py-1 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-white shadow-[0_0_12px_rgba(255,30,30,0.3)]">
-                      {currentAd.category}
-                    </span>
-                  </motion.div>
-                )}
+        {/* ── Content overlay (Single overlay synced with currentIndex for smooth text cross-fade) ── */}
+        <div className="absolute inset-0 flex items-end pointer-events-none z-20">
+          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 md:px-8 pb-16 sm:pb-20 md:pb-24 lg:pb-28 xl:pb-32">
+            <div className="max-w-xl space-y-3 sm:space-y-4 pointer-events-auto">
+              {/* Sponsored badge */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 rounded-full bg-[#ff1e1e]/10 border border-[#ff1e1e]/20 px-3 py-1">
+                  <Megaphone className="h-3 w-3 text-[#ff1e1e]" />
+                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-[#ff1e1e]">
+                    Sponsored
+                  </span>
+                </div>
+              </div>
 
-                {/* Title */}
-                <motion.h2
-                  variants={contentItem}
-                  className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-white leading-[1.05] tracking-tight"
+              {/* Category badge */}
+              {currentAd.category && (
+                <div>
+                  <span className="inline-flex items-center rounded-sm bg-[#ff1e1e] px-2.5 py-1 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-white shadow-[0_0_12px_rgba(255,30,30,0.3)]">
+                    {currentAd.category}
+                  </span>
+                </div>
+              )}
+
+              {/* Title */}
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-white leading-[1.05] tracking-tight transition-all duration-300">
+                {currentAd.title}
+              </h2>
+
+              {/* Description */}
+              {currentAd.description && (
+                <p className="line-clamp-2 text-sm sm:text-base text-white/50 max-w-md leading-relaxed">
+                  {currentAd.description}
+                </p>
+              )}
+
+              {/* CTA buttons */}
+              <div className="flex items-center gap-3 pt-2 sm:pt-3">
+                <button
+                  onClick={handleWatchNow}
+                  className="flex items-center gap-2 rounded-md bg-[#ff1e1e] px-5 py-2.5 sm:px-7 sm:py-3 md:px-8 md:py-3.5 text-sm sm:text-base font-semibold text-white transition-all hover:bg-[#ff2e2e] shadow-[0_0_20px_rgba(255,30,30,0.4)] hover:scale-104 active:scale-96 cursor-pointer"
                 >
-                  {currentAd.title}
-                </motion.h2>
+                  <Play className="h-4 w-4 sm:h-5 sm:w-5" fill="currentColor" />
+                  Watch Now
+                </button>
 
-                {/* Description */}
-                {currentAd.description && (
-                  <motion.p
-                    variants={contentItem}
-                    className="line-clamp-2 text-sm sm:text-base text-white/50 max-w-md leading-relaxed"
-                  >
-                    {currentAd.description}
-                  </motion.p>
-                )}
-
-                {/* CTA buttons */}
-                <motion.div variants={contentItem} className="flex items-center gap-3 pt-2 sm:pt-3">
-                  <motion.button
-                    whileHover={{ scale: 1.04, boxShadow: '0 0 25px rgba(229,9,20,0.5)' }}
-                    whileTap={{ scale: 0.96 }}
-                    onClick={handleWatchNow}
-                    className="flex items-center gap-2 rounded-md bg-[#ff1e1e] px-5 py-2.5 sm:px-7 sm:py-3 md:px-8 md:py-3.5 text-sm sm:text-base font-semibold text-white transition-all hover:bg-[#ff2e2e] shadow-[0_0_20px_rgba(255,30,30,0.4)]"
-                  >
-                    <Play className="h-4 w-4 sm:h-5 sm:w-5" fill="currentColor" />
-                    Watch Now
-                  </motion.button>
-
-                  <motion.button
-                    whileHover={{ scale: 1.04, backgroundColor: 'rgba(255,255,255,0.12)' }}
-                    whileTap={{ scale: 0.96 }}
-                    className="glass flex items-center gap-2 rounded-md px-5 py-2.5 sm:px-7 sm:py-3 md:px-8 md:py-3.5 text-sm sm:text-base font-semibold text-white transition-colors hover:bg-white/10"
-                  >
-                    <Info className="h-4 w-4 sm:h-5 sm:w-5" />
-                    More Info
-                  </motion.button>
-                </motion.div>
+                <button
+                  className="glass flex items-center gap-2 rounded-md px-5 py-2.5 sm:px-7 sm:py-3 md:px-8 md:py-3.5 text-sm sm:text-base font-semibold text-white transition-all hover:bg-white/12 hover:scale-104 active:scale-96 cursor-pointer"
+                >
+                  <Info className="h-4 w-4 sm:h-5 sm:w-5" />
+                  More Info
+                </button>
               </div>
             </div>
-          </motion.div>
-        </AnimatePresence>
+          </div>
+        </div>
 
         {/* ── Video controls (top right) ── */}
         {currentAd.adType === 'video' && videoLoaded[currentAd.id] && (
-          <div className="absolute top-3 right-3 sm:top-5 sm:right-5 z-20 flex items-center gap-2">
+          <div className="absolute top-3 right-3 sm:top-5 sm:right-5 z-30 flex items-center gap-2">
             {/* Mute/Unmute */}
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+            <button
               onClick={() => setVideoMuted((m) => !m)}
-              className="glass flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full text-white/70 hover:text-white transition-colors"
+              className="glass flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full text-white/70 hover:text-white transition-colors hover:scale-110 active:scale-90 cursor-pointer"
               aria-label={videoMuted ? 'Unmute video' : 'Mute video'}
             >
               {videoMuted ? (
@@ -563,85 +559,70 @@ export function HeroAdsSlider({ ads }: HeroAdsSliderProps) {
               ) : (
                 <Volume2 className="h-4 w-4 sm:h-5 sm:w-5" />
               )}
-            </motion.button>
+            </button>
 
             {/* Fullscreen */}
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+            <button
               onClick={handleFullscreen}
-              className="glass hidden md:flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full text-white/70 hover:text-white transition-colors"
+              className="glass hidden md:flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full text-white/70 hover:text-white transition-colors hover:scale-110 active:scale-90 cursor-pointer"
               aria-label="Fullscreen"
             >
               <Maximize2 className="h-4 w-4 sm:h-5 sm:w-5" />
-            </motion.button>
+            </button>
           </div>
         )}
 
-        {/* ── Navigation arrows (visible on desktop, hidden on mobile) ── */}
+        {/* ── Navigation arrows (visible on desktop) ── */}
         {hasMultipleAds && (
           <>
             {/* Previous */}
-            <motion.button
-              whileHover={{ scale: 1.1, backgroundColor: 'rgba(255,255,255,0.12)' }}
-              whileTap={{ scale: 0.9 }}
+            <button
               onClick={goToPrev}
-              className="hidden md:flex absolute left-3 lg:left-5 top-1/2 -translate-y-1/2 z-20 glass h-11 w-11 lg:h-14 lg:w-14 items-center justify-center rounded-full text-white/60 hover:text-white transition-all duration-200"
+              className="hidden md:flex absolute left-3 lg:left-5 top-1/2 -translate-y-1/2 z-30 glass h-11 w-11 lg:h-14 lg:w-14 items-center justify-center rounded-full text-white/60 hover:text-white transition-all hover:scale-105 active:scale-95 cursor-pointer"
               aria-label="Previous ad"
             >
               <ChevronLeft className="h-5 w-5 lg:h-6 lg:w-6" />
-            </motion.button>
+            </button>
 
             {/* Next */}
-            <motion.button
-              whileHover={{ scale: 1.1, backgroundColor: 'rgba(255,255,255,0.12)' }}
-              whileTap={{ scale: 0.9 }}
+            <button
               onClick={goToNext}
-              className="hidden md:flex absolute right-3 lg:right-5 top-1/2 -translate-y-1/2 z-20 glass h-11 w-11 lg:h-14 lg:w-14 items-center justify-center rounded-full text-white/60 hover:text-white transition-all duration-200"
+              className="hidden md:flex absolute right-3 lg:right-5 top-1/2 -translate-y-1/2 z-30 glass h-11 w-11 lg:h-14 lg:w-14 items-center justify-center rounded-full text-white/60 hover:text-white transition-all hover:scale-105 active:scale-95 cursor-pointer"
               aria-label="Next ad"
             >
               <ChevronRight className="h-5 w-5 lg:h-6 lg:w-6" />
-            </motion.button>
+            </button>
           </>
         )}
 
         {/* ── Slider indicators ── */}
         {hasMultipleAds && (
-          <div className="absolute bottom-5 sm:bottom-7 md:bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5">
+          <div className="absolute bottom-5 sm:bottom-7 md:bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2.5">
             {visibleAds.map((ad, index) => (
               <button
                 key={ad.id}
                 onClick={() => goToSlide(index)}
                 aria-label={`Go to ad ${index + 1}`}
                 aria-current={index === currentIndex ? 'true' : undefined}
-                className="relative h-[6px] overflow-hidden rounded-full transition-all duration-300 cursor-pointer"
-              >
-                {index === currentIndex ? (
-                  <motion.div
-                    layoutId="hero-ads-dot"
-                    className="h-full rounded-full bg-[#ff1e1e] shadow-[0_0_8px_rgba(255,30,30,0.5)]"
-                    initial={false}
-                    animate={{ width: 36 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  />
-                ) : (
-                  <div className="h-full w-[6px] rounded-full bg-white/25 hover:bg-white/50 transition-colors duration-200" />
-                )}
-              </button>
+                className="relative h-[6px] rounded-full transition-all duration-300 cursor-pointer overflow-hidden"
+                style={{
+                  width: index === safeIndex ? 36 : 6,
+                  background: index === safeIndex ? '#ff1e1e' : 'rgba(255, 255, 255, 0.25)',
+                  boxShadow: index === safeIndex ? '0 0 8px rgba(255,30,30,0.5)' : 'none',
+                }}
+              />
             ))}
           </div>
         )}
 
         {/* ── Bottom fade-to-content gradient ── */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#050505] to-transparent z-10 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#050505] to-transparent z-20 pointer-events-none" />
 
         {/* ── Hover red glow on edges ── */}
         {isHovering && (
           <>
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-[#ff1e1e]/20 to-transparent z-20 pointer-events-none" />
-            <div className="absolute right-0 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-[#ff1e1e]/20 to-transparent z-20 pointer-events-none" />
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-[#ff1e1e]/20 to-transparent z-30 pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-[#ff1e1e]/20 to-transparent z-30 pointer-events-none" />
           </>
         )}
       </div>

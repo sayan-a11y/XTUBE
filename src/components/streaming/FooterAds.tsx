@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { motion } from 'framer-motion'
+import { useCallback, useEffect, useRef, useState, memo } from 'react'
+import Hls from 'hls.js'
 import { Megaphone, Volume2, VolumeX } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -25,7 +25,6 @@ interface FooterAdsProps {
 export function FooterAds({ ads }: FooterAdsProps) {
   const ad = ads?.[0] ?? null
 
-  // ── Empty State ──────────────────────────────────────────────────────────
   if (!ad) {
     return (
       <div className="w-full px-0 sm:px-6 lg:px-8 pb-4">
@@ -52,14 +51,120 @@ export function FooterAds({ ads }: FooterAdsProps) {
   return <FooterAdCard ad={ad} />
 }
 
+// ─── Optimized HLS Video Component ──────────────────────────────────────────
+
+interface HlsAdPlayerProps {
+  adId: string
+  mediaUrl: string
+  poster?: string
+  isMuted: boolean
+  isAmbient?: boolean
+}
+
+const HlsAdPlayer = memo(function HlsAdPlayer({
+  adId,
+  mediaUrl,
+  poster,
+  isMuted,
+  isAmbient = false,
+}: HlsAdPlayerProps) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const hlsRef = useRef<Hls | null>(null)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const hlsUrl = `/api/streaming/hls/ad/${adId}?type=master`
+    let hls: Hls | null = null
+
+    if (Hls.isSupported()) {
+      hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+        maxBufferLength: 6,           // Very short buffer for lightweight footers
+        maxMaxBufferLength: 10,
+        backBufferLength: 3,
+        maxBufferSize: 4 * 1024 * 1024, // Tiny 4MB limit to safeguard memory on low-end iPads
+        startLevel: -1,               // Adaptive streaming quality
+        capLevelToPlayerSize: true,    // cap based on layout size
+        startFragPrefetch: true,
+      })
+      hls.loadSource(hlsUrl)
+      hls.attachMedia(video)
+      hlsRef.current = hls
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        setLoaded(true)
+      })
+
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              hls?.startLoad()
+              break
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              hls?.recoverMediaError()
+              break
+            default:
+              hls?.destroy()
+              break
+          }
+        }
+      })
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = hlsUrl
+      video.onloadeddata = () => setLoaded(true)
+    } else {
+      video.src = mediaUrl
+      video.onloadeddata = () => setLoaded(true)
+    }
+
+    return () => {
+      if (hls) {
+        hls.destroy()
+        hlsRef.current = null
+      }
+      if (video) {
+        video.pause()
+        video.removeAttribute('src')
+        video.load()
+      }
+      setLoaded(false)
+    }
+  }, [adId, mediaUrl])
+
+  // Sync mute state
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    video.muted = isMuted
+  }, [isMuted])
+
+  return (
+    <video
+      ref={videoRef}
+      poster={poster}
+      autoPlay
+      loop
+      playsInline
+      className={`w-full h-full object-cover transition-opacity duration-500 ${
+        isAmbient ? 'blur-3xl scale-125 opacity-15' : loaded ? 'opacity-100' : 'opacity-0'
+      }`}
+      style={{ willChange: isAmbient ? 'auto' : 'opacity, transform' }}
+    />
+  )
+})
+
 // ─── Ad Card ─────────────────────────────────────────────────────────────────
 
 function FooterAdCard({ ad }: { ad: FooterAdItem }) {
   const [isMuted, setIsMuted] = useState(true)
-  const videoRef = useRef<HTMLVideoElement>(null)
   const impressionFired = useRef(false)
 
-  // ── Impression tracking (fire once) ─────────────────────────────────────
+  // ── Impression tracking ──────────────────────────────────────────────────
   useEffect(() => {
     if (impressionFired.current) return
     impressionFired.current = true
@@ -68,9 +173,7 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: ad.id, incrementImpressions: true }),
-    }).catch(() => {
-      // Silently fail — ad tracking should not break the UI
-    })
+    }).catch(() => {})
   }, [ad.id])
 
   // ── Click tracking ──────────────────────────────────────────────────────
@@ -79,38 +182,23 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: ad.id, incrementClicks: true }),
-    }).catch(() => {
-      // Silently fail
-    })
+    }).catch(() => {})
 
     if (ad.linkUrl) {
       window.open(ad.linkUrl, '_blank', 'noopener,noreferrer')
     }
   }, [ad.id, ad.linkUrl])
 
-  // ── Video controls ──────────────────────────────────────────────────────
-  const toggleMute = useCallback(() => {
-    if (videoRef.current) {
-      videoRef.current.muted = !videoRef.current.muted
-      setIsMuted(videoRef.current.muted)
-    }
-  }, [])
-
   // ── Media renderer ──────────────────────────────────────────────────────
   const renderMedia = () => {
     switch (ad.adType) {
       case 'video':
         return (
-          <video
-            ref={videoRef}
-            src={ad.mediaUrl}
+          <HlsAdPlayer
+            adId={ad.id}
+            mediaUrl={ad.mediaUrl}
             poster={ad.thumbnailUrl}
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="w-full h-full object-cover will-change-transform transition-opacity duration-500"
-            preload="auto"
+            isMuted={isMuted}
           />
         )
 
@@ -144,15 +232,7 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
 
   return (
     <div className="w-full px-0 sm:px-6 lg:px-8 pb-4">
-      <motion.div
-        initial={{ opacity: 0, y: 30, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ type: 'spring', stiffness: 240, damping: 24 }}
-        whileHover={{ 
-          scale: 1.01,
-          boxShadow: '0 0 45px rgba(229,9,20,0.22)', 
-          borderColor: 'rgba(229,9,20,0.4)' 
-        }}
+      <div
         onClick={ad.adType !== 'html5' ? handleClick : undefined}
         className={`
           relative
@@ -166,18 +246,17 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
           ${ad.adType !== 'html5' && ad.linkUrl ? 'cursor-pointer' : ''}
           will-change-transform
           transition-all duration-300
+          hover:scale-[1.01] hover:shadow-[0_0_45px_rgba(229,9,20,0.22)] hover:border-[#e50914]/40
         `}
       >
         {/* Background ambient blurring glow (disabled on mobile/tablet to eliminate performance lag) */}
         {ad.adType === 'video' ? (
-          <div className="hidden md:block absolute inset-0 z-0 select-none pointer-events-none overflow-hidden opacity-15">
-            <video
-              src={ad.mediaUrl}
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="w-full h-full object-cover blur-3xl scale-125"
+          <div className="hidden md:block absolute inset-0 z-0 select-none pointer-events-none overflow-hidden">
+            <HlsAdPlayer
+              adId={ad.id}
+              mediaUrl={ad.mediaUrl}
+              isMuted={true}
+              isAmbient={true}
             />
           </div>
         ) : ad.adType === 'image' || ad.adType === 'gif' ? (
@@ -190,7 +269,7 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
           </div>
         ) : null}
 
-        {/* Cinematic Linear Gradient overlays to shield text legibility and create cinematic depth */}
+        {/* Cinematic Linear Gradient overlays */}
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/50 to-transparent z-10 pointer-events-none" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10 z-10 pointer-events-none" />
 
@@ -199,7 +278,7 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
           {renderMedia()}
         </div>
 
-        {/* Left cinematic billboard-style text details card overlay */}
+        {/* Left cinematic billboard-style details */}
         <div className="absolute inset-y-0 left-0 z-20 flex flex-col justify-center px-6 sm:px-8 md:px-10 lg:px-12 max-w-[70%] sm:max-w-[55%] pointer-events-none select-none">
           <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
             <span className="bg-[#e50914] text-white text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded shadow-[0_0_10px_rgba(229,9,20,0.5)] tracking-wider uppercase font-sans">
@@ -227,9 +306,9 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
             type="button"
             onClick={(e) => {
               e.stopPropagation()
-              toggleMute()
+              setIsMuted((prev) => !prev)
             }}
-            className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-30 flex items-center justify-center h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-black/70 hover:bg-black/95 border border-white/10 text-white/70 hover:text-white transition-all hover:scale-105 active:scale-95 backdrop-blur-md shadow-lg"
+            className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-30 flex items-center justify-center h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-black/70 hover:bg-black/95 border border-white/10 text-white/70 hover:text-white transition-all hover:scale-105 active:scale-95 backdrop-blur-md shadow-lg cursor-pointer"
             aria-label={isMuted ? 'Unmute ad video' : 'Mute ad video'}
           >
             {isMuted ? (
@@ -239,7 +318,7 @@ function FooterAdCard({ ad }: { ad: FooterAdItem }) {
             )}
           </button>
         )}
-      </motion.div>
+      </div>
     </div>
   )
 }

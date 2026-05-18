@@ -404,29 +404,33 @@ export function XtubeHomeClient({
         }))
     : []
 
-  // ─── Prepare hero ads for slider ──────────────────────────────────────────
+  // ─── Prepare hero ads for slider (memoized to prevent re-renders) ──────────
 
-  const heroAdsSliderData = heroAds.map((ad) => ({
-    id: ad.id,
-    title: ad.title,
-    description: ad.description || undefined,
-    category: ad.category || undefined,
-    mediaUrl: ad.mediaUrl,
-    thumbnailUrl: ad.thumbnailUrl || undefined,
-    adType: ad.adType as 'image' | 'video',
-    mediaFormat: ad.mediaFormat,
-  }))
+  const heroAdsSliderData = useMemo(() => {
+    return heroAds.map((ad) => ({
+      id: ad.id,
+      title: ad.title,
+      description: ad.description || undefined,
+      category: ad.category || undefined,
+      mediaUrl: ad.mediaUrl,
+      thumbnailUrl: ad.thumbnailUrl || undefined,
+      adType: ad.adType as 'image' | 'video',
+      mediaFormat: ad.mediaFormat,
+    }))
+  }, [heroAds])
 
-  // Prepare footer ads data
-  const footerAdsData = footerAds.map((ad) => ({
-    id: ad.id,
-    title: ad.title,
-    mediaUrl: ad.mediaUrl,
-    thumbnailUrl: ad.thumbnailUrl || undefined,
-    adType: ad.adType as 'image' | 'video' | 'gif' | 'html5',
-    mediaFormat: ad.mediaFormat,
-    linkUrl: ad.linkUrl || undefined,
-  }))
+  // Prepare footer ads data (memoized to prevent re-renders)
+  const footerAdsData = useMemo(() => {
+    return footerAds.map((ad) => ({
+      id: ad.id,
+      title: ad.title,
+      mediaUrl: ad.mediaUrl,
+      thumbnailUrl: ad.thumbnailUrl || undefined,
+      adType: ad.adType as 'image' | 'video' | 'gif' | 'html5',
+      mediaFormat: ad.mediaFormat,
+      linkUrl: ad.linkUrl || undefined,
+    }))
+  }, [footerAds])
 
   // ─── Get videos for specific category ──────────────────────────────────────
 

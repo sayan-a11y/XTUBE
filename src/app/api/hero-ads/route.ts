@@ -28,7 +28,13 @@ export async function GET(request: NextRequest) {
         ],
       })
 
-      return NextResponse.json({ heroAds })
+      return new NextResponse(JSON.stringify({ heroAds }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=15, s-maxage=30, stale-while-revalidate=15',
+        },
+      })
     }
 
     // Admin panel: fetch all hero ads
