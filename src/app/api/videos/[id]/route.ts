@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { broadcastRealtimeEvent } from '@/lib/realtime'
-import { deleteObject } from '@/lib/storage/r2-client'
+import { deleteObject, getSignedUrl, getProvider } from '@/lib/storage/r2-client'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -23,6 +23,25 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Video not found' }, { status: 404 })
     }
 
+    // Sign URLs if needed
+    let playUrl = video.videoUrl
+    let thumbUrl = video.thumbnail
+    const provider = getProvider()
+    const publicUrl = process.env.R2_PUBLIC_URL || ''
+
+    if (provider === 'r2') {
+      if (playUrl && playUrl.startsWith(publicUrl)) {
+        const key = playUrl.replace(publicUrl, '').replace(/^\//, '')
+        const signed = await getSignedUrl(key, 3600)
+        playUrl = signed.url
+      }
+      if (thumbUrl && thumbUrl.startsWith(publicUrl)) {
+        const key = thumbUrl.replace(publicUrl, '').replace(/^\//, '')
+        const signed = await getSignedUrl(key, 3600)
+        thumbUrl = signed.url
+      }
+    }
+
     // Increment views in background
     db.video.update({
       where: { id },
@@ -38,7 +57,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
     }).catch((err) => console.error('Failed to create analytics:', err))
 
-    return NextResponse.json({ video: { ...video, views: video.views + 1 } })
+    return NextResponse.json({ video: { ...video, videoUrl: playUrl, thumbnail: thumbUrl, views: video.views + 1 } })
   } catch (error) {
     console.error('Error fetching video:', error)
     return NextResponse.json({ error: 'Failed to fetch video' }, { status: 500 })

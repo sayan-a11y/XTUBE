@@ -1,6 +1,33 @@
 import { db } from '@/lib/db'
 import { broadcastRealtimeEvent } from '@/lib/realtime'
 import { NextRequest, NextResponse } from 'next/server'
+import { getSignedUrl, getProvider } from '@/lib/storage/r2-client'
+
+async function signHeroAds(ads: any[]) {
+  const provider = getProvider()
+  if (provider !== 'r2') return ads
+
+  const publicUrl = process.env.R2_PUBLIC_URL || ''
+  
+  return Promise.all(ads.map(async (ad) => {
+    let mediaUrl = ad.mediaUrl
+    let thumbnailUrl = ad.thumbnailUrl
+
+    if (mediaUrl && mediaUrl.startsWith(publicUrl)) {
+      const key = mediaUrl.replace(publicUrl, '').replace(/^\//, '')
+      const signed = await getSignedUrl(key, 3600)
+      mediaUrl = signed.url
+    }
+    
+    if (thumbnailUrl && thumbnailUrl.startsWith(publicUrl)) {
+      const key = thumbnailUrl.replace(publicUrl, '').replace(/^\//, '')
+      const signed = await getSignedUrl(key, 3600)
+      thumbnailUrl = signed.url
+    }
+
+    return { ...ad, mediaUrl, thumbnailUrl }
+  }))
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -30,7 +57,9 @@ export async function GET(request: NextRequest) {
         ],
       })
 
-      return new NextResponse(JSON.stringify({ heroAds }), {
+      const signedAds = await signHeroAds(heroAds)
+
+      return new NextResponse(JSON.stringify({ heroAds: signedAds }), {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
@@ -47,7 +76,9 @@ export async function GET(request: NextRequest) {
       ],
     })
 
-    return NextResponse.json({ heroAds })
+    const signedAds = await signHeroAds(heroAds)
+
+    return NextResponse.json({ heroAds: signedAds })
   } catch (error) {
     console.error('Error fetching hero ads:', error)
     return NextResponse.json(

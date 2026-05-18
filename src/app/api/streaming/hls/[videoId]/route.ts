@@ -8,6 +8,7 @@ import {
   parseQualityLevels,
   type QualityName,
 } from '@/lib/streaming/hls-engine'
+import { getSignedUrl, getProvider } from '@/lib/storage/r2-client'
 
 // ─── GET /api/streaming/hls/[videoId] ────────────────────────────────────────
 // Serves HLS manifest and segment files based on query parameters:
@@ -174,8 +175,28 @@ export async function GET(
 
       // For pseudo-HLS, the "segment" is just the raw MP4 file
       if (!video.hlsUrl && index === 0) {
-        // Redirect to the raw video URL
-        return NextResponse.redirect(video.videoUrl)
+        let playUrl = video.videoUrl
+        
+        // Extract key if it's an R2 URL
+        let videoKey = ''
+        const publicUrl = process.env.R2_PUBLIC_URL || ''
+        if (playUrl.startsWith(publicUrl)) {
+          videoKey = playUrl.replace(publicUrl, '').replace(/^\//, '')
+        } else if (playUrl.startsWith('/')) {
+          videoKey = playUrl.replace(/^\//, '')
+        }
+
+        if (videoKey && getProvider() === 'r2') {
+          try {
+            const signed = await getSignedUrl(videoKey, 3600)
+            playUrl = signed.url
+          } catch (err) {
+            console.error('Failed to sign URL:', err)
+          }
+        }
+
+        // Redirect to the raw video URL (signed if needed)
+        return NextResponse.redirect(playUrl)
       }
 
       // For real HLS with segments, we would proxy the actual segment.
