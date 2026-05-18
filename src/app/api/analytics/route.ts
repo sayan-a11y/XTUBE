@@ -3,7 +3,22 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
+let cachedResponse: string | null = null
+let cacheTime = 0
+const CACHE_TTL = 15 * 1000 // 15 seconds
+
 export async function GET() {
+  const now = Date.now()
+  if (cachedResponse && (now - cacheTime < CACHE_TTL)) {
+    return new NextResponse(cachedResponse, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=5, stale-while-revalidate=10',
+      },
+    })
+  }
+
   try {
     // Get overall stats in parallel for max performance
     const [
@@ -60,7 +75,7 @@ export async function GET() {
       return acc
     }, {})
 
-    return new NextResponse(JSON.stringify({
+    const responseData = {
       totalVideos,
       totalViews: totalViews._sum.views || 0,
       totalClicks: adStats._sum.clicks || 0,
@@ -76,11 +91,16 @@ export async function GET() {
         count: c._count?._all || 0,
         views: c._sum?.views || 0,
       })),
-    }), {
+    }
+
+    cachedResponse = JSON.stringify(responseData)
+    cacheTime = now
+
+    return new NextResponse(cachedResponse, {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Cache-Control': 'public, max-age=5, stale-while-revalidate=10',
       },
     })
   } catch (error) {
@@ -88,3 +108,4 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to fetch analytics' }, { status: 500 })
   }
 }
+

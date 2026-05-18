@@ -504,28 +504,37 @@ export function AdminPanel() {
   const [dataLoading, setDataLoading] = useState(true)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
 
-  const fetchAdminData = useCallback(async () => {
-    if (isInitialLoad) {
-      setDataLoading(true)
-    }
+  const fetchAnalytics = useCallback(async () => {
     try {
-      const [analyticsRes, videosRes, adsRes, heroRes, footerRes] = await Promise.all([
-        fetch('/api/analytics', { cache: 'no-store' }),
-        fetch('/api/videos?admin=true&limit=100', { cache: 'no-store' }),
+      const res = await fetch('/api/analytics', { cache: 'no-store' })
+      if (res.ok) {
+        const analyticsData = await res.json()
+        setDashboardData(analyticsData)
+      }
+    } catch (err) {
+      console.error('Error fetching analytics:', err)
+    }
+  }, [])
+
+  const fetchVideos = useCallback(async () => {
+    try {
+      const res = await fetch('/api/videos?admin=true&limit=100', { cache: 'no-store' })
+      if (res.ok) {
+        const videosData = await res.json()
+        setAdminVideos(videosData.videos || [])
+      }
+    } catch (err) {
+      console.error('Error fetching videos:', err)
+    }
+  }, [])
+
+  const fetchAds = useCallback(async () => {
+    try {
+      const [adsRes, heroRes, footerRes] = await Promise.all([
         fetch('/api/ads?admin=true&limit=200', { cache: 'no-store' }),
         fetch('/api/hero-ads', { cache: 'no-store' }).catch(() => null),
         fetch('/api/footer-ads', { cache: 'no-store' }).catch(() => null),
       ])
-
-      if (analyticsRes.ok) {
-        const analyticsData = await analyticsRes.json()
-        setDashboardData(analyticsData)
-      }
-
-      if (videosRes.ok) {
-        const videosData = await videosRes.json()
-        setAdminVideos(videosData.videos || [])
-      }
 
       if (adsRes.ok) {
         const adsData = await adsRes.json()
@@ -574,12 +583,28 @@ export function AdminPanel() {
         setAdminAds(combined)
       }
     } catch (err) {
+      console.error('Error fetching ads:', err)
+    }
+  }, [])
+
+  const fetchAdminData = useCallback(async () => {
+    if (isInitialLoad) {
+      setDataLoading(true)
+    }
+    try {
+      await Promise.all([
+        fetchAnalytics(),
+        fetchVideos(),
+        fetchAds()
+      ])
+    } catch (err) {
       console.error('Error fetching admin data:', err)
     } finally {
       setDataLoading(false)
       setIsInitialLoad(false)
     }
-  }, [isInitialLoad])
+  }, [fetchAnalytics, fetchVideos, fetchAds, isInitialLoad])
+
 
   useEffect(() => {
     if (adminUnlocked) {
@@ -643,14 +668,37 @@ export function AdminPanel() {
     
     // Ignore Ad impressions (which is an update to Ad table without changing admin-critical fields like title/status)
     if (type?.toLowerCase() === 'ad:update' && data?.impressions) {
-       // Still refetch, but heavily debounced to avoid layout thrashing
+       // Still refetch, but heavily debounced or skipped if we don't care about live impression counts in list view
     }
 
     if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current)
     fetchTimeoutRef.current = setTimeout(() => {
-      fetchAdminData()
+      const typeLower = type?.toLowerCase() || ''
+      if (typeLower.startsWith('video')) {
+        fetchVideos()
+      } else if (
+        typeLower.startsWith('ad:') ||
+        typeLower.startsWith('heroad:') ||
+        typeLower.startsWith('hero_ad:') ||
+        typeLower.startsWith('footerad:') ||
+        typeLower.startsWith('footer_ad:')
+      ) {
+        fetchAds()
+      } else {
+        // Fallback or specific sections
+        if (adminSection === 'dashboard') {
+          fetchAnalytics()
+          fetchVideos()
+          fetchAds()
+        } else if (adminSection === 'analytics') {
+          fetchAnalytics()
+        } else if (adminSection === 'all-videos') {
+          fetchVideos()
+        }
+      }
     }, 2000) // 2-second debounce for realtime updates to prevent "barbar refresh"
-  }, [fetchAdminData]))
+  }, [fetchVideos, fetchAds, fetchAnalytics, adminSection]))
+
 
   // ─── Video Handlers ─────────────────────────────────────────────────────
 

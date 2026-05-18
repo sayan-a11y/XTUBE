@@ -1,6 +1,8 @@
 'use client'
 
+import { useMemo } from 'react'
 import { motion } from 'framer-motion'
+
 import {
   Eye,
   Users,
@@ -179,15 +181,16 @@ export function AnalyticsPage({ data, loading }: AnalyticsPageProps) {
     return <LoadingSkeleton />
   }
 
-  const trafficData = generateTrafficData(data.viewsGraph)
-  const userGrowthData = generateUserGrowthData()
-  const adPerfData = generateAdPerformanceData()
-  const geoData = generateGeoData()
+  const trafficData = useMemo(() => generateTrafficData(data.viewsGraph), [data.viewsGraph])
+  const userGrowthData = useMemo(() => generateUserGrowthData(), [])
+  const adPerfData = useMemo(() => generateAdPerformanceData(), [])
+  const geoData = useMemo(() => generateGeoData(), [])
 
-  const deviceData = Object.entries(data.deviceBreakdown).map(([name, value]) => ({
+  const deviceData = useMemo(() => Object.entries(data.deviceBreakdown).map(([name, value]) => ({
     name,
     value,
-  }))
+  })), [data.deviceBreakdown])
+
 
   const topMetrics = [
     { title: 'Page Views', value: formatNumber(data.totalViews * 2.4), icon: Eye, change: 12.3 },

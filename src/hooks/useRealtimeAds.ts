@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { useRealtimeSync } from '@/hooks/useRealtimeSync'
+
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -308,58 +310,21 @@ export function useRealtimeAds(filters?: AdsFilterOptions) {
     fetchTimeoutRef.current = setTimeout(() => fetchAds(), 2000)
   }, [fetchAds])
 
-  // ─── Supabase realtime channels for all three tables ───────────────────
+  // ─── Realtime Sync via global listener ───────────────────────────────────
 
-  useEffect(() => {
-    if (!isSupabaseConfigured() || !supabase) return
-
-    const channel = supabase
-      .channel('admin-ads-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'Ad' },
-        () => {
-          debouncedFetchAds()
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'HeroAd' },
-        () => {
-          debouncedFetchAds()
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'FooterAd' },
-        () => {
-          debouncedFetchAds()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase?.removeChannel(channel)
+  useRealtimeSync(useCallback((type, data) => {
+    const typeLower = type.toLowerCase()
+    if (
+      typeLower.startsWith('ad:') ||
+      typeLower.startsWith('heroad:') ||
+      typeLower.startsWith('hero_ad:') ||
+      typeLower.startsWith('footerad:') ||
+      typeLower.startsWith('footer_ad:')
+    ) {
+      debouncedFetchAds()
     }
-  }, [debouncedFetchAds])
+  }, [debouncedFetchAds]))
 
-  // ─── SSE realtime listener ────────────────────────────────────────────
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail
-      const typeLower = detail?.type?.toLowerCase() || ''
-      if (
-        typeLower.startsWith('ad:') ||
-        typeLower.startsWith('hero_ad:') ||
-        typeLower.startsWith('footer_ad:')
-      ) {
-        debouncedFetchAds()
-      }
-    }
-    window.addEventListener('realtime-sync', handler)
-    return () => window.removeEventListener('realtime-sync', handler)
-  }, [debouncedFetchAds])
 
   return { ads, loading, error, stats, pagination, fetchAds, deleteAd, toggleAdStatus }
 }

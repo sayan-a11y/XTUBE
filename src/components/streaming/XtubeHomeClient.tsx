@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+
 import { motion, AnimatePresence } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { useAppStore } from '@/lib/store'
@@ -277,23 +278,32 @@ export function XtubeHomeClient({
   }, [])
 
   // ─── Realtime Synchronization Hook ──────────────────────────────────────────
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
   useRealtimeSync(useCallback((type, data) => {
     console.log(`Realtime sync event received: ${type}`, data)
-    const lowerType = type.toLowerCase()
-    if (lowerType.startsWith('video:') || lowerType.includes('video:')) {
-      fetchVideos()
-    } else if (lowerType.startsWith('category:') || lowerType.includes('category:')) {
-      fetchCategories()
-    } else if (
-      lowerType.startsWith('ad:') || lowerType.includes('ad:') ||
-      lowerType.startsWith('hero_ad:') || lowerType.includes('hero_ad:') ||
-      lowerType.startsWith('footer_ad:') || lowerType.includes('footer_ad:')
-    ) {
-      fetchAds()
-      fetchHeroAds()
-      fetchFooterAds()
-    }
+    const lowerType = type?.toLowerCase() || ''
+    
+    if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current)
+    
+    fetchTimeoutRef.current = setTimeout(() => {
+      if (lowerType.startsWith('video:') || lowerType.includes('video:')) {
+        fetchVideos()
+      } else if (lowerType.startsWith('category:') || lowerType.includes('category:')) {
+        fetchCategories()
+      } else if (
+        lowerType.startsWith('ad:') || lowerType.includes('ad:') ||
+        lowerType.startsWith('hero_ad:') || lowerType.includes('hero_ad:') ||
+        lowerType.startsWith('footer_ad:') || lowerType.includes('footer_ad:') ||
+        lowerType.startsWith('heroad:') || lowerType.startsWith('footerad:')
+      ) {
+        fetchAds()
+        fetchHeroAds()
+        fetchFooterAds()
+      }
+    }, 2000) // 2-second debounce for realtime updates
   }, [fetchVideos, fetchCategories, fetchAds, fetchHeroAds, fetchFooterAds]))
+
 
   // ─── Seed Database (Non-blocking background check) ─────────────────────────
   useEffect(() => {
