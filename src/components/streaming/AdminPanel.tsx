@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react'
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard,
