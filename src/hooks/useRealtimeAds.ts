@@ -301,6 +301,13 @@ export function useRealtimeAds(filters?: AdsFilterOptions) {
     fetchAds()
   }, [fetchAds])
 
+  // ─── Debounced Fetch for Realtime Events ──────────────────────────────
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const debouncedFetchAds = useCallback(() => {
+    if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current)
+    fetchTimeoutRef.current = setTimeout(() => fetchAds(), 2000)
+  }, [fetchAds])
+
   // ─── Supabase realtime channels for all three tables ───────────────────
 
   useEffect(() => {
@@ -312,21 +319,21 @@ export function useRealtimeAds(filters?: AdsFilterOptions) {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'Ad' },
         () => {
-          fetchAds()
+          debouncedFetchAds()
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'HeroAd' },
         () => {
-          fetchAds()
+          debouncedFetchAds()
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'FooterAd' },
         () => {
-          fetchAds()
+          debouncedFetchAds()
         }
       )
       .subscribe()
@@ -334,7 +341,7 @@ export function useRealtimeAds(filters?: AdsFilterOptions) {
     return () => {
       supabase?.removeChannel(channel)
     }
-  }, [fetchAds])
+  }, [debouncedFetchAds])
 
   // ─── SSE realtime listener ────────────────────────────────────────────
 
@@ -347,12 +354,12 @@ export function useRealtimeAds(filters?: AdsFilterOptions) {
         typeLower.startsWith('hero_ad:') ||
         typeLower.startsWith('footer_ad:')
       ) {
-        fetchAds()
+        debouncedFetchAds()
       }
     }
     window.addEventListener('realtime-sync', handler)
     return () => window.removeEventListener('realtime-sync', handler)
-  }, [fetchAds])
+  }, [debouncedFetchAds])
 
   return { ads, loading, error, stats, pagination, fetchAds, deleteAd, toggleAdStatus }
 }

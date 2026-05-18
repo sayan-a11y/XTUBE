@@ -78,8 +78,15 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ error: 'Video not found' }, { status: 404 })
     }
 
-    // 2. Delete the record from Supabase database
-    await db.video.delete({ where: { id } })
+    // 2. Delete related records to satisfy Foreign Key constraints
+    await db.$transaction([
+      db.comment.deleteMany({ where: { videoId: id } }),
+      db.bookmark.deleteMany({ where: { videoId: id } }),
+      db.history.deleteMany({ where: { videoId: id } }),
+      db.watchProgress.deleteMany({ where: { videoId: id } }),
+      db.videoAd.deleteMany({ where: { videoId: id } }),
+      db.video.delete({ where: { id } }),
+    ])
 
     // 3. Delete files from Cloudflare R2 / Local Storage automatically
     const publicUrl = process.env.R2_PUBLIC_URL || ''

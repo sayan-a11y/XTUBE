@@ -635,8 +635,21 @@ export function AdminPanel() {
   }, [adminUnlocked, adminLoggedIn])
 
   // Enable dynamic automatic Server-Sent Events (SSE) database sync in real-time
-  useRealtimeSync(useCallback(() => {
-    fetchAdminData()
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  useRealtimeSync(useCallback((type, data) => {
+    // Filter out high-frequency user events that don't need instant admin refresh
+    const ignoreTypes = ['watchprogress:update', 'watchprogress:insert', 'history:update', 'history:insert', 'analytics:update']
+    if (type && ignoreTypes.includes(type.toLowerCase())) return
+    
+    // Ignore Ad impressions (which is an update to Ad table without changing admin-critical fields like title/status)
+    if (type?.toLowerCase() === 'ad:update' && data?.impressions) {
+       // Still refetch, but heavily debounced to avoid layout thrashing
+    }
+
+    if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current)
+    fetchTimeoutRef.current = setTimeout(() => {
+      fetchAdminData()
+    }, 2000) // 2-second debounce for realtime updates to prevent "barbar refresh"
   }, [fetchAdminData]))
 
   // ─── Video Handlers ─────────────────────────────────────────────────────
