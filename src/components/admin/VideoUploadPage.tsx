@@ -163,7 +163,7 @@ export function VideoUploadPage() {
   }, [fetchDbCategories])
 
   useRealtimeSync(useCallback((type) => {
-    if (type.startsWith('category:') || type.includes('category:')) {
+    if (type.toLowerCase().startsWith('category:') || type.toLowerCase().includes('category:')) {
       fetchDbCategories()
     }
   }, [fetchDbCategories]))

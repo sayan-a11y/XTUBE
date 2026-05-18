@@ -247,14 +247,15 @@ export function XtubeHomeClient({
   // ─── Realtime Synchronization Hook ──────────────────────────────────────────
   useRealtimeSync(useCallback((type, data) => {
     console.log(`Realtime sync event received: ${type}`, data)
-    if (type.startsWith('video:') || type.includes('video:')) {
+    const lowerType = type.toLowerCase()
+    if (lowerType.startsWith('video:') || lowerType.includes('video:')) {
       fetchVideos()
-    } else if (type.startsWith('category:') || type.includes('category:')) {
+    } else if (lowerType.startsWith('category:') || lowerType.includes('category:')) {
       fetchCategories()
     } else if (
-      type.startsWith('ad:') || type.includes('ad:') ||
-      type.startsWith('hero_ad:') || type.includes('hero_ad:') ||
-      type.startsWith('footer_ad:') || type.includes('footer_ad:')
+      lowerType.startsWith('ad:') || lowerType.includes('ad:') ||
+      lowerType.startsWith('hero_ad:') || lowerType.includes('hero_ad:') ||
+      lowerType.startsWith('footer_ad:') || lowerType.includes('footer_ad:')
     ) {
       fetchAds()
       fetchHeroAds()
